@@ -21,6 +21,11 @@ function s3(): { client: AwsClient; base: string } | null {
 	return { client, base: `${endpoint.protocol}//${S3_BUCKET}.${endpoint.host}` };
 }
 
+/** Vrai si un bucket S3 est configuré ; sinon les fichiers vont dans .data/ sur le disque du service. */
+export function remoteStorageConfigured(): boolean {
+	return s3() !== null;
+}
+
 function localPath(key: string): string {
 	const resolved = path.resolve(LOCAL_DIR, key);
 	if (!resolved.startsWith(LOCAL_DIR + path.sep)) throw new Error('Clé de stockage invalide');

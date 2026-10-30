@@ -57,6 +57,21 @@ interface PushPayload {
 	title?: string;
 	body?: string;
 	url?: string;
+	/** Nombre de tâches dues : pastille rouge sur l'icône (PWA installée, iOS 16.4+). */
+	badge?: number;
+}
+
+type BadgeNavigator = { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+
+async function updateBadge(count: unknown): Promise<void> {
+	if (typeof count !== 'number' || !Number.isFinite(count)) return;
+	const nav = sw.navigator as unknown as BadgeNavigator;
+	try {
+		if (count > 0) await nav.setAppBadge?.(Math.round(count));
+		else await nav.clearAppBadge?.();
+	} catch {
+		// Pastille indisponible : la notification reste affichée.
+	}
 }
 
 sw.addEventListener('push', (event) => {
@@ -68,12 +83,15 @@ sw.addEventListener('push', (event) => {
 	}
 	// iOS exige qu'une notification soit affichée à chaque push reçu.
 	event.waitUntil(
-		sw.registration.showNotification(data.title ?? 'Aquarium', {
-			body: data.body ?? '',
-			icon: '/pwa-192x192.png',
-			badge: '/pwa-64x64.png',
-			data: { url: data.url ?? '/' }
-		})
+		Promise.all([
+			sw.registration.showNotification(data.title ?? 'Aquarium', {
+				body: data.body ?? '',
+				icon: '/pwa-192x192.png',
+				badge: '/pwa-64x64.png',
+				data: { url: data.url ?? '/' }
+			}),
+			updateBadge(data.badge)
+		])
 	);
 });
 

@@ -54,7 +54,7 @@ export interface SendResult {
 	removed?: boolean;
 }
 
-export async function sendToAll(payload: { title: string; body: string; url?: string }): Promise<SendResult[]> {
+export async function sendToAll(payload: { title: string; body: string; url?: string; badge?: number }): Promise<SendResult[]> {
 	configure();
 	const { rows } = await db().query<{ id: string; endpoint: string; p256dh: string; auth: string }>(
 		'SELECT id, endpoint, p256dh, auth FROM push_subscriptions'

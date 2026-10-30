@@ -1,6 +1,8 @@
 import { localDb, type OutboxItem } from './db';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Completion, Measurement, Snapshot, SyncOp, Task } from '$lib/types';
+import { addDays, dayInParis } from '$lib/domain/dates';
+import { skipDue } from '$lib/domain/notifications';
+import type { BackupStatus, Completion, Measurement, NotificationSettings, Snapshot, SyncOp, Task } from '$lib/types';
 
 const SNAPSHOT_KEY = 'snapshot';
 
@@ -118,8 +120,12 @@ class AppStore {
 		void this.sync();
 	}
 
-	async addMeasurements(aquariumId: number, values: { parameterId: number; value: number }[]) {
-		const measuredAt = new Date().toISOString();
+	/** Mesures d'un bac ; measuredAt (ISO) par défaut maintenant, jamais plus de 5 min dans le futur. */
+	async addMeasurements(aquariumId: number, values: { parameterId: number; value: number }[], measuredAt?: string) {
+		const at = measuredAt ? new Date(measuredAt) : new Date();
+		if (Number.isNaN(at.getTime())) throw new Error('Date de mesure invalide.');
+		if (at.getTime() > Date.now() + 5 * 60 * 1000) throw new Error('La date de mesure est dans le futur.');
+		measuredAt = at.toISOString();
 		await this.#enqueue(
 			values.map((v) => ({
 				type: 'measurement' as const,
@@ -138,8 +144,83 @@ class AppStore {
 		]);
 	}
 
+	/** Corrige une mesure déjà envoyée (valeur et/ou date ISO). Réseau requis. */
+	async updateMeasurement(id: number, patch: { value?: number; measuredAt?: string }) {
+		await this.mutate('PATCH', `/api/measurements/${id}`, patch);
+	}
+
+	/** Supprime une mesure déjà envoyée. Réseau requis. */
+	async deleteMeasurement(id: number) {
+		await this.mutate('DELETE', `/api/measurements/${id}`);
+	}
+
+	/** Reporte une tâche : prochaine échéance = aujourd'hui + days. */
+	async postponeTask(taskId: number, days: number) {
+		await this.mutate('PATCH', `/api/tasks/${taskId}`, { nextDue: addDays(dayInParis(), days) });
+	}
+
+	/** « Ignorer cette fois » : un cycle plus loin, sans réalisation enregistrée. */
+	async skipTask(taskId: number) {
+		const task = this.snapshot?.tasks.find((t) => t.id === taskId);
+		if (!task) throw new Error('Tâche introuvable.');
+		await this.mutate('PATCH', `/api/tasks/${taskId}`, { nextDue: skipDue(task.nextDue, dayInParis(), task.everyDays, addDays) });
+	}
+
+	/** Nouvel ordre des paramètres d'un bac (tous ses ids) ; la vue change tout de suite. */
+	async reorderParameters(aquariumId: number, ids: number[]) {
+		const previous = this.snapshot;
+		if (previous) {
+			const rank = new Map(ids.map((id, i) => [id, i]));
+			const parameters = previous.parameters
+				.map((p) => (p.aquariumId === aquariumId && rank.has(p.id) ? { ...p, position: rank.get(p.id)! } : p))
+				.sort((a, b) => a.aquariumId - b.aquariumId || a.position - b.position || a.id - b.id);
+			this.snapshot = { ...previous, parameters };
+		}
+		try {
+			await this.mutate('PUT', `/api/aquariums/${aquariumId}/parameters/order`, { ids });
+		} catch (e) {
+			if (previous) this.snapshot = previous;
+			throw e;
+		}
+	}
+
+	async fetchNotificationSettings(): Promise<NotificationSettings> {
+		return (await this.#json('GET', '/api/settings/notifications')) as NotificationSettings;
+	}
+
+	async saveNotificationSettings(settings: NotificationSettings): Promise<NotificationSettings> {
+		return (await this.#json('PUT', '/api/settings/notifications', settings)) as NotificationSettings;
+	}
+
+	async fetchBackup(): Promise<BackupStatus> {
+		return (await this.#json('GET', '/api/settings/backup')) as BackupStatus;
+	}
+
+	/** Lance une sauvegarde tout de suite. */
+	async runBackup(): Promise<BackupStatus> {
+		return (await this.#json('POST', '/api/settings/backup')) as BackupStatus;
+	}
+
+	async #json(method: string, url: string, body?: unknown): Promise<unknown> {
+		if (!navigator.onLine) throw new Error('Connexion requise.');
+		const response = await fetch(url, {
+			method,
+			headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+			body: body === undefined ? undefined : JSON.stringify(body)
+		});
+		if (response.status === 401) {
+			location.href = '/login';
+			throw new Error('Session expirée');
+		}
+		if (!response.ok) {
+			const detail = await response.json().catch(() => null);
+			throw new Error(detail?.message ?? `Erreur ${response.status}`);
+		}
+		return response.json();
+	}
+
 	/** Modifications de configuration (aquariums, paramètres, tâches) : réseau requis. */
-	async mutate(method: 'POST' | 'PATCH' | 'DELETE', url: string, body?: unknown): Promise<Response> {
+	async mutate(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, body?: unknown): Promise<Response> {
 		if (!navigator.onLine) throw new Error('Connexion requise pour modifier la configuration.');
 		const response = await fetch(url, {
 			method,

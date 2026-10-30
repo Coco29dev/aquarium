@@ -13,6 +13,8 @@ export interface Aquarium {
 	waterType: WaterType;
 	volumeL: number | null;
 	startedOn: string | null; // YYYY-MM-DD
+	/** Photo de couverture (voir /api/photos/<id>), ou null. */
+	coverPhotoId: number | null;
 }
 
 export interface Parameter {
@@ -30,6 +32,8 @@ export interface Parameter {
 }
 
 export interface Measurement {
+	/** Présent pour les mesures venant du serveur ; absent des saisies encore en file d'envoi. */
+	id?: number;
 	parameterId: number;
 	aquariumId: number;
 	value: number;
@@ -137,4 +141,26 @@ export interface ConsumableRow {
 	unitPrice: number | null;
 	/** Dates (installation → remplacement) des remplacements passés. */
 	history: { installedOn: string; replacedOn: string }[];
+}
+
+/** Réglages des rappels (stockés côté serveur). */
+export interface NotificationSettings {
+	/** Heure du récapitulatif quotidien, 'HH:MM' (Europe/Paris). */
+	summaryTime: string;
+	/** Début et fin des heures de silence ('HH:MM'), ou null. */
+	quietStart: string | null;
+	quietEnd: string | null;
+	/** Bacs concernés ; null = tous. */
+	aquariumIds: number[] | null;
+	/** Sujet ntfy.sh de repli, ou null. */
+	ntfyTopic: string | null;
+}
+
+/** État de la sauvegarde hebdomadaire. */
+export interface BackupStatus {
+	lastBackupAt: string | null;
+	key: string | null;
+	bytes: number | null;
+	/** Stockage objet (bucket) configuré ; sinon la sauvegarde va sur le disque local du service. */
+	configured: boolean;
 }

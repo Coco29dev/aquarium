@@ -9,7 +9,8 @@ import type { Aquarium, Completion, ConsumableRow, Measurement, Parameter, Snaps
 
 const SNAPSHOT_DAYS = 120;
 
-const aquariumSql = `id, name, water_type AS "waterType", volume_l AS "volumeL", started_on AS "startedOn"`;
+const aquariumSql = `id, name, water_type AS "waterType", volume_l AS "volumeL", started_on AS "startedOn",
+	cover_photo_id AS "coverPhotoId"`;
 const parameterSql = `id, aquarium_id AS "aquariumId", key, name, unit, min_value AS "min", max_value AS "max",
 	drift_per_week AS "driftPerWeek", decimals, step, position`;
 const taskSql = `id, aquarium_id AS "aquariumId", title, kind, every_days AS "everyDays",
@@ -20,7 +21,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
 		db().query<Aquarium>(`SELECT ${aquariumSql} FROM aquariums ORDER BY id`),
 		db().query<Parameter>(`SELECT ${parameterSql} FROM parameter_defs ORDER BY aquarium_id, position, id`),
 		db().query<Measurement>(
-			`SELECT parameter_id AS "parameterId", aquarium_id AS "aquariumId", value,
+			`SELECT id, parameter_id AS "parameterId", aquarium_id AS "aquariumId", value,
 			        to_char(measured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "measuredAt"
 			 FROM measurements
 			 WHERE measured_at >= now() - ($1 || ' days')::interval
@@ -100,13 +101,22 @@ export async function createAquarium(input: {
 
 export async function updateAquarium(
 	id: number,
-	input: { name?: string; volumeL?: number | null; startedOn?: string | null }
+	input: { name?: string; volumeL?: number | null; startedOn?: string | null; coverPhotoId?: number | null }
 ): Promise<void> {
+	if (input.coverPhotoId != null) {
+		// La couverture doit être une photo de ce bac.
+		const { rowCount } = await db().query('SELECT 1 FROM photos WHERE id = $1 AND aquarium_id = $2', [
+			input.coverPhotoId,
+			id
+		]);
+		if (!rowCount) error(400, 'Photo introuvable pour ce bac');
+	}
 	const { rowCount } = await db().query(
 		`UPDATE aquariums SET
 			name = COALESCE($2, name),
 			volume_l = CASE WHEN $3::boolean THEN $4 ELSE volume_l END,
-			started_on = CASE WHEN $5::boolean THEN $6 ELSE started_on END
+			started_on = CASE WHEN $5::boolean THEN $6 ELSE started_on END,
+			cover_photo_id = CASE WHEN $7::boolean THEN $8 ELSE cover_photo_id END
 		 WHERE id = $1`,
 		[
 			id,
@@ -114,7 +124,9 @@ export async function updateAquarium(
 			input.volumeL !== undefined,
 			input.volumeL ?? null,
 			input.startedOn !== undefined,
-			input.startedOn ?? null
+			input.startedOn ?? null,
+			input.coverPhotoId !== undefined,
+			input.coverPhotoId ?? null
 		]
 	);
 	if (!rowCount) error(404, 'Aquarium introuvable');
@@ -193,6 +205,44 @@ export async function deleteParameter(id: number): Promise<void> {
 	await db().query('DELETE FROM parameter_defs WHERE id = $1', [id]);
 }
 
+/** Nouvel ordre des paramètres d'un bac : ids dans l'ordre voulu (tous ceux du bac). */
+export async function reorderParameters(aquariumId: number, ids: number[]): Promise<void> {
+	const { rows } = await db().query<{ id: number }>('SELECT id FROM parameter_defs WHERE aquarium_id = $1', [aquariumId]);
+	const owned = new Set(rows.map((r) => r.id));
+	if (ids.length !== owned.size || new Set(ids).size !== ids.length || !ids.every((id) => owned.has(id))) {
+		error(400, 'La liste doit contenir chaque paramètre du bac une fois');
+	}
+	await db().query(
+		`UPDATE parameter_defs p SET position = o.position
+		 FROM unnest($2::int[]) WITH ORDINALITY AS o(id, position)
+		 WHERE p.id = o.id AND p.aquarium_id = $1`,
+		[aquariumId, ids]
+	);
+}
+
+// --- Mesures ---------------------------------------------------------------
+
+/** Refuse les dates de mesure plus de 5 minutes dans le futur (horloge du téléphone décalée tolérée). */
+export function assertNotFuture(iso: string): void {
+	if (Date.parse(iso) > Date.now() + 5 * 60 * 1000) error(400, 'La date de mesure est dans le futur');
+}
+
+export async function updateMeasurement(id: number, input: { value?: number; measuredAt?: string }): Promise<void> {
+	if (input.measuredAt !== undefined) assertNotFuture(input.measuredAt);
+	const { rowCount } = await db().query(
+		`UPDATE measurements SET
+			value = COALESCE($2, value),
+			measured_at = COALESCE($3::timestamptz, measured_at)
+		 WHERE id = $1`,
+		[id, input.value ?? null, input.measuredAt ?? null]
+	);
+	if (!rowCount) error(404, 'Mesure introuvable');
+}
+
+export async function deleteMeasurement(id: number): Promise<void> {
+	await db().query('DELETE FROM measurements WHERE id = $1', [id]);
+}
+
 // --- Tâches ----------------------------------------------------------------
 
 export async function addTask(
@@ -243,13 +293,16 @@ export function parseOps(value: unknown): SyncOp[] {
 		};
 		if (op.type === 'measurement') {
 			if (typeof op.value !== 'number' || !Number.isFinite(op.value)) error(400, 'Valeur invalide');
+			// Une date future dans la file d'envoi bloquerait la synchronisation à chaque ouverture :
+			// on la ramène à maintenant (le store refuse déjà ces dates à la saisie).
+			const measuredAt = when(op.measuredAt);
 			return {
 				type: 'measurement',
 				clientId: op.clientId,
 				aquariumId: Number(op.aquariumId),
 				parameterId: Number(op.parameterId),
 				value: op.value,
-				measuredAt: when(op.measuredAt)
+				measuredAt: Date.parse(measuredAt) > Date.now() + 5 * 60 * 1000 ? new Date().toISOString() : measuredAt
 			};
 		}
 		if (op.type === 'completion') {
@@ -391,4 +444,24 @@ function toCsv(columns: string[], rows: Record<string, unknown>[]): string {
 		return /[",\n;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 	};
 	return [columns.join(','), ...rows.map((r) => columns.map((c) => cell(r[c])).join(','))].join('\n') + '\n';
+}
+
+// --- Petit magasin clé/valeur -------------------------------------------------
+
+export async function readState<T>(key: string): Promise<T | null> {
+	const { rows } = await db().query<{ value: string }>('SELECT value FROM app_state WHERE key = $1', [key]);
+	if (!rows[0]) return null;
+	try {
+		return JSON.parse(rows[0].value) as T;
+	} catch {
+		return null;
+	}
+}
+
+export async function writeState(key: string, value: unknown): Promise<void> {
+	await db().query(
+		`INSERT INTO app_state (key, value) VALUES ($1, $2)
+		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		[key, JSON.stringify(value)]
+	);
 }

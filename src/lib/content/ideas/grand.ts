@@ -1,8 +1,8 @@
-import type { Idea } from '$lib/domain/ideas';
+import type { RawIdea } from '$lib/domain/ideas';
 
 // Grands bacs d'eau douce : 250 L et plus. Les poissons vedettes sont des adultes de belle taille.
 
-export const IDEAS_GRAND: Idea[] = [
+export const IDEAS_GRAND: RawIdea[] = [
 	{
 		slug: 'discus-amazonie',
 		title: 'Discus : le roi de l’Amazonie',
@@ -15,7 +15,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['discus', 'amazonie', 'banc', 'exigeant'],
 		conditions: { temp: [27, 30], ph: [5.5, 6.8], dgh: [1, 6] },
 		decor: 'Racines, sable fin, plantes à feuilles larges, éclairage doux. Eau osmosée, très propre : un changement d’eau important chaque semaine.',
-		plants: ['Echinodorus bleheri', 'Cryptocoryne wendtii', 'Anubias barteri', 'Limnobium laevigatum'],
 		stock: [
 			['Symphysodon aequifasciatus', 6, 'vedette', 5, 8],
 			['Hemigrammus rhodostomus', 20, 'banc', 12],
@@ -38,7 +37,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'amazonie', 'sable', 'banc'],
 		conditions: { temp: [24, 28], ph: [5.8, 7.2], dgh: [2, 10] },
 		decor: 'Épaisse couche de sable fin que les géophages filtrent toute la journée, racines, quelques roches. Plantes à racines solides.',
-		plants: ['Echinodorus bleheri', 'Vallisneria americana', 'Anubias barteri', 'Microsorum pteropus'],
 		stock: [
 			['Biotodoma cupido', 3, 'vedette', 2, 4],
 			['Hemigrammus bleheri', 25, 'banc', 12],
@@ -60,7 +58,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'malawi', 'colorés', 'eau dure'],
 		conditions: { temp: [24, 28], ph: [7.6, 8.6], dgh: [8, 20] },
 		decor: 'Un grand mur de roches avec des grottes, sable, pas de plantes (hormis anubias). Filtration puissante et changements d’eau fréquents.',
-		plants: ['Anubias barteri', 'Microsorum pteropus'],
 		stock: [
 			['Labidochromis caeruleus', 6, 'banc', 5],
 			['Maylandia estherae', 6, 'banc', 5],
@@ -85,7 +82,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'malawi', 'colorés', 'eau dure'],
 		conditions: { temp: [24, 28], ph: [7.6, 8.6], dgh: [8, 20] },
 		decor: 'Vaste sable, quelques roches isolées, de la place pour nager. Les mâles défendent un petit territoire pour parader.',
-		plants: ['Vallisneria spiralis', 'Anubias barteri'],
 		stock: [
 			['Aulonocara stuartgranti', 5, 'vedette', 3, 8],
 			['Aulonocara jacobfreibergi', 4, 'vedette', 3, 6],
@@ -109,7 +105,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'malawi', 'grande taille', 'prédateurs'],
 		conditions: { temp: [24, 28], ph: [7.6, 8.6], dgh: [8, 20] },
 		decor: 'Grand bac long (180 cm ou plus), sable, grandes roches et quelques recoins. Aucun petit poisson.',
-		plants: ['Vallisneria spiralis'],
 		stock: [
 			['Nimbochromis venustus', 3, 'vedette', 2, 4],
 			['Nimbochromis livingstonii', 2, 'vedette', 2, 3],
@@ -131,7 +126,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'tanganyika', 'banc', 'colorés'],
 		conditions: { temp: [24, 27], ph: [7.8, 9.0], dgh: [10, 20] },
 		decor: 'Grands blocs de roche à une extrémité, sable, grand volume libre au-dessus. Eau dure et alcaline.',
-		plants: ['Anubias barteri', 'Vallisneria spiralis'],
 		stock: [
 			['Cyprichromis leptosoma', 14, 'banc', 10],
 			['Paracyprichromis nigripinnis', 10, 'banc', 8],
@@ -154,7 +148,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['cichlidés', 'tanganyika', 'exigeant', 'colorés'],
 		conditions: { temp: [24, 27], ph: [7.8, 9.0], dgh: [10, 20] },
 		decor: 'Roches formant des tunnels, peu de sable, éclairage fort (pour les algues qu’ils broutent). Eau dure, très oxygénée.',
-		plants: ['Anubias barteri'],
 		stock: [
 			['Tropheus moorii', 18, 'banc', 12],
 			['Synodontis petricola', 2, 'fond', 1, 3]
@@ -175,7 +168,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['insolite', 'afrique', 'grande taille'],
 		conditions: { temp: [24, 28], ph: [6.0, 7.5], dgh: [3, 12] },
 		decor: 'Bac long, sable fin, racines, plantes flottantes (le poisson-papillon aime la surface), couvercle hermétique.',
-		plants: ['Anubias barteri', 'Bolbitis heudelotii', 'Ceratopteris thalictroides', 'Limnobium laevigatum'],
 		stock: [
 			['Gnathonemus petersii', 3, 'vedette', 3, 4],
 			['Pantodon buchholzi', 1, 'vedette', 1, 2],
@@ -197,7 +189,6 @@ export const IDEAS_GRAND: Idea[] = [
 		tags: ['amazonie', 'grande taille', 'exigeant', 'cichlidés'],
 		conditions: { temp: [27, 30], ph: [5.0, 6.8], dgh: [1, 5] },
 		decor: 'Bac profond (60 cm ou plus), grands troncs, plantes flottantes, eau très douce et acide.',
-		plants: ['Echinodorus bleheri', 'Anubias barteri', 'Microsorum pteropus', 'Limnobium laevigatum'],
 		stock: [
 			['Pterophyllum altum', 4, 'vedette', 3, 6],
 			['Hemigrammus rhodostomus', 25, 'banc', 15],

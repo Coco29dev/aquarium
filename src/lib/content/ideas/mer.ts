@@ -1,10 +1,10 @@
-import type { Idea } from '$lib/domain/ideas';
+import type { RawIdea } from '$lib/domain/ideas';
 
 // Eau de mer et récif : du nano à un grand bac de poissons. Les coraux n'entrent pas dans la charge biologique.
 
-const SEA: Idea['conditions'] = { temp: [24, 26], ph: [8.0, 8.4] };
+const SEA: RawIdea['conditions'] = { temp: [24, 26], ph: [8.0, 8.4] };
 
-export const IDEAS_MER: Idea[] = [
+export const IDEAS_MER: RawIdea[] = [
 	{
 		slug: 'nano-zoanthaires',
 		title: 'Nano de zoanthaires',

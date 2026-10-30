@@ -78,6 +78,44 @@ describe('catalogue d’idées', () => {
 	});
 });
 
+describe('plantes des idées', () => {
+	it('chaque idée a une liste, le strict est inclus dans le mixte', () => {
+		for (const i of IDEAS) {
+			expect(i.plants.mixed.length >= i.plants.strict.length, i.slug).toBe(true);
+			for (const p of i.plants.strict) expect(i.plants.mixed, `${i.slug} ${p}`).toContain(p);
+			expect(new Set(i.plants.mixed).size, `${i.slug} doublons`).toBe(i.plants.mixed.length);
+		}
+	});
+
+	it('chaque plante existe dans le noyau, du bon type et du bon milieu', () => {
+		for (const i of IDEAS) {
+			const salt = i.water === 'mer' || i.water === 'recif';
+			for (const name of i.plants.mixed) {
+				const e = core.get(name.toLowerCase());
+				expect(e, `${i.slug} : ${name}`).toBeTruthy();
+				expect(e!.k, `${i.slug} : ${name}`).toBe('plante');
+				expect(salt ? e!.w === 'm' : e!.w !== 'm', `${i.slug} : ${name} (eau)`).toBe(true);
+			}
+		}
+	});
+
+	it('les plantes tolèrent la température de l’idée', () => {
+		for (const i of IDEAS) {
+			for (const name of i.plants.strict) {
+				const t = core.get(name.toLowerCase())?.t;
+				if (!t) continue;
+				expect(Math.min(t[1], i.conditions.temp[1]) - Math.max(t[0], i.conditions.temp[0]), `${i.slug} : ${name}`).toBeGreaterThan(0);
+			}
+		}
+	});
+
+	it('les biotopes sans plantes existent (lacs rocheux, récif) et le strict est plus court que le mixte ailleurs', () => {
+		expect(IDEAS.find((i) => i.slug === 'malawi-mbuna')!.plants.strict).toEqual([]);
+		expect(IDEAS.find((i) => i.slug === 'recif-lps')!.plants.strict).toEqual([]);
+		expect(IDEAS.find((i) => i.slug === 'amazonie-claire')!.plants.strict.length).toBeGreaterThan(2);
+	});
+});
+
 describe('quantités et charge', () => {
 	const samples = (i: (typeof IDEAS)[number]) => [i.volume[0], i.ref, i.volume[1]];
 

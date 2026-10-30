@@ -1,8 +1,8 @@
-import type { Idea } from '$lib/domain/ideas';
+import type { RawIdea } from '$lib/domain/ideas';
 
 // Nano et petits bacs : jusqu'à environ 120 L. Les quantités sont écrites pour `ref` litres et s'adaptent au volume.
 
-export const IDEAS_NANO_PETIT: Idea[] = [
+export const IDEAS_NANO_PETIT: RawIdea[] = [
 	{
 		slug: 'betta-solo',
 		title: 'Betta en solitaire',
@@ -15,7 +15,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'betta', 'plantes', 'débutant'],
 		conditions: { temp: [24, 28], ph: [6.0, 7.5], dgh: [2, 10] },
 		decor: 'Chauffage réglable, filtre à débit très faible (éponge), plantes flottantes et grandes feuilles où se reposer. Couvercle : le betta respire en surface.',
-		plants: ['Anubias barteri', 'Microsorum pteropus', 'Limnobium laevigatum', 'Cryptocoryne parva'],
 		stock: [
 			['Betta splendens', 1, 'vedette', 1, 1],
 			['Neritina natalensis', 1, 'invertebre', 1, 2],
@@ -36,7 +35,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'banc', 'plantes', 'colorés'],
 		conditions: { temp: [22, 27], ph: [5.5, 7.2], dgh: [2, 8] },
 		decor: 'Sol sombre, plantes à petites feuilles, mousses, plantes flottantes pour tamiser la lumière. Filtre très doux.',
-		plants: ['Cryptocoryne parva', 'Vesicularia dubyana', 'Bucephalandra motleyana', 'Salvinia minima'],
 		stock: [
 			['Boraras urophthalmoides', 12, 'banc', 8],
 			['Neocaridina davidi', 6, 'invertebre', 6, 15]
@@ -55,7 +53,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'vivipares', 'sans chauffage', 'débutant'],
 		conditions: { temp: [18, 27], ph: [7.0, 8.0], dgh: [8, 18] },
 		decor: 'Beaucoup de plantes flottantes et de mousses : les jeunes s’y cachent. Peu de courant. Il supporte le frais.',
-		plants: ['Ceratophyllum demersum', 'Vesicularia dubyana', 'Najas guadalupensis', 'Lemna minor'],
 		stock: [
 			['Heterandria formosa', 8, 'banc', 5],
 			['Planorbarius corneus', 2, 'invertebre', 1, 4]
@@ -74,7 +71,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'crevettes', 'sans poisson', 'exigeant'],
 		conditions: { temp: [20, 24], ph: [5.5, 7.0], dgh: [3, 6] },
 		decor: 'Sol actif acide, eau osmosée reminéralisée, mousses et bois. Température fraîche, bac mûr plusieurs mois avant l’arrivée.',
-		plants: ['Vesicularia dubyana', 'Fissidens fontanus', 'Cryptocoryne parva', 'Bucephalandra motleyana'],
 		stock: [['Caridina cantonensis', 10, 'invertebre', 6, 20]],
 		tip: 'Ces crevettes mesurent leur confort au dixième de pH : un TDS-mètre aide à régler l’eau.',
 		warn: 'Ne les mélange pas avec les Neocaridina : les deux se croisent et perdent leurs couleurs.'
@@ -91,7 +87,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'insolite', 'colorés', 'exigeant'],
 		conditions: { temp: [22, 26], ph: [6.5, 7.5], dgh: [2, 8] },
 		decor: 'Petite tourbe au fond pour la ponte, plantes flottantes, couvercle serré. Un mâle pour deux femelles.',
-		plants: ['Ceratopteris cornuta', 'Najas guadalupensis', 'Salvinia natans'],
 		stock: [['Nothobranchius furzeri', 3, 'vedette', 3, 3]],
 		tip: 'Les œufs passent la saison sèche dans la tourbe humide, puis éclosent à la remise en eau : un cycle fascinant.',
 		warn: 'Sa vie dépasse rarement un an en aquarium. Réserve-le à quelqu’un qui aime l’élevage et l’éclosion des œufs.'
@@ -108,7 +103,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'banc', 'amazonie', 'paisible'],
 		conditions: { temp: [23, 27], ph: [5.5, 7.0], dgh: [2, 8] },
 		decor: 'Sable fin, un morceau de racine, feuilles mortes et plantes à petites feuilles. Lumière douce.',
-		plants: ['Echinodorus tenellus', 'Cryptocoryne parva', 'Hygrophila difformis', 'Salvinia minima'],
 		stock: [
 			['Hyphessobrycon amandae', 12, 'banc', 8],
 			['Corydoras hastatus', 8, 'fond', 8],
@@ -128,7 +122,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'eaux noires', 'exigeant', 'insolite'],
 		conditions: { temp: [22, 26], ph: [4.5, 6.2], dgh: [1, 4] },
 		decor: 'Eau osmosée, feuilles d’amandier et tourbe, cachettes en grottes minuscules (petits pots, tubes). Très peu de lumière.',
-		plants: ['Cryptocoryne parva', 'Vesicularia dubyana', 'Salvinia minima'],
 		stock: [
 			['Parosphromenus deissneri', 2, 'vedette', 2, 2],
 			['Boraras merah', 10, 'banc', 8]
@@ -149,7 +142,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'crevettes', 'sans poisson', 'plantes'],
 		conditions: { temp: [20, 25], ph: [6.8, 7.8], dgh: [6, 12] },
 		decor: 'Sol fin, bois et pierres couverts de mousses, beaucoup de plantes pour cacher les jeunes. Filtre à mousse : pas d’aspiration pour les bébés.',
-		plants: ['Vesicularia dubyana', 'Microsorum pteropus', 'Anubias barteri', 'Cryptocoryne parva', 'Fissidens fontanus'],
 		stock: [
 			['Neocaridina davidi', 12, 'invertebre', 6],
 			['Neritina natalensis', 2, 'invertebre', 1, 3]
@@ -169,7 +161,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'betta', 'plantes', 'débutant'],
 		conditions: { temp: [24, 27], ph: [6.0, 7.5], dgh: [2, 10] },
 		decor: 'Plantes flottantes pour casser la lumière, feuilles larges en surface, courant faible. Le betta aime les racines et les feuilles où se poser.',
-		plants: ['Anubias barteri', 'Cryptocoryne wendtii', 'Microsorum pteropus', 'Limnobium laevigatum', 'Ceratopteris thalictroides'],
 		stock: [
 			['Betta splendens', 1, 'vedette', 1, 1],
 			['Corydoras pygmaeus', 8, 'fond', 6],
@@ -191,7 +182,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'banc', 'eaux noires', 'plantes'],
 		conditions: { temp: [23, 27], ph: [5.0, 6.8], dgh: [1, 6] },
 		decor: 'Feuilles d’amandier ou de chêne, racines, sol sombre, lumière douce. Eau tendre et acide ; filtre doux.',
-		plants: ['Cryptocoryne wendtii', 'Bucephalandra motleyana', 'Vesicularia dubyana', 'Salvinia minima'],
 		stock: [
 			['Boraras brigittae', 14, 'banc', 10],
 			['Caridina babaulti', 6, 'invertebre', 4, 15]
@@ -211,7 +201,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'banc', 'plantes', 'colorés'],
 		conditions: { temp: [22, 26], ph: [6.5, 7.8], dgh: [5, 12] },
 		decor: 'Bac très planté, plantes à petites feuilles, cachettes dans les mousses. Sol sombre pour faire ressortir les couleurs.',
-		plants: ['Hygrophila pinnatifida', 'Micranthemum tweediei', 'Vesicularia dubyana', 'Cryptocoryne parva'],
 		stock: [
 			['Danio margaritatus', 12, 'banc', 8],
 			['Neritina natalensis', 2, 'invertebre', 1, 3],
@@ -231,7 +220,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'sans chauffage', 'banc', 'débutant'],
 		conditions: { temp: [16, 26], ph: [6.5, 8.0], dgh: [5, 15] },
 		decor: 'Plantes flottantes et plantes à tiges où les œufs s’accrochent, courant très doux. Un grand bocal planté suffit.',
-		plants: ['Ceratophyllum demersum', 'Hygrophila difformis', 'Vallisneria spiralis', 'Salvinia natans'],
 		stock: [
 			['Oryzias latipes', 10, 'banc', 6],
 			['Neocaridina davidi', 8, 'invertebre', 4, 20]
@@ -250,7 +238,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'vivipares', 'colorés', 'débutant'],
 		conditions: { temp: [22, 27], ph: [7.0, 8.0], dgh: [8, 18] },
 		decor: 'Bac bien planté, mousses pour les alevins, eau plutôt dure. Aucune cachette obligatoire, mais elles sauvent des jeunes.',
-		plants: ['Ceratophyllum demersum', 'Vesicularia dubyana', 'Najas guadalupensis', 'Hygrophila difformis'],
 		stock: [
 			['Poecilia wingei', 10, 'banc', 6],
 			['Neocaridina davidi', 8, 'invertebre', 4, 20],
@@ -270,7 +257,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['nano', 'banc', 'colorés', 'plantes'],
 		conditions: { temp: [22, 28], ph: [6.5, 7.8], dgh: [6, 14] },
 		decor: 'Plantes à tiges et mousses sur les bords, lumière modérée, courant calme. Un couvercle est indispensable : ils sautent.',
-		plants: ['Vallisneria spiralis', 'Cryptocoryne wendtii', 'Vesicularia dubyana', 'Hygrophila corymbosa'],
 		stock: [
 			['Pseudomugil gertrudae', 10, 'banc', 6],
 			['Neritina natalensis', 2, 'invertebre', 1, 3]
@@ -290,7 +276,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['banc', 'amazonie', 'plantes', 'paisible'],
 		conditions: { temp: [23, 27], ph: [5.5, 7.0], dgh: [2, 8] },
 		decor: 'Sable fin, racines, plantes à feuilles larges et quelques plantes flottantes. Lumière douce.',
-		plants: ['Echinodorus tenellus', 'Cryptocoryne wendtii', 'Hygrophila difformis', 'Salvinia minima'],
 		stock: [
 			['Paracheirodon simulans', 15, 'banc', 10],
 			['Corydoras habrosus', 8, 'fond', 6],
@@ -310,7 +295,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['banc', 'eaux noires', 'amazonie', 'cichlidés nains'],
 		conditions: { temp: [25, 28], ph: [4.8, 6.5], dgh: [1, 5] },
 		decor: 'Sable clair, racines, feuilles mortes, plantes flottantes. Eau osmosée coupée avec un peu d’eau du robinet pour garder le pH bas.',
-		plants: ['Anubias barteri', 'Cryptocoryne wendtii', 'Microsorum pteropus', 'Limnobium laevigatum'],
 		stock: [
 			['Paracheirodon axelrodi', 15, 'banc', 10],
 			['Carnegiella strigata', 8, 'surface', 6],
@@ -333,7 +317,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['banc', 'asie', 'plantes', 'débutant', 'paisible'],
 		conditions: { temp: [24, 27], ph: [6.0, 7.5], dgh: [2, 10] },
 		decor: 'Sable fin pour les loches, plantes à feuilles larges, quelques racines. Lumière douce, plantes flottantes.',
-		plants: ['Cryptocoryne wendtii', 'Anubias barteri', 'Echinodorus bleheri', 'Salvinia natans'],
 		stock: [
 			['Trigonostigma heteromorpha', 14, 'banc', 10],
 			['Pangio kuhlii', 6, 'fond', 5],
@@ -354,7 +337,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['banc', 'asie', 'paisible', 'plantes'],
 		conditions: { temp: [22, 27], ph: [6.5, 7.8], dgh: [4, 12] },
 		decor: 'Galets, gravier fin, racines, plantes robustes. Courant modéré.',
-		plants: ['Vallisneria spiralis', 'Echinodorus bleheri', 'Cryptocoryne wendtii', 'Microsorum pteropus'],
 		stock: [
 			['Pethia nigrofasciata', 8, 'banc', 6],
 			['Etroplus maculatus', 2, 'vedette', 2, 2],
@@ -375,7 +357,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['paisible', 'asie', 'plantes', 'débutant'],
 		conditions: { temp: [24, 27], ph: [6.0, 7.5], dgh: [3, 12] },
 		decor: 'Végétation dense avec des plantes flottantes : les gouramis nichent sous les feuilles de surface.',
-		plants: ['Limnobium laevigatum', 'Hygrophila difformis', 'Cryptocoryne wendtii', 'Vallisneria spiralis'],
 		stock: [
 			['Trichogaster lalius', 2, 'vedette', 2, 3],
 			['Trigonostigma heteromorpha', 12, 'banc', 8],
@@ -396,7 +377,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['vivipares', 'colorés', 'débutant', 'paisible'],
 		conditions: { temp: [22, 27], ph: [7.0, 8.0], dgh: [8, 18] },
 		decor: 'Sol clair, beaucoup de plantes denses et de mousses : ce sont les refuges des alevins.',
-		plants: ['Ceratophyllum demersum', 'Najas guadalupensis', 'Vallisneria spiralis', 'Hygrophila difformis'],
 		stock: [
 			['Poecilia reticulata', 8, 'banc', 6],
 			['Xiphophorus maculatus', 5, 'banc', 4],
@@ -418,7 +398,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['banc', 'colorés', 'plantes'],
 		conditions: { temp: [23, 27], ph: [6.5, 7.8], dgh: [6, 14] },
 		decor: 'Plantes en fond de bac, laissant un grand espace de nage devant. Éclairage vif, quelques racines.',
-		plants: ['Vallisneria spiralis', 'Cryptocoryne wendtii', 'Microsorum pteropus', 'Hygrophila corymbosa'],
 		stock: [
 			['Melanotaenia praecox', 8, 'banc', 6],
 			['Iriatherina werneri', 8, 'banc', 6],
@@ -440,7 +419,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['fond', 'paisible', 'amazonie', 'débutant'],
 		conditions: { temp: [23, 27], ph: [6.0, 7.5], dgh: [3, 10] },
 		decor: 'Sable fin, racines, quelques feuilles mortes. Les corydoras ont besoin d’un sol doux pour leurs barbillons.',
-		plants: ['Echinodorus bleheri', 'Cryptocoryne wendtii', 'Anubias barteri', 'Limnobium laevigatum'],
 		stock: [
 			['Corydoras panda', 6, 'fond', 6],
 			['Corydoras sterbai', 6, 'fond', 6],
@@ -461,7 +439,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['sans chauffage', 'banc', 'débutant'],
 		conditions: { temp: [18, 24], ph: [6.5, 8.0], dgh: [5, 15] },
 		decor: 'Bac planté de plantes robustes et rustiques, sol de gravier fin. Il peut même rester dans une pièce non chauffée l’hiver, si elle reste au-dessus de 15 °C.',
-		plants: ['Vallisneria spiralis', 'Hygrophila difformis', 'Ceratophyllum demersum', 'Microsorum pteropus'],
 		stock: [
 			['Tanichthys albonubes', 12, 'banc', 8],
 			['Danio rerio', 8, 'banc', 6],
@@ -482,7 +459,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['cichlidés', 'afrique', 'paisible', 'plantes'],
 		conditions: { temp: [24, 27], ph: [6.0, 7.5], dgh: [3, 12] },
 		decor: 'Pots en terre cuite ou noix de coco coupées pour que le couple pose ses œufs, sable, racines, plantes robustes.',
-		plants: ['Anubias barteri', 'Bolbitis heudelotii', 'Microsorum pteropus', 'Echinodorus bleheri'],
 		stock: [
 			['Pelvicachromis pulcher', 2, 'vedette', 2, 2],
 			['Poropanchax normani', 8, 'surface', 6],
@@ -503,7 +479,6 @@ export const IDEAS_NANO_PETIT: Idea[] = [
 		tags: ['cichlidés nains', 'amazonie', 'colorés', 'plantes'],
 		conditions: { temp: [23, 27], ph: [5.5, 7.2], dgh: [2, 10] },
 		decor: 'Sable fin, racines et feuilles mortes, grottes (noix de coco, petits pots). Chaque femelle choisit une grotte.',
-		plants: ['Cryptocoryne wendtii', 'Echinodorus bleheri', 'Anubias barteri', 'Limnobium laevigatum'],
 		stock: [
 			['Apistogramma cacatuoides', 3, 'vedette', 3, 4],
 			['Hemigrammus erythrozonus', 10, 'banc', 8],

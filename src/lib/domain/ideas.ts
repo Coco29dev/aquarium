@@ -8,7 +8,7 @@ export type StockRole = 'banc' | 'vedette' | 'fond' | 'surface' | 'nettoyeur' | 
 /** [nom latin, quantité conseillée au volume de référence, rôle, minimum, maximum] */
 export type StockLine = [latin: string, n: number, role: StockRole, min?: number, max?: number];
 
-export interface Idea {
+export interface RawIdea {
 	slug: string;
 	title: string;
 	summary: string;
@@ -24,8 +24,6 @@ export interface Idea {
 	tags: string[];
 	conditions: { temp: [number, number]; ph: [number, number]; dgh?: [number, number] };
 	decor: string;
-	/** Plantes (ou macro-algues) conseillées : noms latins de l'encyclopédie, hors calcul de charge. */
-	plants?: string[];
 	stock: StockLine[];
 	/**
 	 * Bac volontairement dense (mbuna, Tanganyika) : on y entasse les poissons territoriaux pour disperser leur hargne,
@@ -36,6 +34,20 @@ export interface Idea {
 	warn?: string;
 	/** Guide de l'encyclopédie sur le même milieu, « thème/guide ». */
 	guide?: string;
+}
+
+/** Plantes (ou macro-algues en mer) d'une idée, en noms latins de l'encyclopédie, hors calcul de charge. */
+export interface IdeaPlants {
+	/** Plantes réellement présentes dans le milieu d'origine ; vide quand le biotope n'en comporte pas. */
+	strict: string[];
+	/** Le strict, complété de plantes d'aquarium compatibles. */
+	mixed: string[];
+}
+
+export type Planting = 'strict' | 'mixte';
+
+export interface Idea extends RawIdea {
+	plants: IdeaPlants;
 }
 
 export const LEVEL_NAMES: Record<Idea['level'], string> = { 1: 'Facile', 2: 'Intermédiaire', 3: 'Exigeant' };
@@ -202,6 +214,9 @@ export function animalCount(plan: IdeaPlan): number {
 export function ideasWithSpecies<T extends Idea>(ideas: T[], latin: string): T[] {
 	const wanted = latin.toLowerCase();
 	return ideas.filter(
-		(i) => i.stock.some(([s]) => s.toLowerCase() === wanted) || (i.plants ?? []).some((p) => p.toLowerCase() === wanted)
+		(i) => i.stock.some(([s]) => s.toLowerCase() === wanted) || i.plants.mixed.some((p) => p.toLowerCase() === wanted)
 	);
 }
+
+/** Plantes à montrer selon le choix : biotope strict ou mixte. */
+export const plantsOf = (idea: Pick<Idea, 'plants'>, planting: Planting): string[] => (planting === 'strict' ? idea.plants.strict : idea.plants.mixed);

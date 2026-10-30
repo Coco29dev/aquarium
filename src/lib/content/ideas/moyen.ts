@@ -1,8 +1,8 @@
-import type { Idea } from '$lib/domain/ideas';
+import type { RawIdea } from '$lib/domain/ideas';
 
 // Bacs moyens : environ 100 à 250 L, la taille d'un premier « vrai » aquarium.
 
-export const IDEAS_MOYEN: Idea[] = [
+export const IDEAS_MOYEN: RawIdea[] = [
 	{
 		slug: 'killis-ouest-africains',
 		title: 'Killis d’Afrique de l’Ouest',
@@ -15,7 +15,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['killis', 'afrique', 'colorés', 'surface'],
 		conditions: { temp: [22, 25], ph: [5.8, 7.2], dgh: [2, 8] },
 		decor: 'Bac long, couvercle hermétique, beaucoup de plantes flottantes et de mousses. Éclairage faible, courant presque nul.',
-		plants: ['Ceratopteris cornuta', 'Vesicularia dubyana', 'Cryptocoryne wendtii', 'Salvinia minima'],
 		stock: [
 			['Aphyosemion striatum', 5, 'surface', 3, 8],
 			['Epiplatys dageti', 4, 'surface', 4, 8],
@@ -35,7 +34,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['courant', 'eau fraîche', 'insolite', 'asie'],
 		conditions: { temp: [18, 24], ph: [6.5, 7.5], dgh: [4, 10] },
 		decor: 'Pompe de brassage, galets et pierres couvertes d’algues, peu de plantes (mousses et anubias fixés). Eau fraîche et très oxygénée.',
-		plants: ['Anubias barteri', 'Microsorum pteropus', 'Fontinalis antipyretica', 'Vesicularia dubyana'],
 		stock: [
 			['Sewellia lineolata', 4, 'fond', 3, 6],
 			['Tanichthys albonubes', 12, 'banc', 8],
@@ -56,7 +54,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'asie', 'paisible', 'plantes', 'débutant'],
 		conditions: { temp: [22, 26], ph: [6.3, 7.5], dgh: [4, 12] },
 		decor: 'Plantes denses sur les côtés, espace libre devant, racines, sable fin pour les loches. Lumière moyenne.',
-		plants: ['Cryptocoryne wendtii', 'Echinodorus bleheri', 'Vallisneria spiralis', 'Anubias barteri'],
 		stock: [
 			['Pethia cumingii', 10, 'banc', 6],
 			['Rasbora dorsiocellata', 10, 'banc', 8],
@@ -78,7 +75,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['cichlidés', 'tanganyika', 'eau dure', 'rochers'],
 		conditions: { temp: [24, 27], ph: [7.8, 9.0], dgh: [10, 20] },
 		decor: 'Murs de roches avec fentes et plafonds, sable blanc, coquilles d’escargots posées au sol. Éclairage simple, pas de plantes sauf anubias fixés.',
-		plants: ['Anubias barteri'],
 		stock: [
 			['Julidochromis dickfeldi', 2, 'vedette', 2, 2],
 			['Neolamprologus caudopunctatus', 4, 'fond', 2, 6],
@@ -99,7 +95,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['cichlidés nains', 'amazonie', 'paisible', 'plantes'],
 		conditions: { temp: [23, 27], ph: [5.5, 7.0], dgh: [2, 8] },
 		decor: 'Sable fin, racines, feuilles mortes, plusieurs grottes pour les femelles. Plantes flottantes et lumière douce.',
-		plants: ['Echinodorus bleheri', 'Cryptocoryne wendtii', 'Anubias barteri', 'Limnobium laevigatum'],
 		stock: [
 			['Apistogramma eunotus', 3, 'vedette', 3, 4],
 			['Nannostomus harrisoni', 10, 'surface', 6],
@@ -119,7 +114,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'amazonie', 'paisible', 'débutant', 'plantes'],
 		conditions: { temp: [24, 27], ph: [6.0, 7.5], dgh: [3, 10] },
 		decor: 'Sable ou gravier fin, racines, roches arrondies. Plantes variées : échinodorus, vallisnéries, cryptocorynes. Plantes flottantes pour tamiser.',
-		plants: ['Echinodorus bleheri', 'Vallisneria spiralis', 'Cryptocoryne wendtii', 'Sagittaria subulata', 'Limnobium laevigatum'],
 		stock: [
 			['Paracheirodon innesi', 15, 'banc', 10],
 			['Hemigrammus ocellifer', 12, 'banc', 8],
@@ -142,7 +136,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'eaux noires', 'amazonie', 'cichlidés nains'],
 		conditions: { temp: [25, 29], ph: [4.8, 6.5], dgh: [1, 5] },
 		decor: 'Sable clair, racines, feuilles d’amandier ou de chêne. Eau osmosée, très tendre, avec une teinte brune.',
-		plants: ['Anubias barteri', 'Cryptocoryne wendtii', 'Microsorum pteropus', 'Limnobium laevigatum'],
 		stock: [
 			['Paracheirodon axelrodi', 25, 'banc', 15],
 			['Hemigrammus rhodostomus', 12, 'banc', 10],
@@ -166,7 +159,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['scalaires', 'amazonie', 'banc', 'plantes hautes'],
 		conditions: { temp: [25, 28], ph: [5.8, 7.2], dgh: [2, 10] },
 		decor: 'Aquarium haut (50 cm ou plus) avec des plantes hautes et des racines verticales. Sable fin, éclairage tamisé.',
-		plants: ['Vallisneria americana', 'Echinodorus bleheri', 'Sagittaria platyphylla', 'Limnobium laevigatum'],
 		stock: [
 			['Pterophyllum scalare', 3, 'vedette', 2, 6],
 			['Hemigrammus bleheri', 20, 'banc', 12],
@@ -188,7 +180,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['aquascaping', 'plantes', 'banc', 'colorés', 'crevettes'],
 		conditions: { temp: [23, 27], ph: [6.0, 7.2], dgh: [3, 8] },
 		decor: 'Plantes plantées en rangées, du tapis à l’avant aux grandes plantes à l’arrière. Éclairage fort, CO₂ et engrais conseillés. Entretien régulier (taille).',
-		plants: ['Rotala rotundifolia', 'Ludwigia repens', 'Alternanthera reineckii', 'Hygrophila corymbosa', 'Micranthemum tweediei', 'Echinodorus bleheri'],
 		stock: [
 			['Hemigrammus erythrozonus', 15, 'banc', 10],
 			['Nematobrycon palmeri', 8, 'banc', 6],
@@ -211,7 +202,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'asie', 'actif', 'débutant'],
 		conditions: { temp: [22, 27], ph: [6.0, 7.5], dgh: [4, 12] },
 		decor: 'Plantes denses sur les bords, grand espace de nage, racines et galets. Courant modéré.',
-		plants: ['Cryptocoryne wendtii', 'Microsorum pteropus', 'Anubias barteri', 'Hygrophila difformis'],
 		stock: [
 			['Puntigrus tetrazona', 10, 'banc', 8],
 			['Desmopuntius pentazona', 8, 'banc', 6],
@@ -233,7 +223,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['paisible', 'asie', 'plantes', 'débutant'],
 		conditions: { temp: [24, 28], ph: [6.0, 7.5], dgh: [3, 10] },
 		decor: 'Végétation dense avec plantes flottantes, bois flotté. Courant faible : les gouramis respirent à la surface.',
-		plants: ['Cryptocoryne wendtii', 'Echinodorus bleheri', 'Limnobium laevigatum', 'Ceratopteris thalictroides'],
 		stock: [
 			['Trichopodus leerii', 3, 'vedette', 2, 4],
 			['Trigonostigma heteromorpha', 15, 'banc', 10],
@@ -254,7 +243,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['cichlidés', 'tanganyika', 'eau dure', 'fascinant'],
 		conditions: { temp: [24, 27], ph: [7.8, 9.0], dgh: [10, 20] },
 		decor: 'Sable fin blanc, beaucoup de coquilles d’escargots vides (une par poisson et plus). Quelques roches. Aucune plante, ou très peu.',
-		plants: ['Vallisneria spiralis', 'Anubias barteri'],
 		stock: [
 			['Neolamprologus multifasciatus', 12, 'fond', 8],
 			['Neolamprologus similis', 6, 'fond', 4]
@@ -275,7 +263,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['cichlidés', 'tanganyika', 'eau dure', 'colorés'],
 		conditions: { temp: [24, 27], ph: [7.8, 9.0], dgh: [10, 20] },
 		decor: 'Murs de roches avec des fentes, sable, grand espace de nage libre au milieu. Eau dure et alcaline.',
-		plants: ['Anubias barteri', 'Vallisneria spiralis'],
 		stock: [
 			['Julidochromis ornatus', 4, 'fond', 2, 6],
 			['Neolamprologus leleupi', 4, 'fond', 2, 6],
@@ -297,7 +284,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['cichlidés', 'colorés', 'robuste'],
 		conditions: { temp: [22, 27], ph: [6.5, 7.8], dgh: [5, 15] },
 		decor: 'Sable, racines, roches arrondies. Plantes robustes (anubias, fougères). Cachettes en pierre pour le couple.',
-		plants: ['Anubias barteri', 'Microsorum pteropus', 'Vallisneria americana', 'Echinodorus bleheri'],
 		stock: [
 			['Andinoacara pulcher', 2, 'vedette', 2, 2],
 			['Gymnocorymbus ternetzi', 10, 'banc', 8],
@@ -318,7 +304,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['vivipares', 'rares', 'eau dure', 'colorés'],
 		conditions: { temp: [20, 26], ph: [7.2, 8.2], dgh: [10, 20] },
 		decor: 'Eau dure, plantes robustes ou à croissance rapide, sol clair. Beaucoup d’algues autorisées : ils les mangent.',
-		plants: ['Vallisneria spiralis', 'Najas guadalupensis', 'Ceratophyllum demersum', 'Hygrophila difformis'],
 		stock: [
 			['Xenotoca eiseni', 8, 'banc', 6],
 			['Ameca splendens', 6, 'banc', 5],
@@ -338,7 +323,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['afrique', 'banc', 'insolite'],
 		conditions: { temp: [24, 28], ph: [6.0, 7.5], dgh: [3, 12] },
 		decor: 'Racines, sable, feuilles. Plantes résistantes à l’ombre (anubias, fougères). Couvercle bien fermé : l’anguille de roseaux sort du bac.',
-		plants: ['Anubias barteri', 'Bolbitis heudelotii', 'Microsorum pteropus', 'Echinodorus bleheri'],
 		stock: [
 			['Phenacogrammus interruptus', 10, 'banc', 8],
 			['Pelvicachromis taeniatus', 2, 'vedette', 2, 2],
@@ -360,7 +344,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'colorés', 'australasie'],
 		conditions: { temp: [24, 28], ph: [7.0, 8.2], dgh: [8, 18] },
 		decor: 'Grand bac long (120 cm ou plus), peu de décor au centre, plantes en fond. Éclairage vif qui fait ressortir les reflets.',
-		plants: ['Vallisneria spiralis', 'Microsorum pteropus', 'Cryptocoryne wendtii', 'Echinodorus bleheri'],
 		stock: [
 			['Melanotaenia boesemani', 8, 'banc', 6],
 			['Glossolepis incisus', 6, 'banc', 5],
@@ -381,7 +364,6 @@ export const IDEAS_MOYEN: Idea[] = [
 		tags: ['banc', 'courant', 'actif', 'asie'],
 		conditions: { temp: [20, 26], ph: [6.5, 8.0], dgh: [4, 14] },
 		decor: 'Pompe de brassage pour créer du courant, galets, racines, plantes robustes. Bac long.',
-		plants: ['Vallisneria spiralis', 'Microsorum pteropus', 'Anubias barteri', 'Hygrophila difformis'],
 		stock: [
 			['Danio albolineatus', 10, 'banc', 8],
 			['Pethia conchonius', 8, 'banc', 5],

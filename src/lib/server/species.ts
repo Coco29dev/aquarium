@@ -8,7 +8,7 @@ const SELECT = `id, source, scientific_name AS "scientificName", name_fr AS "nam
 	fresh, brackish, salt, max_length_cm AS "maxLengthCm", lifespan_years AS "lifespanYears",
 	temp_min AS "tempMin", temp_max AS "tempMax", ph_min AS "phMin", ph_max AS "phMax",
 	min_tank_l AS "minTankL", temperament, diet, zone, group_min AS "groupMin", reef_safe AS "reefSafe",
-	bioload_g AS "bioloadG", notes, estimated, description, curated, data_quality AS "dataQuality",
+	bioload_g AS "bioloadG", notes, estimated, description, origin, difficulty, care, light, co2, curated, data_quality AS "dataQuality",
 	(photo_key IS NOT NULL) AS "hasPhoto", photo_author AS "photoAuthor", photo_license AS "photoLicense",
 	photo_source AS "photoSource"`;
 
@@ -143,7 +143,12 @@ const FIELDS: Record<string, FieldDef> = {
 	reefSafe: { column: 'reef_safe', type: 'bool', husbandry: true },
 	bioloadG: { column: 'bioload_g', type: 'number', husbandry: true },
 	notes: { column: 'notes', type: 'text', husbandry: true, max: 2000 },
-	description: { column: 'description', type: 'text', husbandry: true, max: 2000 }
+	description: { column: 'description', type: 'text', husbandry: true, max: 2000 },
+	origin: { column: 'origin', type: 'text', husbandry: true, max: 200 },
+	difficulty: { column: 'difficulty', type: 'int', husbandry: true },
+	care: { column: 'care', type: 'text', husbandry: true, max: 2000 },
+	light: { column: 'light', type: 'int', husbandry: true },
+	co2: { column: 'co2', type: 'int', husbandry: true }
 };
 
 function parse(body: Body, allowed: (f: FieldDef) => boolean): Map<string, { column: string; value: unknown }> {
@@ -240,6 +245,12 @@ interface CoreEntry {
 	g?: number; // groupe minimal
 	rf?: boolean; // compatible récif
 	d?: string; // description
+	o?: string; // provenance et milieu naturel
+	n?: 1 | 2 | 3; // difficulté d'entretien
+	c?: string; // conseils d'entretien
+	lt?: 1 | 2 | 3; // plantes : lumière
+	co2?: 0 | 1 | 2; // plantes : CO2
+	was?: string; // ancien nom latin (la fiche est renommée, son identifiant est conservé)
 }
 
 export async function readCore(): Promise<{ version: string; entries: CoreEntry[] }> {
@@ -271,6 +282,16 @@ export async function seedCore(): Promise<void> {
 	const done = await db().query<{ value: string }>(`SELECT value FROM app_state WHERE key = 'species_core'`);
 	if (done.rows[0]?.value === version) return;
 
+	// Renommages (nom latin révisé) : on garde l'identifiant, donc les liens avec les habitants.
+	for (const e of entries) {
+		if (!e.was) continue;
+		await db().query(
+			`UPDATE species SET scientific_name = $2 WHERE lower(scientific_name) = lower($1) AND source = 'noyau'
+			   AND NOT EXISTS (SELECT 1 FROM species WHERE lower(scientific_name) = lower($2) AND source = 'noyau')`,
+			[e.was, e.s]
+		);
+	}
+
 	let created = 0;
 	let updated = 0;
 	for (const e of entries) {
@@ -293,7 +314,12 @@ export async function seedCore(): Promise<void> {
 			zone: e.z ?? null,
 			group_min: e.g ?? null,
 			reef_safe: e.rf ?? null,
-			description: e.d ?? null
+			description: e.d ?? null,
+			origin: e.o ?? null,
+			difficulty: e.n ?? null,
+			care: e.c ?? null,
+			light: e.lt ?? null,
+			co2: e.co2 ?? null
 		};
 		const found = await db().query<{ id: number; locked: string[] }>(
 			`SELECT id, locked FROM species WHERE lower(scientific_name) = lower($1) AND source <> 'maison'

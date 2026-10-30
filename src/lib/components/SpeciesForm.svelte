@@ -41,7 +41,12 @@
 			reefSafe: reef === 'oui' ? true : reef === 'non' ? false : null,
 			bioloadG: toNumber(f.get('bioloadG')),
 			notes: toText(f.get('notes')),
-			description: toText(f.get('description'))
+			description: toText(f.get('description')),
+			origin: toText(f.get('origin')),
+			difficulty: toNumber(f.get('difficulty')),
+			care: toText(f.get('care')),
+			light: toNumber(f.get('light')),
+			co2: toNumber(f.get('co2'))
 		};
 		if (editable) {
 			Object.assign(body, {
@@ -135,6 +140,20 @@
 		{@render select('Zone du bac', 'zone', species?.zone ?? '', [['', 'À renseigner'], ['haut', 'Haut'], ['milieu', 'Milieu'], ['bas', 'Bas'], ['tous', 'Partout']], est('zone'))}
 		{@render select('Compatible récif', 'reefSafe', species?.reefSafe === true ? 'oui' : species?.reefSafe === false ? 'non' : '', [['', 'Inconnu'], ['oui', 'Oui'], ['non', 'Non']])}
 		<InputRow label="Charge biologique" name="bioloadG" value={str(species?.bioloadG)} inputmode="decimal" unit="g" />
+	</Section>
+
+	<Section header="Élevage">
+		<InputRow label="Provenance" name="origin" value={species?.origin ?? ''} placeholder="Ex. Amazonie, eaux noires" />
+		{@render select('Difficulté', 'difficulty', String(species?.difficulty ?? ''), [['', 'À renseigner'], ['1', 'Facile'], ['2', 'Intermédiaire'], ['3', 'Exigeant']])}
+		{#if (species?.kind ?? 'poisson') === 'plante'}
+			{@render select('Lumière', 'light', String(species?.light ?? ''), [['', 'À renseigner'], ['1', 'Faible'], ['2', 'Moyenne'], ['3', 'Forte']])}
+			{@render select('CO₂', 'co2', String(species?.co2 ?? ''), [['', 'À renseigner'], ['0', 'Inutile'], ['1', 'Conseillé'], ['2', 'Indispensable']])}
+		{/if}
+	</Section>
+	<Section header="Conseils d’entretien">
+		<li class="px-4 py-2.5">
+			<textarea name="care" rows="4" maxlength="2000" placeholder="Alimentation, décor, reproduction, cohabitation" class="body w-full resize-none bg-transparent outline-none placeholder:text-label3">{species?.care ?? ''}</textarea>
+		</li>
 	</Section>
 
 	<Section header="Description">

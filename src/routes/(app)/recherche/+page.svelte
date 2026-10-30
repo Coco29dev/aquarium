@@ -4,6 +4,7 @@
 	import { api, listResource } from '$lib/client/api';
 	import { speciesName } from '$lib/domain/species';
 	import { KIND_LABELS, type Species } from '$lib/types';
+	import { ALL_GUIDES } from '$lib/content';
 	import { SHORT_WATER, TANK_ICON, TANK_TONE } from '$lib/ui';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
@@ -106,9 +107,21 @@
 				key: `s${s.id}`,
 				title: speciesName(s),
 				subtitle: `${s.scientificName} · ${KIND_LABELS[s.kind]}`,
-				href: `/especes?id=${s.id}`,
+				href: `/encyclopedie/especes?id=${s.id}`,
 				icon: s.kind === 'plante' ? 'leaf' : s.kind === 'corail' ? 'coral' : 'fish',
 				color: 'var(--teal)'
+			}))
+		});
+		out.push({
+			id: 'guides',
+			title: 'Guides de l’encyclopédie',
+			hits: ALL_GUIDES.filter(({ guide }) => matches(guide.title, guide.summary)).map(({ theme, guide }) => ({
+				key: `g${theme.slug}${guide.slug}`,
+				title: guide.title,
+				subtitle: theme.title,
+				href: `/encyclopedie/${theme.slug}/${guide.slug}`,
+				icon: 'book',
+				color: theme.color
 			}))
 		});
 		const living: Hit[] = [];

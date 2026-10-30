@@ -327,7 +327,7 @@
 				{#if ranges.conflicts.length}
 					{#each ranges.contributors.filter((x) => x.temp || x.ph) as who (who.speciesId)}
 						<Row
-							href="/especes?id={who.speciesId}"
+							href="/encyclopedie/especes?id={who.speciesId}"
 							title={who.name}
 							subtitle={[who.temp ? `${fmt(who.temp[0], 1)}–${fmt(who.temp[1], 1)} °C` : null, who.ph ? `pH ${fmt(who.ph[0], 1)}–${fmt(who.ph[1], 1)}` : null].filter(Boolean).join(' · ')}
 						/>

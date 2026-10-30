@@ -7,7 +7,7 @@ const WATER = new Set(['d', 'm', 'sd']);
 const TEMPER = new Set(['paisible', 'semi-agressif', 'agressif']);
 const DIET = new Set(['carnivore', 'omnivore', 'herbivore', 'filtreur', 'autre']);
 const ZONE = new Set(['haut', 'milieu', 'bas', 'tous']);
-const KEYS = new Set(['s', 'fr', 'en', 'k', 'w', 'L', 'v', 't', 'p', 'b', 'm', 'r', 'z', 'g', 'rf', 'd']);
+const KEYS = new Set(['s', 'fr', 'en', 'k', 'w', 'L', 'v', 't', 'p', 'b', 'm', 'r', 'z', 'g', 'rf', 'd', 'o', 'n', 'c', 'lt', 'co2', 'was']);
 
 const seed = JSON.parse(await readFile('data/species.seed.json', 'utf8'));
 const sci = seed.columns.indexOf('sci');
@@ -43,7 +43,12 @@ for (const file of files) {
 		if (e.r && !DIET.has(e.r)) bad('régime invalide');
 		if (e.z && !ZONE.has(e.z)) bad('zone invalide');
 		if (!e.d || e.d.length < 40) bad('description absente ou trop courte');
-		if (e.d && e.d.length > 400) bad('description trop longue');
+		if (e.d && e.d.length > 600) bad('description trop longue');
+		if (e.o && e.o.length > 160) bad('provenance trop longue');
+		if (e.c && (e.c.length < 40 || e.c.length > 900)) bad('conseils absents ou trop longs');
+		if (e.n != null && ![1, 2, 3].includes(e.n)) bad('difficulté invalide');
+		if (e.lt != null && (e.k !== 'plante' || ![1, 2, 3].includes(e.lt))) bad('lumière invalide');
+		if (e.co2 != null && (e.k !== 'plante' || ![0, 1, 2].includes(e.co2))) bad('CO2 invalide');
 		for (const key of ['t', 'p']) if (e[key] && !(Array.isArray(e[key]) && e[key].length === 2 && e[key][0] < e[key][1])) bad(`plage ${key} invalide`);
 		if (e.t && (e.t[0] < 0 || e.t[1] > 40)) bad('température improbable');
 		if (e.p && (e.p[0] < 3 || e.p[1] > 9.5)) bad('pH improbable');

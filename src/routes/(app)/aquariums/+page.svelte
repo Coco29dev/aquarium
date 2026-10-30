@@ -165,6 +165,6 @@
 
 	<Section>
 		<Row href="/aquariums/nouveau" icon="plus" iconColor="var(--blue)" title="Ajouter un bac" subtitle="En eau, en cyclage ou en projet" />
-		<Row href="/especes" icon="book" iconColor="var(--teal)" title="Encyclopédie des espèces" />
+		<Row href="/encyclopedie" icon="book" iconColor="var(--teal)" title="Encyclopédie" subtitle="Espèces, guides, maladies, biotopes" />
 	</Section>
 {/if}

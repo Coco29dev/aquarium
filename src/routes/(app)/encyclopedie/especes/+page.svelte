@@ -49,9 +49,15 @@
 		timer = setTimeout(search, 250);
 	}
 	onMount(() => {
+		// Liens de l'encyclopédie : ?id=ID ouvre la fiche, ?q=, ?kind= et ?water= préremplissent la recherche.
+		const params = new URLSearchParams(location.search);
+		query = params.get('q') ?? '';
+		const k = params.get('kind');
+		if (k && k in KIND_LABELS) kind = k as SpeciesKind;
+		const w = params.get('water');
+		if (w === 'douce' || w === 'mer') water = w;
 		void search();
-		// Arrivée depuis la recherche globale : /especes?id=ID ouvre directement la fiche.
-		const id = Number(new URLSearchParams(location.search).get('id'));
+		const id = Number(params.get('id'));
 		if (Number.isInteger(id) && id > 0) void open(id);
 	});
 
@@ -109,6 +115,10 @@
 		({ fishbase: 'FishBase', sealifebase: 'SeaLifeBase', maison: 'Saisie à la main', noyau: 'Encyclopédie' })[s.source];
 	const est = (s: Species, key: string) => (s.estimated.includes(key) ? ' (estimé)' : '');
 	const cap = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
+	const DIFFICULTY = { 1: 'Facile', 2: 'Intermédiaire', 3: 'Exigeant' } as const;
+	const DIFFICULTY_COLOR = { 1: 'text-green', 2: 'text-orange', 3: 'text-red' } as const;
+	const LIGHT = { 1: 'Faible', 2: 'Moyenne', 3: 'Forte' } as const;
+	const CO2 = { 0: 'Inutile', 1: 'Conseillé', 2: 'Indispensable' } as const;
 
 	/** Fiche d'élevage : seules les lignes renseignées sont affichées. */
 	function facts(s: Species): { label: string; value: string }[] {
@@ -123,7 +133,11 @@
 			['Régime', s.diet ? `${cap(s.diet)}${est(s, 'diet')}` : null],
 			['Zone du bac', s.zone ? `${cap(s.zone)}${est(s, 'zone')}` : null],
 			['Compatible récif', s.reefSafe == null ? null : s.reefSafe ? 'Oui' : 'Non'],
-			['Durée de vie', s.lifespanYears ? `${s.lifespanYears.toLocaleString('fr-FR')} ans` : null]
+			['Durée de vie', s.lifespanYears ? `${s.lifespanYears.toLocaleString('fr-FR')} ans` : null],
+			['Provenance', s.origin],
+			['Difficulté', s.difficulty ? DIFFICULTY[s.difficulty] : null],
+			['Lumière', s.light ? LIGHT[s.light] : null],
+			['CO₂', s.co2 == null ? null : CO2[s.co2]]
 		];
 		return rows.filter((r): r is [string, string] => r[1] != null).map(([label, value]) => ({ label, value }));
 	}
@@ -199,6 +213,12 @@
 			{/if}
 		</Section>
 
+		{#if s.care}
+			<Section header="Conseils d’entretien" variant="title">
+				<li class="body px-4 py-3 leading-relaxed">{s.care}</li>
+			</Section>
+		{/if}
+
 		{#if s.notes}
 			<Section header="Notes d’élevage" variant="title">
 				<li class="body whitespace-pre-wrap px-4 py-3">{s.notes}</li>
@@ -213,7 +233,7 @@
 		</Section>
 	</article>
 {:else}
-	<NavBar title="Espèces" back={{ href: '/outils', label: 'Atelier' }}>
+	<NavBar title="Espèces" back={{ href: '/encyclopedie', label: 'Encyclopédie' }}>
 		{#snippet trailing()}
 			<button class="btn-plain grid h-10 w-10 place-items-center" aria-label="Ajouter une espèce" onclick={() => (adding = true)}>
 				<Icon name="plus" size={24} weight={2.2} />
@@ -250,6 +270,7 @@
 					<p class="subhead truncate italic text-label2">{s.scientificName}</p>
 					<p class="caption1 mt-0.5 flex items-center gap-1.5 text-label3">
 						{KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm.toLocaleString('fr-FR')} cm` : ''}{!s.curated ? ' · base brute' : ''}
+						{#if s.difficulty}<span class="font-semibold {DIFFICULTY_COLOR[s.difficulty]}">· {DIFFICULTY[s.difficulty]}</span>{/if}
 						{#if s.dataQuality === 'verifie'}<span class="text-green"><Icon name="check" size={12} weight={3} /></span>{/if}
 					</p>
 				</Row>

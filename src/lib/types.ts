@@ -197,6 +197,16 @@ export interface Species {
 	/** Champs déduits de FishBase, à confirmer. */
 	estimated: string[];
 	description: string | null;
+	/** Provenance et milieu naturel (ex. « Amazonie, eaux noires »). */
+	origin: string | null;
+	/** 1 : facile, 2 : intermédiaire, 3 : exigeant. */
+	difficulty: 1 | 2 | 3 | null;
+	/** Conseils d'entretien : alimentation, décor, reproduction, cohabitation. */
+	care: string | null;
+	/** Plantes : 1 faible, 2 moyenne, 3 forte. */
+	light: 1 | 2 | 3 | null;
+	/** Plantes : 0 inutile, 1 conseillé, 2 indispensable. */
+	co2: 0 | 1 | 2 | null;
 	/** Dans le noyau encyclopédique (visible par défaut). */
 	curated: boolean;
 	/** 'claude' : rédigé par Claude, à vérifier ; 'verifie' : confirmé par l'utilisateur. */

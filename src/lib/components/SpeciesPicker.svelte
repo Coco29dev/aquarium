@@ -83,7 +83,7 @@
 	{:else if query.trim().length >= 2 && !loading}
 		<p class="footnote px-1 text-label2">
 			Aucun résultat{all ? '' : ' : inclus la base complète pour chercher plus large'}.
-			<a href="/especes" class="text-tint">Ajouter l’espèce à la main</a>
+			<a href="/encyclopedie/especes" class="text-tint">Ajouter l’espèce à la main</a>
 		</p>
 	{/if}
 </div>

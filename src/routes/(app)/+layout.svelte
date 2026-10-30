@@ -27,7 +27,7 @@
 		return () => removeEventListener('pagehide', flush);
 	});
 
-	const ROOTS = ['/', '/aquariums', '/outils', '/reglages'];
+	const ROOTS = ['/', '/aquariums', '/encyclopedie', '/outils', '/reglages'];
 	/** Écrans présentés en feuille plein écran : pas de barre d'onglets, entrée par le bas. */
 	const isModal = (path: string) =>
 		path.startsWith('/mesurer') || path === '/aquariums/nouveau' || path.startsWith('/bienvenue');
@@ -81,6 +81,7 @@
 	const tabs: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/', label: "Aujourd'hui", icon: 'today' },
 		{ href: '/aquariums', label: 'Bacs', icon: 'bacs' },
+		{ href: '/encyclopedie', label: 'Encyclo', icon: 'book' },
 		{ href: '/outils', label: 'Atelier', icon: 'outils' },
 		{ href: '/reglages', label: 'Réglages', icon: 'gear' }
 	];
@@ -88,7 +89,7 @@
 	function active(href: string): boolean {
 		const path = page.url.pathname;
 		if (href === '/') return path === '/';
-		if (href === '/outils') return ['/outils', '/especes', '/depenses'].some((p) => path.startsWith(p));
+		if (href === '/outils') return ['/outils', '/depenses'].some((p) => path.startsWith(p));
 		return path.startsWith(href);
 	}
 	const modal = $derived(isModal(page.url.pathname));

@@ -171,3 +171,14 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 - **CI** : `.github/workflows/ci.yml` lance `svelte-check` et les tests à chaque push.
 
 Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâche, inventaire), synchronisation incrémentale, linter, tests des routes API, copie de sauvegarde hors de Railway.
+
+---
+
+## Encyclopédie (30 octobre 2026)
+
+- **Écran dédié** : onglet « Encyclo » de la barre d'onglets (`/encyclopedie`) avec recherche, accès aux espèces (poissons, invertébrés, plantes, mer), guides par thème et rubrique « Un souci ? ». L'annuaire d'espèces vit maintenant sous `/encyclopedie/especes` ; l'ancienne adresse `/especes` redirige. La recherche globale cherche aussi dans les guides.
+- **Guides** (`src/lib/content/`, contenu statique donc disponible hors ligne, testé par `content.test.ts`) : démarrer, entretien et algues, plantes, santé et maladies, vie du bac (nourrir, cohabitation, charge, reproduction, invertébrés), biotopes et styles, lexique. Les biotopes renvoient vers les fiches d'espèces.
+- **Fiches enrichies** (`migrations/1763300000000_fiches_enrichies.sql`) : provenance, difficulté, conseils d'entretien, et pour les plantes lumière et CO₂. Les 378 fiches d'eau douce existantes en sont dotées ; une centaine d'espèces d'eau douce ont été ajoutées (`data/core/11-*` et `12-*`).
+- **Vérification des noms** : `scripts/verify-names.mjs` compare les noms latins à GBIF et les noms français et tailles à FishBase. Renommages appliqués (champ `was`, l'identifiant de la fiche est conservé) : Marosatherina ladigesi, Corydoras splendens, Helostoma temminckii, Anentome helena, Megalechis thoracata, Micranthemum callitrichoides, Cryptocoryne walkeri.
+- Les fiches et guides sont rédigés avec Claude à partir de connaissances générales : les fiches restent marquées « à vérifier » tant que tu ne les as pas confirmées.
+

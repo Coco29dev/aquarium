@@ -144,7 +144,7 @@
 <NavBar title="Atelier" />
 
 <Section class="mt-2">
-	<Row href="/especes" icon="book" iconColor="var(--teal)" title="Encyclopédie des espèces" />
+	<Row href="/encyclopedie" icon="book" iconColor="var(--teal)" title="Encyclopédie" subtitle="Espèces, guides, maladies, biotopes" />
 	<Row href="/depenses" icon="euro" iconColor="var(--green)" title="Dépenses" value={monthTotal != null ? eur(monthTotal) : undefined} />
 </Section>
 

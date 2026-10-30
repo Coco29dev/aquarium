@@ -80,6 +80,12 @@
 		<a href="/aquariums/{id}/reglages" class="text-sm text-cyan-300 underline">Réglages</a>
 	</header>
 
+	<nav class="mb-6 grid grid-cols-3 gap-2 text-center text-sm">
+		<a href="/aquariums/{id}/inventaire" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Inventaire</a>
+		<a href="/aquariums/{id}/journal" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Journal</a>
+		<a href="/depenses" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Dépenses</a>
+	</nav>
+
 	{#if coach && coach.stage !== 'aucune_mesure'}
 		<section class="mb-6 rounded-lg border {coach.ready ? 'border-emerald-700' : 'border-cyan-900'} p-4">
 			<h2 class="font-medium">{coach.title}</h2>

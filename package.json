@@ -35,6 +35,7 @@
 		"workbox-window": "^7.4.1"
 	},
 	"dependencies": {
+		"aws4fetch": "^1.0.20",
 		"dexie": "^4.4.7",
 		"node-cron": "^4.6.0",
 		"node-pg-migrate": "^9.0.0",

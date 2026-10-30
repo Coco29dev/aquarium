@@ -132,6 +132,7 @@
 		<li><a href="/api/export?format=json" download class="text-cyan-300 underline">Tout exporter (JSON)</a></li>
 		<li><a href="/api/export?format=csv&table=measurements" download class="text-cyan-300 underline">Mesures (CSV)</a></li>
 		<li><a href="/api/export?format=csv&table=completions" download class="text-cyan-300 underline">Tâches réalisées (CSV)</a></li>
+		<li><a href="/api/export?format=csv&table=expenses" download class="text-cyan-300 underline">Dépenses (CSV)</a></li>
 	</ul>
 
 	<p class="text-xs text-slate-500">

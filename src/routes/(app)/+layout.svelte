@@ -15,6 +15,7 @@
 	const tabs = [
 		{ href: '/', label: "Aujourd'hui" },
 		{ href: '/aquariums', label: 'Aquariums' },
+		{ href: '/outils', label: 'Outils' },
 		{ href: '/reglages', label: 'Réglages' }
 	];
 

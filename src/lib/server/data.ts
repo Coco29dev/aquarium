@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PoolClient } from 'pg';
 import { db } from './db';
+import { deleteObject } from './storage';
 import { PARAMETER_TEMPLATES } from '$lib/templates';
 import { dayInParis } from '$lib/domain/dates';
 import { nextDueAfter } from '$lib/domain/tasks';
@@ -95,7 +96,10 @@ export async function updateAquarium(
 }
 
 export async function deleteAquarium(id: number): Promise<void> {
+	// Les lignes photos partent en cascade ; les fichiers du stockage sont à supprimer à la main.
+	const { rows } = await db().query<{ storage_key: string }>('SELECT storage_key FROM photos WHERE aquarium_id = $1', [id]);
 	await db().query('DELETE FROM aquariums WHERE id = $1', [id]);
+	await Promise.allSettled(rows.map((r) => deleteObject(r.storage_key)));
 }
 
 // --- Paramètres ------------------------------------------------------------
@@ -288,12 +292,20 @@ async function everyDays(client: PoolClient, taskId: number): Promise<number> {
 // --- Export ----------------------------------------------------------------
 
 export async function exportAll() {
-	const [aquariums, parameters, measurements, tasks, completions] = await Promise.all([
+	const [aquariums, parameters, measurements, tasks, completions, inhabitants, equipment, consumables, expenses, notes, photos] =
+		await Promise.all([
 		db().query(`SELECT * FROM aquariums ORDER BY id`),
 		db().query(`SELECT * FROM parameter_defs ORDER BY id`),
 		db().query(`SELECT * FROM measurements ORDER BY measured_at`),
 		db().query(`SELECT * FROM recurring_tasks ORDER BY id`),
-		db().query(`SELECT * FROM task_completions ORDER BY done_at`)
+		db().query(`SELECT * FROM task_completions ORDER BY done_at`),
+		db().query(`SELECT * FROM inhabitants ORDER BY id`),
+		db().query(`SELECT * FROM equipment ORDER BY id`),
+		db().query(`SELECT * FROM consumables ORDER BY id`),
+		db().query(`SELECT * FROM expenses ORDER BY spent_on, id`),
+		db().query(`SELECT * FROM notes ORDER BY noted_on, id`),
+		// Métadonnées seulement : les fichiers restent dans le stockage (voir /api/photos/<id>).
+		db().query(`SELECT id, aquarium_id, storage_key, content_type, bytes, caption, taken_on FROM photos ORDER BY id`)
 	]);
 	return {
 		exportedAt: new Date().toISOString(),
@@ -301,7 +313,13 @@ export async function exportAll() {
 		parameters: parameters.rows,
 		measurements: measurements.rows,
 		recurringTasks: tasks.rows,
-		taskCompletions: completions.rows
+		taskCompletions: completions.rows,
+		inhabitants: inhabitants.rows,
+		equipment: equipment.rows,
+		consumables: consumables.rows,
+		expenses: expenses.rows,
+		notes: notes.rows,
+		photos: photos.rows
 	};
 }
 
@@ -328,6 +346,16 @@ export async function exportCompletionsCsv(): Promise<string> {
 		 ORDER BY c.done_at`
 	);
 	return toCsv(['aquarium', 'tache', 'date_paris', 'note'], rows);
+}
+
+export async function exportExpensesCsv(): Promise<string> {
+	const { rows } = await db().query<Record<string, unknown>>(
+		`SELECT COALESCE(a.name, '') AS aquarium, e.label AS libelle, e.category AS categorie,
+		        e.amount AS montant_eur, e.spent_on::text AS date
+		 FROM expenses e LEFT JOIN aquariums a ON a.id = e.aquarium_id
+		 ORDER BY e.spent_on, e.id`
+	);
+	return toCsv(['aquarium', 'libelle', 'categorie', 'montant_eur', 'date'], rows);
 }
 
 function toCsv(columns: string[], rows: Record<string, unknown>[]): string {

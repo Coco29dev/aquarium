@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { exportAll, exportCompletionsCsv, exportMeasurementsCsv } from '$lib/server/data';
+import { exportAll, exportCompletionsCsv, exportExpensesCsv, exportMeasurementsCsv } from '$lib/server/data';
 
-// /api/export?format=json | csv&table=measurements|completions
+// /api/export?format=json | csv&table=measurements|completions|expenses
 export const GET: RequestHandler = async ({ url }) => {
 	const format = url.searchParams.get('format') ?? 'json';
 	const stamp = new Date().toISOString().slice(0, 10);
@@ -16,8 +16,13 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 	if (format === 'csv') {
 		const table = url.searchParams.get('table') ?? 'measurements';
-		if (table !== 'measurements' && table !== 'completions') error(400, 'Table inconnue');
-		const csv = table === 'measurements' ? await exportMeasurementsCsv() : await exportCompletionsCsv();
+		if (table !== 'measurements' && table !== 'completions' && table !== 'expenses') error(400, 'Table inconnue');
+		const csv =
+			table === 'measurements'
+				? await exportMeasurementsCsv()
+				: table === 'completions'
+					? await exportCompletionsCsv()
+					: await exportExpensesCsv();
 		return new Response('﻿' + csv, {
 			headers: {
 				'content-type': 'text/csv; charset=utf-8',

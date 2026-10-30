@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 
 # Railway
 .railway/
+
+# Photos de développement (stockage local sans bucket)
+.data/

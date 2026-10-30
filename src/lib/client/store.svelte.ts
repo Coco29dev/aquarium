@@ -377,6 +377,25 @@ class AppStore {
 		return result;
 	}
 
+	/** Déconnexion : efface le cache local, la file d'envoi et les pages en cache de cet appareil. */
+	async clearLocalData(): Promise<void> {
+		try {
+			await localDb.transaction('rw', localDb.kv, localDb.outbox, async () => {
+				await localDb.kv.clear();
+				await localDb.outbox.clear();
+			});
+		} catch {
+			// Cache indisponible : rien à effacer.
+		}
+		try {
+			await caches.delete('pages');
+		} catch {
+			// API de cache absente (navigation privée) : ignoré.
+		}
+		// L'état en mémoire reste intact : la page se recharge sur /login, et le vider ici
+		// démonterait le formulaire de déconnexion avant son envoi.
+	}
+
 	/** Vide le cache local (IndexedDB) et la file d'attente, puis repart de l'état du serveur. */
 	async resetLocalCache(): Promise<void> {
 		try {

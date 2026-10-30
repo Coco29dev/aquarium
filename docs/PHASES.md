@@ -170,6 +170,15 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 - **Historique** : 400 jours dans l'état synchronisé, période « 1 an » sur les courbes.
 - **CI** : `.github/workflows/ci.yml` lance `svelte-check` et les tests à chaque push.
 
+### Durcissement sécurité (30 octobre 2026)
+
+- Freinage : l'adresse vient de `getClientAddress()` (plus de lecture brute de `x-forwarded-for`, falsifiable) ; `ADDRESS_HEADER=x-forwarded-for` et `XFF_DEPTH=1` définis sur le service `app`.
+- En-têtes sur toutes les réponses : CSP (nonce/empreintes SvelteKit, aucune ressource externe), `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS.
+- Corps de requête limité à 2 Mo (7 Mo pour une photo, illimité pour la restauration, plafonné par `BODY_SIZE_LIMIT`).
+- Pool Postgres : écouteur d'erreur, `statement_timeout` 30 s, fermeture des connexions inactives.
+- Déconnexion : efface IndexedDB et le cache `pages` de l'appareil (avec confirmation s'il reste des saisies non envoyées).
+- Sauvegarde : message d'erreur générique (détail dans les logs) ; test push limité à un toutes les 10 s ; export CSV neutralise aussi les cellules commençant par tabulation ou retour chariot.
+
 Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâche, inventaire), synchronisation incrémentale, linter, tests des routes API, copie de sauvegarde hors de Railway.
 
 ---

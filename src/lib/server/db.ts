@@ -12,7 +12,14 @@ let pool: pg.Pool | undefined;
 export function db(): pg.Pool {
 	if (!pool) {
 		if (!env.DATABASE_URL) throw new Error('DATABASE_URL est absent.');
-		pool = new pg.Pool({ connectionString: env.DATABASE_URL, max: 5 });
+		pool = new pg.Pool({
+			connectionString: env.DATABASE_URL,
+			max: 5,
+			idleTimeoutMillis: 30_000,
+			statement_timeout: 30_000
+		});
+		// Sans écouteur, une connexion inactive coupée (redémarrage de la base) ferait tomber le processus.
+		pool.on('error', (error) => console.error('[db] connexion inactive perdue :', error.message));
 	}
 	return pool;
 }

@@ -11,7 +11,26 @@ const config = {
 	kit: {
 		adapter: adapter(),
 		// Le service worker est géré par @vite-pwa/sveltekit, pas par SvelteKit.
-		serviceWorker: { register: false }
+		serviceWorker: { register: false },
+		// CSP : scripts uniquement de l'appli (nonce/empreintes ajoutés par SvelteKit), rien d'externe.
+		// Les styles en ligne restent permis (attributs style de Svelte).
+		csp: {
+			mode: 'auto',
+			directives: {
+				'default-src': ['self'],
+				'script-src': ['self'],
+				'style-src': ['self', 'unsafe-inline'],
+				'img-src': ['self', 'data:', 'blob:'],
+				'font-src': ['self', 'data:'],
+				'connect-src': ['self'],
+				'worker-src': ['self'],
+				'manifest-src': ['self'],
+				'object-src': ['none'],
+				'base-uri': ['self'],
+				'form-action': ['self'],
+				'frame-ancestors': ['none']
+			}
+		}
 	}
 };
 

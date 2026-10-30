@@ -659,7 +659,7 @@ function toCsv(columns: string[], rows: Record<string, unknown>[]): string {
 	const cell = (v: unknown) => {
 		const s = String(v ?? '');
 		// Neutralise l'injection de formules à l'ouverture dans un tableur.
-		const safe = /^[=+\-@]/.test(s) && Number.isNaN(Number(s)) ? `'${s}` : s;
+		const safe = /^[=+\-@\t\r]/.test(s) && Number.isNaN(Number(s)) ? `'${s}` : s;
 		return /[",\n;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 	};
 	return [columns.join(','), ...rows.map((r) => columns.map((c) => cell(r[c])).join(','))].join('\n') + '\n';

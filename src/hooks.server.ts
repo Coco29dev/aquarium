@@ -36,10 +36,12 @@ function isPublic(pathname: string): boolean {
 	);
 }
 
-/** Adresse du client : en-tête du proxy (Railway) si présent, sinon l'adresse de la connexion. */
+/**
+ * Adresse du client telle que la voit SvelteKit. Derrière Railway, ADDRESS_HEADER=x-forwarded-for et
+ * XFF_DEPTH=1 donnent l'adresse ajoutée par le proxy ; on ne lit jamais l'en-tête brut, que le client
+ * peut falsifier pour échapper au freinage.
+ */
 function clientIp(event: Parameters<Handle>[0]['event']): string {
-	const forwarded = event.request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-	if (forwarded) return forwarded;
 	try {
 		return event.getClientAddress();
 	} catch {
@@ -47,9 +49,49 @@ function clientIp(event: Parameters<Handle>[0]['event']): string {
 	}
 }
 
+// Taille maximale d'un corps de requête : la restauration d'un export complet et l'envoi d'une photo
+// font exception, le reste de l'API n'a besoin que de quelques Ko.
+const BODY_LIMIT_DEFAULT = 2 * 1024 * 1024;
+const BODY_LIMIT_PHOTO = 7 * 1024 * 1024;
+
+function bodyLimit(pathname: string): number {
+	if (pathname.startsWith('/api/restore')) return Infinity;
+	if (pathname === '/api/photos') return BODY_LIMIT_PHOTO;
+	return BODY_LIMIT_DEFAULT;
+}
+
 const shortcutReply = (message: string, status: number) => json({ ok: false, message }, { status });
 
 export const handle: Handle = async ({ event, resolve }) => {
+	const declared = Number(event.request.headers.get('content-length') ?? 0);
+	if (declared > bodyLimit(event.url.pathname)) return json({ error: 'Requête trop volumineuse' }, { status: 413 });
+	const response = await authenticate(event, resolve);
+	return withSecurityHeaders(response);
+};
+
+const SECURITY_HEADERS: Record<string, string> = {
+	'x-content-type-options': 'nosniff',
+	'referrer-policy': 'same-origin',
+	'x-frame-options': 'DENY',
+	'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+	'strict-transport-security': 'max-age=31536000'
+};
+
+function withSecurityHeaders(response: Response): Response {
+	try {
+		for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+			if (!response.headers.has(name)) response.headers.set(name, value);
+		}
+		return response;
+	} catch {
+		// En-têtes en lecture seule (réponse issue d'un fetch) : on recopie la réponse.
+		const copy = new Response(response.body, response);
+		for (const [name, value] of Object.entries(SECURITY_HEADERS)) if (!copy.headers.has(name)) copy.headers.set(name, value);
+		return copy;
+	}
+}
+
+const authenticate = async (event: Parameters<Handle>[0]['event'], resolve: Parameters<Handle>[0]['resolve']) => {
 	event.locals.authenticated = verifySessionToken(event.cookies.get(SESSION_COOKIE));
 
 	// Raccourcis Siri / bouton Action : un jeton `Authorization: Bearer aq_…` suffit, sur /api/shortcuts/* uniquement.

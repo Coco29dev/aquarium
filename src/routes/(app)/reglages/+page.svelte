@@ -36,6 +36,27 @@
 		ui.show(store.error ? 'Synchronisation impossible' : 'Données à jour', undefined, store.error ? undefined : 'check');
 	}
 
+	let loggingOut = false;
+
+	/** Efface les données locales avant de quitter ; prévient s'il reste des saisies non envoyées. */
+	async function logout(event: SubmitEvent) {
+		if (loggingOut) return;
+		event.preventDefault();
+		const form = event.currentTarget as HTMLFormElement;
+		if (store.pending.length) {
+			const ok = await ui.confirm({
+				title: 'Saisies non envoyées',
+				message: `${store.pending.length} saisie(s) n'ont pas encore atteint le serveur et seront perdues.`,
+				confirmLabel: 'Se déconnecter',
+				destructive: true
+			});
+			if (!ok) return;
+		}
+		await store.clearLocalData();
+		loggingOut = true;
+		form.requestSubmit();
+	}
+
 	const time = (iso: string | null) =>
 		iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null;
 	const lastSync = $derived(
@@ -126,7 +147,7 @@
 	<Row title="Espèces" value="FishBase, SeaLifeBase" />
 </Section>
 
-<form method="POST" action="/logout" class="mb-8">
+<form method="POST" action="/logout" class="mb-8" onsubmit={logout}>
 	<ul class="group">
 		<li>
 			<button class="tappable body flex min-h-11 w-full items-center justify-center text-red">Se déconnecter</button>

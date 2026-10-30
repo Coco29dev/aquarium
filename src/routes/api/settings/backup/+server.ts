@@ -9,6 +9,7 @@ export const POST: RequestHandler = async () => {
 	try {
 		return json(await runBackup());
 	} catch (e) {
-		error(502, `Sauvegarde impossible : ${(e as Error).message}`);
+		console.error('[sauvegarde]', e);
+		error(502, 'Sauvegarde impossible : vérifie le stockage et les logs du service.');
 	}
 };

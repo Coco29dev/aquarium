@@ -29,7 +29,7 @@
 			<a href="/aquariums" class="-ml-1 flex items-center gap-1 text-sm font-bold"><Icon name="back" size={18} />Bacs</a>
 			<a
 				href="/aquariums/{aquarium.id}/reglages"
-				class="press grid h-10 w-10 place-items-center rounded-full border-2 border-edge bg-surface shadow-[2px_2px_0_var(--shadow)] {tab === 'reglages' ? 'bg-ink text-on-ink' : ''}"
+				class="press grid h-10 w-10 place-items-center rounded-full border-2 border-edge shadow-[2px_2px_0_var(--shadow)] {tab === 'reglages' ? 'bg-ink text-on-ink' : 'bg-surface'}"
 				aria-label="Réglages du bac"
 				aria-current={tab === 'reglages' ? 'page' : undefined}
 			>

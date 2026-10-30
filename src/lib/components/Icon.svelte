@@ -31,6 +31,8 @@
 		flat: '<path d="M5 12h14M13 6l6 6-6 6"/>',
 		edit: '<path class="f" d="M4.5 19.5l1-4.5L16 4.5l3.5 3.5L9 18.5z"/><path d="M13.5 7l3.5 3.5"/>',
 		close: '<path d="M6 6l12 12M18 6L6 18"/>',
+		search: '<circle class="f" cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
+		coral: '<path d="M12 21v-7M12 14c0-3-3-4-3-7M12 14c0-2.5 3-3.5 3-6.5M9 7c0-1.5-1.5-2.5-2.5-3.5M9 9.5c-2 0-3.5-1-4-3M15 7.5c0-1.6 1.2-2.6 2.5-3.5M15 10c2 0 3.5-1 4-3"/><path class="f" d="M7 21h10l-1-2H8z"/>',
 		cycle: '<path d="M12 4a8 8 0 1 1-7.4 5"/><path d="M4 4.5v4.8h4.8"/><circle class="f" cx="12" cy="12" r="2.5"/>'
 	} as const;
 

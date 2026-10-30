@@ -2,6 +2,8 @@
 	import { api } from '$lib/client/api';
 	import { KIND_LABELS, type Species } from '$lib/types';
 	import { speciesName } from '$lib/domain/species';
+	import Icon from './Icon.svelte';
+	import SpeciesThumb from './SpeciesThumb.svelte';
 
 	interface Props {
 		onpick: (species: Species) => void;
@@ -42,22 +44,25 @@
 </script>
 
 <div class="flex flex-col gap-2">
-	<input
-		bind:value={query}
-		oninput={search}
-		type="search"
-		placeholder={placeholder}
-		class="w-full rounded-lg border-2 border-edge bg-surface px-3 py-2 text-base"
-		aria-label="Rechercher une espèce"
-	/>
+	<label class="card-flat flex items-center gap-2 px-3">
+		<Icon name="search" size={20} class="text-muted" />
+		<input
+			bind:value={query}
+			oninput={search}
+			type="search"
+			placeholder={placeholder}
+			class="min-w-0 flex-1 bg-transparent py-3 text-base outline-none"
+			aria-label="Rechercher une espèce"
+		/>
+	</label>
 	<label class="flex items-center gap-2 text-xs text-muted">
-		<input type="checkbox" bind:checked={all} onchange={search} class="accent-primary" />
+		<input type="checkbox" bind:checked={all} onchange={search} class="h-4 w-4 accent-primary" />
 		Inclure la base brute (espèces hors noyau, fiches vides)
 	</label>
-	{#if error}<p class="text-sm text-bad">{error}</p>{/if}
-	{#if loading}<p class="text-xs text-muted">Recherche…</p>{/if}
+	{#if error}<p class="text-sm font-bold text-bad">{error}</p>{/if}
+	{#if loading}<p class="hand text-base text-muted">Je cherche…</p>{/if}
 	{#if results.length}
-		<ul class="max-h-72 overflow-y-auto rounded-lg border border-line">
+		<ul class="card max-h-80 divide-y-2 divide-line overflow-y-auto">
 			{#each results as s (s.id)}
 				<li>
 					<button
@@ -67,24 +72,21 @@
 							results = [];
 							query = '';
 						}}
-						class="flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0 active:bg-surface2"
+						class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-surface2"
 					>
-						{#if s.hasPhoto}
-							<img src="/api/species/{s.id}/photo" alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded object-cover" />
-						{:else}
-							<span class="h-10 w-10 shrink-0 rounded bg-surface2"></span>
-						{/if}
-						<span class="min-w-0">
-							<span class="block truncate text-sm">{speciesName(s)}</span>
-							<span class="block truncate text-xs italic text-muted">
-								{s.scientificName} · {KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}{s.source === 'maison' ? ' · maison' : ''}
+						<SpeciesThumb species={s} class="h-11 w-11 shrink-0 rounded-lg border-2" iconSize={20} />
+						<span class="min-w-0 flex-1">
+							<span class="block truncate text-sm font-bold">{speciesName(s)}</span>
+							<span class="block truncate text-xs text-muted">
+								<em>{s.scientificName}</em> · {KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}{s.source === 'maison' ? ' · maison' : ''}
 							</span>
 						</span>
+						<Icon name="plus" size={18} class="text-muted" />
 					</button>
 				</li>
 			{/each}
 		</ul>
 	{:else if query.trim().length >= 2 && !loading}
-		<p class="text-xs text-muted">Aucun résultat{all ? '' : ' dans le noyau : coche « base brute » pour chercher plus large'}. <a href="/especes" class="text-primary underline">Ajouter l'espèce à la main</a>.</p>
+		<p class="text-xs text-muted">Aucun résultat{all ? '' : ' dans le noyau : coche « base brute » pour chercher plus large'}. <a href="/especes" class="font-bold text-link underline">Ajouter l'espèce à la main</a>.</p>
 	{/if}
 </div>

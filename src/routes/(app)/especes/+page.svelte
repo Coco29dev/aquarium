@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import SpeciesForm from '$lib/components/SpeciesForm.svelte';
+	import SpeciesThumb from '$lib/components/SpeciesThumb.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { api } from '$lib/client/api';
+	import { ui } from '$lib/client/ui.svelte';
 	import { speciesName } from '$lib/domain/species';
 	import { KIND_LABELS, type Species, type SpeciesKind } from '$lib/types';
 
@@ -40,14 +44,19 @@
 	onMount(search);
 
 	async function open(id: number) {
-		selected = await api<Species>('GET', `/api/species/${id}`);
-		editing = false;
-		adding = false;
-		scrollTo({ top: 0 });
+		try {
+			selected = await api<Species>('GET', `/api/species/${id}`);
+			editing = false;
+			adding = false;
+			scrollTo({ top: 0 });
+		} catch (e) {
+			message = (e as Error).message;
+		}
 	}
 
 	async function verify(s: Species) {
 		await api('PATCH', `/api/species/${s.id}`, { verified: true });
+		ui.show('Fiche marquée comme vérifiée');
 		await open(s.id);
 	}
 
@@ -55,6 +64,7 @@
 		if (!confirm(`Supprimer « ${speciesName(s)} » ?`)) return;
 		try {
 			await api('DELETE', `/api/species/${s.id}`);
+			ui.show(`« ${speciesName(s)} » supprimée`);
 			selected = null;
 			await search();
 		} catch (e) {
@@ -62,120 +72,204 @@
 		}
 	}
 
-	const yesNo = (v: boolean | null) => (v == null ? '—' : v ? 'oui' : 'non');
-	const range = (a: number | null, b: number | null, unit = '') => (a == null || b == null ? '—' : `${a}–${b}${unit}`);
-	const water_ = (s: Species) => [s.fresh && 'eau douce', s.brackish && 'saumâtre', s.salt && 'eau de mer'].filter(Boolean).join(', ') || '—';
+	const range = (a: number | null, b: number | null, unit = '') =>
+		a == null || b == null ? null : `${a.toLocaleString('fr-FR')}–${b.toLocaleString('fr-FR')}${unit}`;
+	const waterOf = (s: Species) =>
+		[s.fresh && 'Douce', s.brackish && 'Saumâtre', s.salt && 'Mer'].filter(Boolean).join(', ') || null;
 	const sourceLabel = (s: Species) =>
 		({ fishbase: 'FishBase', sealifebase: 'SeaLifeBase', maison: 'saisie à la main', noyau: 'noyau encyclopédique' })[s.source];
+	const est = (s: Species, key: string) => (s.estimated.includes(key) ? ' (estimé)' : '');
+
+	/** Fiche d'élevage : seules les lignes renseignées sont affichées. */
+	function facts(s: Species): { label: string; value: string }[] {
+		const rows: [string, string | null][] = [
+			['Température', range(s.tempMin, s.tempMax, ' °C')],
+			['pH', range(s.phMin, s.phMax)],
+			['Taille adulte', s.maxLengthCm ? `${s.maxLengthCm.toLocaleString('fr-FR')} cm` : null],
+			['Volume min.', s.minTankL ? `${s.minTankL} L` : null],
+			['Groupe min.', s.groupMin ? `${s.groupMin}${est(s, 'groupMin')}` : null],
+			['Eau', waterOf(s)],
+			['Tempérament', s.temperament],
+			['Régime', s.diet ? `${s.diet}${est(s, 'diet')}` : null],
+			['Zone du bac', s.zone ? `${s.zone}${est(s, 'zone')}` : null],
+			['Compatible récif', s.reefSafe == null ? null : s.reefSafe ? 'oui' : 'non'],
+			['Durée de vie', s.lifespanYears ? `${s.lifespanYears.toLocaleString('fr-FR')} ans` : null]
+		];
+		return rows.filter((r): r is [string, string] => r[1] != null).map(([label, value]) => ({ label, value }));
+	}
+
+	const KINDS: ['' | SpeciesKind, string][] = [['', 'Tout'], ...(Object.entries(KIND_LABELS) as [SpeciesKind, string][])];
+	const WATERS: ['' | 'douce' | 'mer', string][] = [['', 'Toutes eaux'], ['douce', 'Eau douce'], ['mer', 'Eau de mer']];
 </script>
 
-<svelte:head><title>Espèces · Bulle</title></svelte:head>
+<svelte:head><title>{selected ? speciesName(selected) : 'Espèces'} · Bulle</title></svelte:head>
 
-{#if message}<p class="mb-4 rounded-lg bg-bad-soft p-3 text-sm text-bad" role="alert">{message}</p>{/if}
+{#if message}<p class="mb-4 rounded-lg border-2 border-bad bg-bad-soft p-3 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
 
 {#if adding}
-	<button class="mb-3 text-sm text-primary underline" onclick={() => (adding = false)}>← Retour</button>
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Nouvelle espèce</h2>
-	<SpeciesForm onsaved={open} oncancel={() => (adding = false)} />
-{:else if selected}
-	<button class="mb-3 text-sm text-primary underline" onclick={() => (selected = null)}>← Retour</button>
-	{#if selected.hasPhoto}
-		<figure class="mb-4">
-			<img src="/api/species/{selected.id}/photo" alt={speciesName(selected)} class="max-h-72 w-full rounded-lg object-cover" />
-			<figcaption class="mt-1 text-xs text-muted">
-				{selected.photoAuthor ?? 'Auteur inconnu'} · {selected.photoLicense}
-				{#if selected.photoSource}· <a href={selected.photoSource} target="_blank" rel="noreferrer" class="underline">source</a>{/if}
-			</figcaption>
-		</figure>
-	{/if}
-	<h1 class="text-2xl font-semibold">{speciesName(selected)}</h1>
-	<p class="mb-1 text-sm italic text-muted">{selected.scientificName}</p>
-	{#if selected.nameEn && selected.nameEn !== speciesName(selected)}<p class="text-xs text-muted">{selected.nameEn}</p>{/if}
-	<p class="mb-3 mt-1 text-xs text-muted">{KIND_LABELS[selected.kind]} · source : {sourceLabel(selected)}</p>
-
-	{#if selected.dataQuality === 'claude'}
-		<div class="mb-4 flex items-center justify-between gap-3 rounded-lg bg-warn-soft p-3 text-xs text-warn">
-			<span>Fiche rédigée par Claude de mémoire, à vérifier avant de t'y fier.</span>
-			<button class="shrink-0 underline" onclick={() => selected && verify(selected)}>Marquer vérifiée</button>
-		</div>
-	{:else if selected.dataQuality === 'verifie'}
-		<p class="mb-4 text-xs text-ok">✓ Fiche vérifiée</p>
-	{/if}
-
-	{#if selected.description}<p class="mb-4 text-sm leading-relaxed">{selected.description}</p>{/if}
-
-	{#if !editing}
-		<dl class="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-			<dt class="text-muted">Eau</dt><dd>{water_(selected)}</dd>
-			<dt class="text-muted">Taille adulte</dt><dd>{selected.maxLengthCm ? `${selected.maxLengthCm} cm` : '—'}</dd>
-			<dt class="text-muted">Durée de vie</dt><dd>{selected.lifespanYears ? `${selected.lifespanYears} ans` : '—'}</dd>
-			<dt class="text-muted">Température</dt><dd>{range(selected.tempMin, selected.tempMax, ' °C')}</dd>
-			<dt class="text-muted">pH</dt><dd>{range(selected.phMin, selected.phMax)}</dd>
-			<dt class="text-muted">Volume min.</dt><dd>{selected.minTankL ? `${selected.minTankL} L` : '—'}</dd>
-			<dt class="text-muted">Tempérament</dt><dd>{selected.temperament ?? '—'}</dd>
-			<dt class="text-muted">Régime</dt><dd>{selected.diet ?? '—'}{selected.estimated.includes('diet') ? ' (estimé)' : ''}</dd>
-			<dt class="text-muted">Zone du bac</dt><dd>{selected.zone ?? '—'}{selected.estimated.includes('zone') ? ' (estimé)' : ''}</dd>
-			<dt class="text-muted">Groupe min.</dt><dd>{selected.groupMin ?? '—'}</dd>
-			<dt class="text-muted">Compatible récif</dt><dd>{yesNo(selected.reefSafe)}</dd>
-		</dl>
-		{#if selected.notes}<p class="mb-4 whitespace-pre-wrap text-sm text-muted">{selected.notes}</p>{/if}
-		<button class="w-full rounded-lg border-2 border-edge px-4 py-2 text-sm" onclick={() => (editing = true)}>Modifier la fiche</button>
-	{:else}
-		{#key selected.id}<SpeciesForm species={selected} onsaved={open} oncancel={() => (editing = false)} />{/key}
-	{/if}
-	{#if selected.source === 'maison'}
-		<button class="mt-4 text-sm text-bad underline" onclick={() => selected && remove(selected)}>Supprimer cette espèce</button>
-	{/if}
-{:else}
-	<h1 class="mb-2 text-2xl font-semibold">Espèces</h1>
-	<p class="mb-4 text-xs text-muted">
-		Encyclopédie : noms français et latin, description, fiche d'élevage. Les fiches du noyau sont rédigées par Claude
-		de mémoire et marquées « à vérifier ».
-	</p>
-	<input bind:value={query} oninput={later} type="search" placeholder="Nom français, anglais ou latin" class="mb-2 w-full rounded-lg border-2 border-edge bg-surface px-3 py-2 text-base" aria-label="Rechercher" />
-	<div class="mb-2 grid grid-cols-2 gap-2">
-		<select bind:value={kind} onchange={search} class="rounded-lg border-2 border-edge bg-surface px-2 py-2 text-sm" aria-label="Type">
-			<option value="">Tous types</option>
-			{#each Object.entries(KIND_LABELS) as [value, label] (value)}<option {value}>{label}</option>{/each}
-		</select>
-		<select bind:value={water} onchange={search} class="rounded-lg border-2 border-edge bg-surface px-2 py-2 text-sm" aria-label="Eau">
-			<option value="">Toutes eaux</option>
-			<option value="douce">Eau douce</option>
-			<option value="mer">Eau de mer</option>
-		</select>
+	<div class="rise">
+		<button class="-ml-1 mb-3 flex items-center gap-1 text-sm font-bold text-muted" onclick={() => (adding = false)}>
+			<Icon name="back" size={18} />Espèces
+		</button>
+		<h1 class="display mb-2 text-[2.15rem]">Nouvelle espèce</h1>
+		<p class="hand mb-5 text-lg text-muted">Remplis ce que tu sais, le reste peut attendre.</p>
+		<SpeciesForm onsaved={open} oncancel={() => (adding = false)} />
 	</div>
-	<label class="mb-4 flex items-center gap-2 text-xs text-muted">
-		<input type="checkbox" bind:checked={all} onchange={search} class="accent-primary" />
-		Inclure la base brute (~8 000 espèces hors noyau, souvent sans fiche)
+{:else if selected}
+	{@const s = selected}
+	{@const rows = facts(s)}
+	<article class="rise">
+		<button class="-ml-1 mb-4 flex items-center gap-1 text-sm font-bold text-muted" onclick={() => (selected = null)}>
+			<Icon name="back" size={18} />Espèces
+		</button>
+
+		<figure class="mb-5">
+			<SpeciesThumb species={s} alt={speciesName(s)} class="aspect-[4/3] w-full rounded-[0.875rem] border-2 shadow-[4px_4px_0_var(--shadow)]" iconSize={64} />
+			{#if s.hasPhoto}
+				<figcaption class="mt-2 text-[11px] text-muted">
+					Photo : {s.photoAuthor ?? 'auteur inconnu'} · {s.photoLicense}
+					{#if s.photoSource}· <a href={s.photoSource} target="_blank" rel="noreferrer" class="underline">source</a>{/if}
+				</figcaption>
+			{/if}
+		</figure>
+
+		<p class="num mb-1 text-[11px] uppercase tracking-wider text-muted">{KIND_LABELS[s.kind]} · {sourceLabel(s)}</p>
+		<h1 class="display text-[2.3rem] break-words">{speciesName(s)}</h1>
+		<p class="mt-1 text-lg italic">{s.scientificName}</p>
+		{#if s.nameEn && s.nameEn !== speciesName(s)}<p class="text-sm text-muted">{s.nameEn}</p>{/if}
+
+		{#if s.dataQuality === 'claude'}
+			<div class="mt-5 flex flex-col gap-2">
+				<span class="tape self-start">Fiche à vérifier</span>
+				<div class="card-flat flex items-center gap-3 p-3">
+					<p class="min-w-0 flex-1 text-sm">Rédigée de mémoire par Claude. Recoupe avant de t’y fier.</p>
+					<button class="btn-ghost min-h-10 shrink-0 px-3 text-sm" onclick={() => verify(s)}>
+						<Icon name="check" size={16} />Vérifiée
+					</button>
+				</div>
+			</div>
+		{:else if s.dataQuality === 'verifie'}
+			<p class="chip mt-4 bg-ok-soft text-ok"><Icon name="check" size={13} />Fiche vérifiée</p>
+		{/if}
+
+		{#if s.description}<p class="mt-5 leading-relaxed">{s.description}</p>{/if}
+
+		{#if !editing}
+			<section class="mt-7">
+				<h2 class="tape mb-3">Fiche d’élevage</h2>
+				{#if rows.length}
+					<dl class="card grid grid-cols-2 overflow-hidden">
+						{#each rows as r, i (r.label)}
+							{@const wide = rows.length % 2 === 1 && i === rows.length - 1}
+							<div class="flex flex-col gap-0.5 border-edge px-4 py-3 {wide ? 'col-span-2' : i % 2 === 0 ? 'border-r-2' : ''} {i < rows.length - (rows.length % 2 === 0 ? 2 : 1) ? 'border-b-2' : ''}">
+								<dt class="text-[11px] font-bold uppercase tracking-wide text-muted">{r.label}</dt>
+								<dd class="num text-base first-letter:uppercase">{r.value}</dd>
+							</div>
+						{/each}
+					</dl>
+				{:else}
+					<p class="hand text-lg text-muted">Rien de renseigné pour l’instant. Complète la fiche si tu connais l’espèce.</p>
+				{/if}
+				{#if s.notes}
+					<div class="card-flat mt-4 p-4">
+						<p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">Notes d’élevage</p>
+						<p class="hand whitespace-pre-wrap text-lg leading-snug">{s.notes}</p>
+					</div>
+				{/if}
+			</section>
+			<div class="mt-6 flex flex-col gap-3">
+				<button class="btn-ghost w-full" onclick={() => (editing = true)}><Icon name="edit" size={18} />Modifier la fiche</button>
+				{#if s.source === 'maison'}
+					<button class="flex items-center justify-center gap-2 py-2 text-sm font-bold text-bad" onclick={() => remove(s)}>
+						<Icon name="trash" size={16} />Supprimer cette espèce
+					</button>
+				{/if}
+			</div>
+		{:else}
+			<section class="mt-7">
+				<h2 class="tape mb-3">Modifier</h2>
+				{#key s.id}<SpeciesForm species={s} onsaved={open} oncancel={() => (editing = false)} />{/key}
+			</section>
+		{/if}
+	</article>
+{:else}
+	<div class="rise">
+		<PageHeader title="Espèces" kicker="Encyclopédie" back="/outils" backLabel="Atelier" />
+	</div>
+
+	<div class="rise mb-3" style="animation-delay: 30ms">
+		<label class="card-flat flex items-center gap-2 px-3">
+			<Icon name="search" size={20} class="text-muted" />
+			<input
+				bind:value={query}
+				oninput={later}
+				type="search"
+				placeholder="Néon, Paracheirodon, clownfish…"
+				class="min-w-0 flex-1 bg-transparent py-3 text-base outline-none"
+				aria-label="Rechercher une espèce"
+			/>
+		</label>
+	</div>
+
+	<div class="rise -mx-5 mb-2 flex gap-2 overflow-x-auto px-5 pb-1" style="scrollbar-width: none; animation-delay: 50ms">
+		{#each KINDS as [value, label] (value)}
+			<button
+				class="shrink-0 rounded-full border-2 border-edge px-3 py-1 text-sm font-bold {kind === value ? 'bg-ink text-on-ink' : 'bg-surface'}"
+				aria-pressed={kind === value}
+				onclick={() => ((kind = value), search())}
+			>
+				{label}
+			</button>
+		{/each}
+	</div>
+	<div class="rise mb-3 flex flex-wrap items-center gap-2" style="animation-delay: 70ms">
+		{#each WATERS as [value, label] (value)}
+			<button
+				class="rounded-full px-3 py-1 text-xs font-bold {water === value ? 'bg-surface2 text-ink ring-2 ring-edge' : 'text-muted'}"
+				aria-pressed={water === value}
+				onclick={() => ((water = value), search())}
+			>
+				{label}
+			</button>
+		{/each}
+	</div>
+	<label class="mb-5 flex items-center gap-2 text-xs text-muted">
+		<input type="checkbox" bind:checked={all} onchange={search} class="h-4 w-4 accent-primary" />
+		Inclure la base brute (environ 8 000 espèces, souvent sans fiche)
 	</label>
 
-	<ul class="mb-4 flex flex-col gap-2">
-		{#each results as s (s.id)}
-			<li>
-				<button class="flex w-full items-center gap-3 card p-2 text-left active:bg-surface2" onclick={() => open(s.id)}>
-					{#if s.hasPhoto}
-						<img src="/api/species/{s.id}/photo" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded object-cover" />
-					{:else}
-						<span class="h-14 w-14 shrink-0 rounded bg-surface2"></span>
-					{/if}
-					<span class="min-w-0">
-						<span class="block truncate text-sm">{speciesName(s)}</span>
-						<span class="block truncate text-xs italic text-muted">{s.scientificName}</span>
-						<span class="block truncate text-xs text-muted">{KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}{s.curated ? '' : ' · base brute'}</span>
-					</span>
-				</button>
-			</li>
-		{:else}
-			{#if !loading}<li class="text-sm text-muted">Aucun résultat.</li>{/if}
-		{/each}
-	</ul>
-	{#if results.length >= 40}<p class="mb-4 text-xs text-muted">40 premiers résultats : précise la recherche.</p>{/if}
+	{#if results.length}
+		<ul class="mb-4 grid grid-cols-2 gap-3">
+			{#each results as s (s.id)}
+				<li>
+					<button class="card press flex h-full w-full flex-col overflow-hidden text-left" onclick={() => open(s.id)}>
+						<SpeciesThumb species={s} class="aspect-[4/3] w-full border-b-2" iconSize={36} />
+						<span class="flex min-w-0 flex-1 flex-col gap-0.5 p-3">
+							<span class="line-clamp-2 text-sm font-bold leading-tight">{speciesName(s)}</span>
+							<span class="truncate text-xs italic text-muted">{s.scientificName}</span>
+							<span class="mt-auto flex flex-wrap gap-1 pt-1.5">
+								{#if s.maxLengthCm}<span class="num text-[11px] text-muted">{s.maxLengthCm.toLocaleString('fr-FR')} cm</span>{/if}
+								{#if !s.curated}<span class="text-[11px] text-muted">· base brute</span>{/if}
+								{#if s.dataQuality === 'verifie'}<span class="text-ok"><Icon name="check" size={13} /></span>{/if}
+							</span>
+						</span>
+					</button>
+				</li>
+			{/each}
+		</ul>
+		{#if results.length >= 40}<p class="hand mb-4 text-center text-lg text-muted">Les 40 premières : précise ta recherche.</p>{/if}
+	{:else if !loading}
+		<div class="card-flat mb-4 flex flex-col items-center gap-2 px-4 py-8 text-center">
+			<Icon name="fish" size={36} class="text-muted" />
+			<p class="hand text-lg text-muted">Rien trouvé. Essaie le nom latin, ou coche la base brute.</p>
+		</div>
+	{:else}
+		<p class="hand mb-4 text-lg text-muted">Je feuillette…</p>
+	{/if}
 
-	<button class="w-full rounded-lg btn-primary px-4 py-2 text-sm font-medium" onclick={() => (adding = true)}>
-		Ajouter une espèce à la main
-	</button>
-	<p class="mt-8 text-xs text-muted">
-		Données de base : FishBase (fishbase.org) et SeaLifeBase (sealifebase.org), CC-BY-NC 4.0. Photos : Wikimedia Commons,
-		auteurs et licences indiqués sous chaque image.
+	<button class="btn w-full" onclick={() => (adding = true)}><Icon name="plus" size={20} />Ajouter une espèce à la main</button>
+	<p class="mt-8 text-xs leading-relaxed text-muted">
+		Données de base : FishBase (fishbase.org) et SeaLifeBase (sealifebase.org), CC-BY-NC 4.0. Photos : Wikimedia Commons, auteurs et
+		licences indiqués sous chaque image.
 	</p>
 {/if}

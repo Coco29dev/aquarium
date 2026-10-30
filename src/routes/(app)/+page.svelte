@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
-	import { collectAlerts } from '$lib/domain/drift';
+	import { collectTankAlerts } from '$lib/domain/drift';
 	import { addDays, dayInParis } from '$lib/domain/dates';
 	import { consumableLife } from '$lib/domain/consumables';
 	import { tankHealth } from '$lib/tank';
@@ -55,7 +55,7 @@
 			.reverse()
 	);
 
-	const alerts = $derived(view ? collectAlerts(view.parameters, view.measurements) : []);
+	const alerts = $derived(view ? collectTankAlerts(view) : []);
 	const paramOf = (id: number) => view?.parameters.find((p) => p.id === id);
 	const pointsOf = (id: number, n = 14) =>
 		(view?.measurements ?? [])

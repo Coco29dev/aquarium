@@ -7,7 +7,8 @@ import { dayInParis } from '$lib/domain/dates';
 import { nextDueAfter } from '$lib/domain/tasks';
 import type { Aquarium, Completion, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
 
-const SNAPSHOT_DAYS = 120;
+// 400 jours : de quoi afficher un an de courbes et comparer avec la même période l'an passé.
+const SNAPSHOT_DAYS = 400;
 
 const aquariumSql = `id, name, water_type AS "waterType", volume_l AS "volumeL", started_on AS "startedOn",
 	cover_photo_id AS "coverPhotoId"`;
@@ -382,7 +383,7 @@ async function everyDays(client: PoolClient, taskId: number): Promise<number> {
 // --- Export ----------------------------------------------------------------
 
 export async function exportAll() {
-	const [aquariums, parameters, measurements, tasks, completions, inhabitants, equipment, consumables, expenses, notes, photos] =
+	const [aquariums, parameters, measurements, tasks, completions, inhabitants, equipment, consumables, replacements, expenses, notes, photos, species, appState] =
 		await Promise.all([
 		db().query(`SELECT * FROM aquariums ORDER BY id`),
 		db().query(`SELECT * FROM parameter_defs ORDER BY id`),
@@ -392,10 +393,14 @@ export async function exportAll() {
 		db().query(`SELECT * FROM inhabitants ORDER BY id`),
 		db().query(`SELECT * FROM equipment ORDER BY id`),
 		db().query(`SELECT * FROM consumables ORDER BY id`),
+		db().query(`SELECT * FROM consumable_replacements ORDER BY id`),
 		db().query(`SELECT * FROM expenses ORDER BY spent_on, id`),
 		db().query(`SELECT * FROM notes ORDER BY noted_on, id`),
 		// Métadonnées seulement : les fichiers restent dans le stockage (voir /api/photos/<id>).
-		db().query(`SELECT id, aquarium_id, storage_key, content_type, bytes, caption, taken_on FROM photos ORDER BY id`)
+		db().query(`SELECT id, aquarium_id, storage_key, content_type, bytes, caption, taken_on FROM photos ORDER BY id`),
+		// Fiches saisies à la main ; les espèces importées ou du noyau sont rechargées au démarrage.
+		db().query(`SELECT * FROM species WHERE source = 'maison' ORDER BY id`),
+		db().query(`SELECT key, value FROM app_state WHERE key = 'notification_settings'`)
 	]);
 	return {
 		exportedAt: new Date().toISOString(),
@@ -407,9 +412,12 @@ export async function exportAll() {
 		inhabitants: inhabitants.rows,
 		equipment: equipment.rows,
 		consumables: consumables.rows,
+		consumableReplacements: replacements.rows,
 		expenses: expenses.rows,
 		notes: notes.rows,
-		photos: photos.rows
+		photos: photos.rows,
+		species: species.rows,
+		appState: appState.rows
 	};
 }
 

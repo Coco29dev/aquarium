@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { env } from '$env/dynamic/private';
 import { db } from './db';
+import { isPushService } from '$lib/domain/notifications';
 
 let configured = false;
 
@@ -28,7 +29,7 @@ export function parseSubscription(value: unknown): SubscriptionInput | null {
 	const v = value as Partial<SubscriptionInput> | null;
 	if (!v || typeof v.endpoint !== 'string' || !v.keys) return null;
 	if (typeof v.keys.p256dh !== 'string' || typeof v.keys.auth !== 'string') return null;
-	if (!v.endpoint.startsWith('https://')) return null;
+	if (!isPushService(v.endpoint)) return null;
 	return { endpoint: v.endpoint, keys: { p256dh: v.keys.p256dh, auth: v.keys.auth } };
 }
 

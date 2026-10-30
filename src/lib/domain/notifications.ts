@@ -84,3 +84,51 @@ export function parseNotificationSettings(value: unknown): NotificationSettings 
 export function skipDue(nextDue: string, today: string, everyDays: number, addDays: (d: string, n: number) => string): string {
 	return addDays(nextDue > today ? nextDue : today, everyDays);
 }
+
+/** Nombre de jours avant de repousser une alerte déjà notifiée. */
+export const ALERT_REPEAT_DAYS = 3;
+/** Nombre d'essais d'envoi du récapitulatif dans la journée (un toutes les 5 minutes). */
+export const MAX_SUMMARY_ATTEMPTS = 6;
+
+/**
+ * Alertes à pousser : celles qui n'ont pas déjà été notifiées depuis `repeatDays` jours.
+ * `notified` associe « paramètre:niveau » au jour (AAAA-MM-JJ) du dernier envoi.
+ */
+export function freshAlerts<T extends { parameterId: number; level: string }>(
+	alerts: T[],
+	notified: Record<string, string>,
+	today: string,
+	daysBetween: (from: string, to: string) => number,
+	repeatDays = ALERT_REPEAT_DAYS
+): T[] {
+	return alerts.filter((a) => {
+		const last = notified[`${a.parameterId}:${a.level}`];
+		return !last || daysBetween(last, today) >= repeatDays;
+	});
+}
+
+/** Sauvegarde due : aucune, ou la dernière a plus de 7 jours ; jamais avant 3 h 10 (heure de Paris). */
+export function backupDue(lastBackupAt: string | null, now: Date, minutes: number): boolean {
+	if (minutes < 3 * 60 + 10) return false;
+	if (!lastBackupAt) return true;
+	return now.getTime() - new Date(lastBackupAt).getTime() >= 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000;
+}
+
+/** Services de push des navigateurs (Apple, Google, Mozilla, Microsoft) : on n'envoie rien ailleurs. */
+export function isPushService(endpoint: string): boolean {
+	let host: string;
+	try {
+		const url = new URL(endpoint);
+		if (url.protocol !== 'https:') return false;
+		host = url.hostname;
+	} catch {
+		return false;
+	}
+	return (
+		host === 'web.push.apple.com' ||
+		host.endsWith('.push.apple.com') ||
+		host === 'fcm.googleapis.com' ||
+		host.endsWith('.push.services.mozilla.com') ||
+		host.endsWith('.notify.windows.com')
+	);
+}

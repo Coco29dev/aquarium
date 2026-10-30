@@ -1,6 +1,6 @@
 # Documentation par phase
 
-Mise à jour : 30 octobre 2026. Décrit l'état réel du dépôt (commits `430d335` à `da5507f` + modifications non commitées de la phase 3++).
+Mise à jour : 30 octobre 2026. Décrit l'état réel du dépôt (phases 0 à 3++ commitées, puis passe de fiabilisation décrite en fin de document).
 
 ## Vue d'ensemble
 
@@ -10,7 +10,7 @@ Mise à jour : 30 octobre 2026. Décrit l'état réel du dépôt (commits `430d3
 | 1 | `3531c72` | MVP : aquariums, mesures, tâches, alertes, cyclage, hors ligne, export | Fait, déployé |
 | 2 | `db284d4` | Calculateurs, inventaire, dépenses, notes, photos | Fait, déployé |
 | 3 | `da5507f` | Espèces (FishBase/SeaLifeBase), compatibilité, charge biologique, consommables | Fait, déployé (9 025 espèces importées) |
-| 3++ | non commité | Encyclopédie « noyau » rédigée à la main, photos Wikimedia, champs verrouillables | Dans le dossier, à valider puis commiter |
+| 3++ | commité | Encyclopédie « noyau » rédigée à la main, photos Wikimedia, champs verrouillables | Fait |
 
 Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, adapter-node ; Postgres Railway (migrations `node-pg-migrate` lancées au démarrage du serveur) ; serveur = source de vérité, IndexedDB (Dexie) = cache. Logique métier dans `src/lib/domain/` (fonctions pures testées avec vitest).
 
@@ -44,7 +44,7 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 - Alertes (`domain/drift.ts`) : hors plage, et dérive par régression linéaire sur 7 jours ; seuil par défaut = 25 % de la largeur de la plage.
 - Coach de cyclage (`domain/cycling.ts`) : étapes `aucune_mesure`, `demarrage`, `pic_nitrites`, `finalisation`, `pret` à partir de NH3/NO2/NO3 (seuil de détection des tests colorimétriques).
 - Hors ligne : `client/store.svelte.ts` + Dexie (`client/db.ts`) ; les saisies partent dans une file renvoyée à l'ouverture via `/api/sync`, l'état frais vient de `/api/state`.
-- Rappel quotidien (`server/scheduler.ts`) : node-cron, toutes les heures de `REMINDER_HOUR` (8 h) à 21 h, fuseau Europe/Paris, un seul envoi par jour (clé `last_reminder_day`), rattrapage si le service redémarre.
+- Rappel quotidien (`server/scheduler.ts`) : node-cron toutes les 5 minutes, envoi à l'heure réglée dans Réglages › Notifications (08:30 par défaut), fuseau Europe/Paris, un seul envoi par jour (clé `last_reminder_day`), rattrapage si le service redémarre.
 - Export JSON/CSV : `/api/export`.
 
 **Tests** : `domain.test.ts` (20 cas : dérive, cyclage, tâches, dates).
@@ -108,3 +108,17 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 5. Phase 0 : les critères sur iPhone (push verrouillé, 3 à 7 jours, une semaine sans ouverture) restent à confirmer par toi ; le brief demandait un accord explicite avant la phase 1.
 6. Repli du push (e-mail ou ntfy), prévu par le brief, n'apparaît pas dans le code.
 7. Phase 4 (capteurs ESP32, IA) : non commencée, comme prévu.
+
+---
+
+## Passe de fiabilisation (30 octobre 2026)
+
+- **Coach de cyclage** : « prêt » exige d'avoir mesuré au moins une fois de l'ammoniaque ou des nitrites (un bac neuf à l'eau du robinet n'est plus déclaré cyclé). `hasCycled` distingue un bac mûr (pic d'ammoniaque = alerte) d'un bac en cyclage.
+- **Alertes** (`collectTankAlerts`) : la dérive repart du dernier changement d'eau ; pas d'alerte NH3/NO2 pendant un cyclage ; le récapitulatif quotidien ne répète pas une alerte déjà poussée depuis moins de 3 jours ; nouvel essai (6 maximum) si ni push ni ntfy n'ont abouti.
+- **Sauvegarde** : l'export JSON contient désormais l'historique des consommables, les espèces « maison » et les réglages de notification ; restauration depuis Réglages › Sauvegarde (`server/restore.ts`, route `/api/settings/backup/restore`, envoi compressé en gzip) avec sauvegarde de sécurité préalable ; sauvegarde hebdomadaire rattrapée si le service était éteint.
+- **Hors ligne** : une opération invalide ne bloque plus la file ; envoi par lots de 500.
+- **Sécurité et robustesse** : freinage de connexion par adresse (voir `ADDRESS_HEADER`/`XFF_DEPTH` dans `.env.example`), endpoints push limités à Apple/Google/Mozilla/Microsoft, cache des pages purgé à la déconnexion, validations (400/404, plage min/max, départ après arrivée).
+- **Historique** : 400 jours dans l'état synchronisé, période « 1 an » sur les courbes.
+- **CI** : `.github/workflows/ci.yml` lance `svelte-check` et les tests à chaque push.
+
+Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâche, inventaire), synchronisation incrémentale, linter, tests des routes API, copie de sauvegarde hors de Railway.

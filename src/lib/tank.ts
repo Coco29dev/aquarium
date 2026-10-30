@@ -1,5 +1,5 @@
-import { collectAlerts, type DriftAlert } from '$lib/domain/drift';
-import { cyclingForAquarium, type CyclingStatus } from '$lib/domain/cycling';
+import { collectTankAlerts, type DriftAlert } from '$lib/domain/drift';
+import { cyclingForAquarium, hasCycled, type CyclingStatus } from '$lib/domain/cycling';
 import { dueTasks } from '$lib/domain/tasks';
 import { dayInParis } from '$lib/domain/dates';
 import { daysSinceWaterChange } from '$lib/ui';
@@ -21,10 +21,12 @@ export interface TankHealth {
 export function tankHealth(view: Snapshot, aquarium: Aquarium, now = Date.now()): TankHealth {
 	const parameters = view.parameters.filter((p) => p.aquariumId === aquarium.id);
 	const measurements = view.measurements.filter((m) => m.aquariumId === aquarium.id);
-	const alerts = collectAlerts(parameters, measurements, now);
+	const alerts = collectTankAlerts({ ...view, parameters, measurements }, now);
 	const due = dueTasks(view.tasks.filter((t) => t.aquariumId === aquarium.id), now);
 	const status = cyclingForAquarium(parameters, measurements);
-	const coach = status && status.stage !== 'pret' && status.stage !== 'aucune_mesure' ? status : null;
+	// Un bac qui a déjà cyclé et qui revoit de l'ammoniaque est en alerte, pas en cyclage.
+	const coach =
+		status && status.stage !== 'pret' && status.stage !== 'aucune_mesure' && !hasCycled(parameters, measurements) ? status : null;
 	const waterDays = daysSinceWaterChange(aquarium, view.tasks, view.completions ?? [], dayInParis(now));
 	const lastMeasuredAt = measurements.length ? measurements[measurements.length - 1].measuredAt : null;
 

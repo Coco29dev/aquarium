@@ -15,8 +15,14 @@ export const load: PageServerLoad = ({ locals }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, url }) => {
-		const locked = loginLockRemainingSeconds();
+	default: async ({ request, cookies, url, getClientAddress }) => {
+		let client = 'global';
+		try {
+			client = getClientAddress();
+		} catch {
+			// Adresse indisponible : freinage global.
+		}
+		const locked = loginLockRemainingSeconds(client);
 		if (locked > 0) {
 			return fail(429, { error: `Trop d'essais. Réessayez dans ${locked} s.` });
 		}
@@ -25,11 +31,11 @@ export const actions: Actions = {
 		const candidate = String(form.get('password') ?? '');
 
 		if (!checkPassword(candidate)) {
-			recordLoginFailure();
+			recordLoginFailure(client);
 			return fail(401, { error: 'Mot de passe incorrect.' });
 		}
 
-		recordLoginSuccess();
+		recordLoginSuccess(client);
 		cookies.set(SESSION_COOKIE, createSessionToken(), {
 			path: '/',
 			httpOnly: true,

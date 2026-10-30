@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
-	import { analyzeParameter, driftThreshold, slopePerDay } from '$lib/domain/drift';
+	import { analyzeParameter, driftThreshold, lastWaterChanges, slopePerDay } from '$lib/domain/drift';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
 	import { tankHealth } from '$lib/tank';
 	import { SHORT_WATER, TANK_TONE, fmt, relativeDay, tankAge } from '$lib/ui';
@@ -22,12 +22,13 @@
 	type Trend = 'up' | 'down' | 'flat' | null;
 
 	// Carte de paramètre : dernière valeur, tendance sur 7 jours, état.
+	const lastWater = $derived(lastWaterChanges(view?.tasks ?? [], view?.completions ?? []).get(id));
 	const tiles = $derived(
 		parameters.map((p) => {
 			const list = measurements.filter((m) => m.parameterId === p.id);
 			const points = list.map((m) => ({ t: new Date(m.measuredAt).getTime(), v: m.value }));
 			const last = list.length ? list[list.length - 1] : null;
-			const alert = analyzeParameter(p, list);
+			const alert = analyzeParameter(p, list, Date.now(), lastWater);
 			const recent = points.filter((pt) => pt.t >= Date.now() - 7 * DAY_MS);
 			const slope = recent.length >= 2 ? slopePerDay(recent) : null;
 			let trend: Trend = null;

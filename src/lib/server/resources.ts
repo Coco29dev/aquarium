@@ -140,6 +140,11 @@ function parse(resource: Resource, body: Body, creating: boolean): Map<string, u
 				break;
 		}
 	}
+	const arrived = out.get('arrived_on');
+	const left = out.get('left_on');
+	if (typeof arrived === 'string' && typeof left === 'string' && left < arrived) {
+		error(400, 'Le départ ne peut pas précéder l’arrivée');
+	}
 	return out;
 }
 

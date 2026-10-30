@@ -9,7 +9,7 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit(),
 		SvelteKitPWA({
-			// Service worker maison (push), sans mise en cache pour la phase 0.
+			// Service worker maison : push, ressources du build en cache et pages réseau d'abord.
 			strategies: 'injectManifest',
 			srcDir: 'src',
 			filename: 'service-worker.ts',

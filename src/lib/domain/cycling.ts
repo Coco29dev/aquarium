@@ -124,3 +124,21 @@ export function cyclingForAquarium(
 			.map((m) => ({ t: new Date(m.measuredAt).getTime(), v: m.value }));
 	return cyclingCoach({ nh3: pick('nh3'), no2: pick('no2'), no3: pick('no3') });
 }
+
+/**
+ * Vrai si le bac a déjà été déclaré « prêt » à un moment de son historique. Un pic d'ammoniaque
+ * dans un bac mûr (poisson mort, surdosage) est une urgence, pas un cyclage : il ne doit pas être
+ * traité comme tel.
+ */
+export function hasCycled(parameters: Parameter[], measurements: Measurement[]): boolean {
+	const keys = new Set(parameters.filter((p) => ['nh3', 'no2', 'no3'].includes(p.key ?? '')).map((p) => p.id));
+	const relevant = measurements.filter((m) => keys.has(m.parameterId));
+	const instants = [...new Set(relevant.map((m) => new Date(m.measuredAt).getTime()))].sort((a, b) => a - b);
+	return instants.some((t) => {
+		const status = cyclingForAquarium(
+			parameters,
+			relevant.filter((m) => new Date(m.measuredAt).getTime() <= t)
+		);
+		return status?.ready === true;
+	});
+}

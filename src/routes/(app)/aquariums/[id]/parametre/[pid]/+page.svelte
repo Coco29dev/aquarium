@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
-	import { analyzeParameter, driftThreshold, slopePerDay } from '$lib/domain/drift';
+	import { analyzeParameter, driftThreshold, lastWaterChanges, slopePerDay } from '$lib/domain/drift';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
 	import { fmt, isPendingMeasurement, relativeDay } from '$lib/ui';
 	import { ui } from '$lib/client/ui.svelte';
@@ -23,14 +23,16 @@
 	const parameter = $derived(view?.parameters.find((p) => p.id === pid && p.aquariumId === id));
 	const list = $derived((view?.measurements ?? []).filter((m) => m.parameterId === pid));
 	const last = $derived(list.length ? list[list.length - 1] : null);
-	const alert = $derived(parameter ? analyzeParameter(parameter, list) : null);
+	const lastWater = $derived(lastWaterChanges(view?.tasks ?? [], view?.completions ?? []).get(id));
+	const alert = $derived(parameter ? analyzeParameter(parameter, list, Date.now(), lastWater) : null);
 	const today = dayInParis();
 
 	let days = $state(30);
 	const periods = [
 		{ value: 7, label: 'S' },
 		{ value: 30, label: 'M' },
-		{ value: 90, label: '3 M' }
+		{ value: 90, label: '3 M' },
+		{ value: 365, label: '1 an' }
 	];
 	const inPeriod = $derived(list.filter((m) => new Date(m.measuredAt).getTime() >= Date.now() - days * DAY_MS));
 	const points = $derived(inPeriod.map((m) => ({ t: new Date(m.measuredAt).getTime(), v: m.value })));

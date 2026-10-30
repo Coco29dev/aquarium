@@ -1,7 +1,13 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 
 	let { form } = $props();
+
+	// Arrivée sur la page de connexion = déconnecté : on ne garde pas les pages privées en cache.
+	onMount(() => {
+		if ('caches' in window) void caches.delete('pages');
+	});
 	let busy = $state(false);
 </script>
 

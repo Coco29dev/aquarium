@@ -40,23 +40,35 @@ export function checkPassword(candidate: string): boolean {
 	return safeEqual(candidate, password());
 }
 
-// Freinage des essais : compteur global (un seul utilisateur), pas par adresse IP.
-let failures = 0;
-let lockedUntil = 0;
+// Freinage des essais, par client (adresse IP vue par le serveur) : quelqu'un d'autre qui tape de
+// mauvais mots de passe ne bloque pas ta propre connexion. Derrière le proxy Railway, définir
+// ADDRESS_HEADER=x-forwarded-for et XFF_DEPTH=1 pour que l'adresse soit celle du visiteur ;
+// sans cela, tout le monde partage l'adresse du proxy et le freinage reste global.
+interface Attempts {
+	failures: number;
+	lockedUntil: number;
+}
+const attempts = new Map<string, Attempts>();
+const MAX_TRACKED = 1000;
 
-export function loginLockRemainingSeconds(nowMs = Date.now()): number {
-	return Math.max(0, Math.ceil((lockedUntil - nowMs) / 1000));
+export function loginLockRemainingSeconds(client = 'global', nowMs = Date.now()): number {
+	return Math.max(0, Math.ceil(((attempts.get(client)?.lockedUntil ?? 0) - nowMs) / 1000));
 }
 
-export function recordLoginFailure(nowMs = Date.now()): void {
-	failures += 1;
-	if (failures >= 5) {
-		const delay = Math.min(15 * 60, 30 * 2 ** (failures - 5));
-		lockedUntil = nowMs + delay * 1000;
+export function recordLoginFailure(client = 'global', nowMs = Date.now()): void {
+	if (attempts.size >= MAX_TRACKED) {
+		for (const [key, value] of attempts) if (value.lockedUntil < nowMs) attempts.delete(key);
+		if (attempts.size >= MAX_TRACKED) attempts.clear();
 	}
+	const entry = attempts.get(client) ?? { failures: 0, lockedUntil: 0 };
+	entry.failures += 1;
+	if (entry.failures >= 5) {
+		const delay = Math.min(15 * 60, 30 * 2 ** (entry.failures - 5));
+		entry.lockedUntil = nowMs + delay * 1000;
+	}
+	attempts.set(client, entry);
 }
 
-export function recordLoginSuccess(): void {
-	failures = 0;
-	lockedUntil = 0;
+export function recordLoginSuccess(client = 'global'): void {
+	attempts.delete(client);
 }

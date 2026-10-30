@@ -3,6 +3,10 @@
 	import { page } from '$app/state';
 	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
+	import StepButtons from '$lib/ios/StepButtons.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { store } from '$lib/client/store.svelte';
 	import { api, createResource, listResource } from '$lib/client/api';
@@ -91,147 +95,107 @@
 		}
 	}
 
-	const severityStyle = {
-		bloquant: 'border-bad bg-bad-soft text-bad',
-		attention: 'border-warn bg-warn-soft text-warn',
-		info: 'border-line bg-surface text-muted'
-	} as const;
+	const severityColor = { bloquant: 'var(--red)', attention: 'var(--orange)', info: 'var(--gray)' } as const;
 	const severityLabel = { bloquant: 'À éviter', attention: 'Attention', info: 'Info' } as const;
-	const levelText = { ok: 'text-ok', elevee: 'text-ink', limite: 'text-warn', surcharge: 'text-bad' } as const;
+	const levelColor = { ok: 'var(--green)', elevee: 'var(--yellow)', limite: 'var(--orange)', surcharge: 'var(--red)' } as const;
 
-	// Règle graduée de 0 à 120 % de la capacité estimée.
-	const RULER_MAX = 1.2;
-	const at = (ratio: number | null) => (ratio == null ? 0 : Math.min(100, (ratio / RULER_MAX) * 100));
-	const ticks = Array.from({ length: 13 }, (_, i) => i / 10);
+	// Anneau façon Forme : un tour complet = 100 % de la capacité estimée ; au-delà, l'anneau repasse sur lui-même.
+	const R = 74;
+	const C = 2 * Math.PI * R;
+	const dash = (ratio: number | null) => `${Math.min(1, ratio ?? 0) * C} ${C}`;
+	const overflow = (ratio: number | null) => `${Math.max(0, Math.min(1, (ratio ?? 0) - 1)) * C} ${C}`;
 </script>
 
 <svelte:head><title>Peuplement · {aquarium?.name ?? 'Bac'}</title></svelte:head>
 
-<header class="rise mb-6">
-	<a href="/aquariums/{id}/inventaire" class="-ml-1 mb-3 flex w-fit items-center gap-1 text-sm font-bold text-muted">
-		<Icon name="back" size={18} />Vivants
-	</a>
-	<p class="num mb-1.5 text-xs uppercase tracking-wider text-muted">{aquarium?.name ?? 'Bac'}{aquarium?.volumeL ? ` · ${aquarium.volumeL} L` : ''}</p>
-	<h1 class="display text-[2.4rem]">Peuplement</h1>
-	<p class="hand mt-2 text-lg leading-snug text-muted">
-		Estimation d'après la taille adulte des espèces. Plus les fiches sont complètes, plus c'est juste.
-	</p>
-</header>
+<NavBar title="Peuplement" back={{ href: `/aquariums/${id}/inventaire`, label: 'Vivants' }} large={false} />
 
-{#if message}<p class="mb-4 rounded-xl border-2 border-bad bg-bad-soft p-3 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
+{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 <!-- Charge biologique -->
-<section class="card rise mb-8 p-4" style="animation-delay: 40ms">
-	<div class="mb-4 flex items-end justify-between gap-3">
-		<div>
-			<p class="num text-[11px] uppercase tracking-wider text-muted">Charge biologique</p>
-			{#if now.ratio != null}
-				<p class="display text-4xl {now.level ? levelText[now.level] : ''}">{Math.round(now.ratio * 100)} %</p>
-			{:else}
-				<p class="display text-2xl text-muted">Volume inconnu</p>
-			{/if}
-		</div>
-		<div class="text-right">
-			{#if now.level}<p class="font-bold {levelText[now.level]}">{BIOLOAD_LABELS[now.level]}</p>{/if}
-			<p class="num text-xs text-muted">{now.loadG} g{now.capacityG ? ` / ${now.capacityG} g` : ''}</p>
-		</div>
-	</div>
-
+<section class="group mb-2 mt-2 flex flex-col items-center px-4 pb-5 pt-6">
+	<p class="subhead mb-4 font-semibold text-label2">Charge biologique · {aquarium?.name ?? 'Bac'}</p>
 	{#if now.ratio != null}
-		<div class="relative mb-1 pt-5" aria-hidden="true">
-			<!-- Zones : confortable, élevée, limite, surcharge -->
-			<div class="relative flex h-5 overflow-hidden rounded-md border-2 border-edge">
-				<div class="bg-ok/30" style="width: {at(0.6)}%"></div>
-				<div class="bg-sun/45" style="width: {at(0.9) - at(0.6)}%"></div>
-				<div class="bg-warn/35" style="width: {at(1) - at(0.9)}%"></div>
-				<div class="flex-1 bg-bad/30"></div>
+		{@const color = now.level ? levelColor[now.level] : 'var(--tint)'}
+		<div class="relative h-[180px] w-[180px]">
+			<svg viewBox="0 0 180 180" class="h-full w-full -rotate-90" aria-hidden="true">
+				<circle cx="90" cy="90" r={R} fill="none" stroke={color} stroke-opacity="0.18" stroke-width="22" />
+				{#if draft.length && after.ratio != null}
+					<circle cx="90" cy="90" r={R} fill="none" stroke={after.level ? levelColor[after.level] : color} stroke-opacity="0.45" stroke-width="22" stroke-linecap="round" stroke-dasharray={dash(after.ratio)} />
+				{/if}
+				{#if now.ratio > 0.005}
+					<circle cx="90" cy="90" r={R} fill="none" stroke={color} stroke-width="22" stroke-linecap="round" stroke-dasharray={dash(now.ratio)} class="transition-[stroke-dasharray] duration-700" />
+				{/if}
+				{#if now.ratio > 1}
+					<circle cx="90" cy="90" r={R} fill="none" stroke={color} stroke-width="22" stroke-linecap="round" stroke-dasharray={overflow(now.ratio)} style="filter: drop-shadow(0 0 3px rgb(0 0 0 / 0.35))" />
+				{/if}
+			</svg>
+			<div class="absolute inset-0 grid place-items-center text-center">
+				<div>
+					<p class="rounded-num text-[40px] font-bold leading-none">{Math.round(now.ratio * 100)}<span class="title3 text-label2">%</span></p>
+					{#if now.level}<p class="footnote mt-1 font-semibold" style="color: {color}">{BIOLOAD_LABELS[now.level]}</p>{/if}
+				</div>
 			</div>
-			<!-- Graduations -->
-			<div class="relative h-3">
-				{#each ticks as t (t)}
-					<span class="absolute top-0 w-0.5 -translate-x-1/2 bg-ink {t * 10 % 5 === 0 ? 'h-3' : 'h-1.5'}" style="left: {at(t)}%"></span>
-				{/each}
-			</div>
-			<div class="num relative h-4 text-[10px] text-muted">
-				{#each [0, 0.5, 1] as t (t)}
-					<span class="absolute -translate-x-1/2" style="left: {at(t)}%">{t * 100}</span>
-				{/each}
-			</div>
-			<!-- Curseurs : actuel (encre) et avec le brouillon (pointillé) -->
-			{#if draft.length && after.ratio != null}
-				<span class="absolute top-0 flex -translate-x-1/2 flex-col items-center" style="left: {at(after.ratio)}%">
-					<span class="num rounded border-[1.5px] border-dashed border-edge bg-surface px-1 text-[10px]">+{Math.round((after.ratio - now.ratio) * 100)}</span>
-					<span class="h-6 w-0 border-l-2 border-dashed border-ink"></span>
-				</span>
-			{/if}
-			<span class="absolute top-3 h-8 w-1.5 -translate-x-1/2 rounded-full border-[1.5px] border-surface bg-ink" style="left: {at(now.ratio)}%"></span>
 		</div>
-		{#if draft.length && after.level}
-			<p class="mt-2 text-sm">
-				Avec le brouillon : <span class="font-bold {levelText[after.level]}">{Math.round((after.ratio ?? 0) * 100)} % · {BIOLOAD_LABELS[after.level]}</span>
+		<p class="footnote mt-4 text-label2">{now.loadG} g{now.capacityG ? ` sur ${now.capacityG} g estimés` : ''}</p>
+		{#if draft.length && after.ratio != null && after.level}
+			<p class="subhead mt-1 font-semibold" style="color: {levelColor[after.level]}">
+				Avec ces ajouts : {Math.round(after.ratio * 100)} % · {BIOLOAD_LABELS[after.level]}
 			</p>
 		{/if}
 	{:else}
-		<p class="text-sm text-muted">Indique le volume du bac dans ses réglages pour estimer la charge.</p>
-	{/if}
-
-	{#if after.unknown.length}
-		<p class="mt-3 text-xs text-warn">Taille inconnue, non comptés : {after.unknown.join(', ')}.</p>
-	{/if}
-	{#if unlinked.length}
-		<p class="mt-3 text-xs text-muted">
-			Hors analyse, pas reliés à une fiche : {unlinked.map((i) => i.species).join(', ')}.
-			<a href="/aquariums/{id}/inventaire" class="font-bold text-link underline">Les relier</a>
-		</p>
+		<p class="subhead text-center text-label2">Indique le volume du bac dans ses réglages pour estimer la charge.</p>
 	{/if}
 </section>
+<p class="footnote mb-8 px-4 text-label2">
+	Estimation d’après la taille adulte des espèces : plus les fiches sont complètes, plus c’est juste.
+	{#if after.unknown.length}Taille inconnue, non comptés : {after.unknown.join(', ')}.{/if}
+	{#if unlinked.length}Pas reliés à une fiche : {unlinked.map((i) => i.species).join(', ')}.{/if}
+</p>
 
 <!-- Simulateur -->
-<section class="rise mb-8" style="animation-delay: 80ms">
-	<h2 class="tape mb-3">Et si j'ajoutais…</h2>
+<Section header="Et si j’ajoutais…" inset={false} footer={draft.length ? undefined : 'Cherche une espèce : la charge et les compatibilités sont recalculées avant que tu achètes.'}>
 	<SpeciesPicker onpick={addDraft} water={tank.waterType === 'mer' || tank.waterType === 'recif' ? 'mer' : 'douce'} />
 	{#if draft.length}
-		<ul class="card mt-3 divide-y-2 divide-line">
+		<ul class="group draft-list mt-3">
 			{#each draft as d, i (d.species.id)}
-				<li class="flex items-center gap-3 px-3 py-2.5">
-					<span class="min-w-0 flex-1">
-						<span class="line-clamp-2 block text-sm font-bold leading-tight">{speciesName(d.species)}</span>
-						<span class="block truncate text-xs italic text-muted">{d.species.scientificName}</span>
-					</span>
-					<div class="flex shrink-0 items-center rounded-xl border-2 border-edge bg-surface">
-						<button class="grid h-9 w-9 place-items-center text-lg font-bold" onclick={() => (d.quantity = Math.max(1, d.quantity - 1))} aria-label="Moins">−</button>
-						<span class="num w-7 text-center">{d.quantity}</span>
-						<button class="grid h-9 w-9 place-items-center text-lg font-bold" onclick={() => (d.quantity += 1)} aria-label="Plus">+</button>
+				<li class="flex items-center gap-3 pl-4">
+					<button class="shrink-0 text-red active:opacity-50" onclick={() => draft.splice(i, 1)} aria-label="Retirer {speciesName(d.species)}">
+						<span class="grid h-[22px] w-[22px] place-items-center rounded-full bg-red text-white"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg></span>
+					</button>
+					<div class="row-body flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 pr-4">
+						<div class="min-w-0 flex-1">
+							<p class="body truncate">{speciesName(d.species)}</p>
+							<p class="subhead truncate italic text-label2">{d.species.scientificName}</p>
+						</div>
+						<span class="rounded-num headline w-7 text-right">{d.quantity}</span>
+						<StepButtons label={speciesName(d.species)} onminus={() => (d.quantity = Math.max(1, d.quantity - 1))} onplus={() => (d.quantity += 1)} minusDisabled={d.quantity <= 1} />
 					</div>
-					<button class="shrink-0 text-muted" onclick={() => draft.splice(i, 1)} aria-label="Retirer {speciesName(d.species)}"><Icon name="close" size={18} /></button>
 				</li>
 			{/each}
 		</ul>
-		<button onclick={validate} class="btn mt-4 w-full">
-			<Icon name="plus" size={20} />Ajouter au bac
-		</button>
-	{:else}
-		<p class="hand mt-3 text-lg text-muted">Cherche une espèce : je recalcule la charge et les compatibilités avant que tu achètes.</p>
+		<button onclick={validate} class="btn-filled mt-4 w-full">Ajouter au bac</button>
 	{/if}
-</section>
+</Section>
 
 <!-- Compatibilité -->
-<section class="rise" style="animation-delay: 120ms">
-	<h2 class="tape mb-3">Compatibilité</h2>
+<Section header="Compatibilité">
 	{#if planned.length === 0}
-		<p class="hand text-lg text-muted">Aucune espèce reliée à une fiche pour l'instant.</p>
+		<Row title="Aucune espèce reliée à une fiche" subtitle="Relie tes habitants à une fiche depuis Vivants." />
 	{:else if issues.length === 0}
-		<p class="flex items-center gap-2 rounded-xl border-2 border-ok bg-ok-soft p-3 text-sm font-bold text-ok">
-			<Icon name="check" size={18} />Aucun conflit détecté avec les données disponibles.
-		</p>
+		<Row icon="check" iconColor="var(--green)" title="Aucun conflit détecté" subtitle="Avec les données disponibles." />
 	{:else}
-		<ul class="flex flex-col gap-2.5">
-			{#each issues as issue (issue.severity + issue.message)}
-				<li class="rounded-xl border-2 p-3 text-sm {severityStyle[issue.severity]}">
-					<span class="chip mb-1.5">{#if issue.severity !== 'info'}<Icon name="alert" size={12} />{/if}{severityLabel[issue.severity]}</span>
-					<p class="text-ink">{issue.message}</p>
-				</li>
-			{/each}
-		</ul>
+		{#each issues as issue (issue.severity + issue.message)}
+			<Row icon={issue.severity === 'info' ? 'info' : 'alert'} iconColor={severityColor[issue.severity]}>
+				<p class="subhead font-semibold" style="color: {severityColor[issue.severity]}">{severityLabel[issue.severity]}</p>
+				<p class="body whitespace-normal">{issue.message}</p>
+			</Row>
+		{/each}
 	{/if}
-</section>
+</Section>
+
+<style>
+	.draft-list > li + li .row-body {
+		box-shadow: inset 0 0.5px 0 var(--sep);
+	}
+</style>

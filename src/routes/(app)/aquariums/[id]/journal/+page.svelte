@@ -8,7 +8,10 @@
 	import { dayInParis } from '$lib/domain/dates';
 	import { fmt, relativeDay } from '$lib/ui';
 	import Icon from '$lib/components/Icon.svelte';
-	import TankHeader from '$lib/components/TankHeader.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import TankTabs from '$lib/ios/TankTabs.svelte';
+	import Segmented from '$lib/ios/Segmented.svelte';
+	import Sheet from '$lib/ios/Sheet.svelte';
 
 	interface Note { id: number; body: string; notedOn: string }
 	interface Photo { id: number; caption: string | null; takenOn: string }
@@ -40,14 +43,16 @@
 	}
 	onMount(load);
 
-	async function addNote(event: SubmitEvent) {
-		event.preventDefault();
-		const form = event.currentTarget as HTMLFormElement;
+	let writing = $state(false);
+	async function addNote() {
+		const body = toText(draft);
+		if (!body) return;
 		try {
-			await createResource('notes', id, { body: toText(new FormData(form).get('body')) });
+			await createResource('notes', id, { body });
 			draft = '';
+			writing = false;
 			await load();
-			ui.show('Note ajoutée au carnet');
+			ui.show('Note ajoutée', undefined, 'check');
 		} catch (e) {
 			message = (e as Error).message;
 		}
@@ -68,7 +73,7 @@
 				if (!response.ok) throw new Error((await response.json().catch(() => null))?.message ?? `Erreur ${response.status}`);
 			}
 			await load();
-			ui.show(files.length > 1 ? `${files.length} photos ajoutées` : 'Photo ajoutée');
+			ui.show(files.length > 1 ? `${files.length} photos ajoutées` : 'Photo ajoutée', undefined, 'check');
 		} catch (e) {
 			message = (e as Error).message;
 		} finally {
@@ -78,7 +83,7 @@
 	}
 
 	async function removePhoto(photo: Photo) {
-		if (!confirm('Supprimer cette photo ?')) return;
+		if (!(await ui.confirm({ title: 'Supprimer cette photo ?', confirmLabel: 'Supprimer', destructive: true }))) return;
 		try {
 			await api('DELETE', `/api/photos/${photo.id}`);
 			viewing = null;
@@ -89,7 +94,7 @@
 	}
 
 	async function removeNote(note: Note) {
-		if (!confirm('Supprimer cette note ?')) return;
+		if (!(await ui.confirm({ title: 'Supprimer cette note ?', message: note.body.slice(0, 80), confirmLabel: 'Supprimer', destructive: true }))) return;
 		try {
 			await deleteResource('notes', note.id);
 			await load();
@@ -152,132 +157,157 @@
 
 	const dayLabel = (d: string) => {
 		const rel = relativeDay(d, today);
-		const long = new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-		return rel === "aujourd'hui" || rel === 'hier' ? `${rel} · ${long}` : long;
+		const long = new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+		return rel === "aujourd'hui" ? 'Aujourd’hui' : rel === 'hier' ? 'Hier' : long.charAt(0).toUpperCase() + long.slice(1);
 	};
-	// Légère inclinaison stable par élément, comme collé à la main.
-	const tilt = (n: number) => [-1.4, 0.9, -0.6, 1.3, -1, 0.5][n % 6];
+
+	// Visionneuse : glisser vers le bas pour fermer.
+	let dragY = $state(0);
+	let startY = 0;
+	let dragging = $state(false);
+	let photoInput = $state<HTMLInputElement>();
 </script>
 
 <svelte:head><title>Journal · {aquarium?.name ?? 'Bac'}</title></svelte:head>
 
 {#if !aquarium}
-	<p class="hand text-lg text-muted">Bac introuvable.</p>
+	<NavBar title="Bac introuvable" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />
 {:else}
-	<TankHeader {aquarium} tab="journal" />
-
-	{#if message}<p class="mb-4 rounded-xl border-2 border-bad bg-bad-soft p-3 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
-
-	<!-- Écrire dans le carnet -->
-	<form onsubmit={addNote} class="card rise mb-8 overflow-hidden">
-		<label class="block">
-			<span class="sr-only">Nouvelle note</span>
-			<textarea
-				name="body"
-				bind:value={draft}
-				required
-				rows="3"
-				maxlength="4000"
-				placeholder="Une observation, un comportement, un incident…"
-				class="lined hand block w-full resize-none bg-transparent px-4 pt-2 text-xl outline-none placeholder:text-muted"
-			></textarea>
-		</label>
-		<div class="flex items-center gap-2 border-t-2 border-edge px-3 py-2.5">
-			<label class="btn-ghost min-h-0 cursor-pointer px-3 py-2 text-sm {uploading ? 'opacity-50' : ''}">
-				<Icon name="camera" size={18} />{uploading ? 'Envoi…' : 'Photo'}
-				<input type="file" accept="image/*" multiple class="sr-only" disabled={uploading} onchange={upload} />
-			</label>
-			<button class="btn ml-auto min-h-0 px-4 py-2 text-sm" disabled={!draft.trim()}>
-				<Icon name="edit" size={16} />Noter
+	<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }}>
+		{#snippet trailing()}
+			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={() => photoInput?.click()} disabled={uploading} aria-label="Ajouter une photo">
+				<Icon name="camera" size={24} />
 			</button>
+			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={() => (writing = true)} aria-label="Nouvelle note">
+				<Icon name="edit" size={23} />
+			</button>
+		{/snippet}
+		<TankTabs {aquarium} tab="journal" />
+	</NavBar>
+	<input bind:this={photoInput} type="file" accept="image/*" multiple class="hidden" onchange={upload} />
+
+	<div class="mt-4">
+		{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+		{#if uploading}<p class="subhead mb-4 px-1 text-label2">Envoi de la photo…</p>{/if}
+
+		<div class="mb-6">
+			<Segmented
+				label="Contenu du journal"
+				options={[
+					{ value: 'carnet', label: 'Carnet' },
+					{ value: 'tests', label: 'Avec les mesures' }
+				]}
+				value={withTests ? 'tests' : 'carnet'}
+				onchange={(v) => (withTests = v === 'tests')}
+			/>
 		</div>
-	</form>
 
-	<!-- Fil chronologique -->
-	<div class="mb-5 flex rounded-xl border-2 border-edge bg-surface p-0.5 text-sm font-bold" role="group" aria-label="Contenu du fil">
-		<button class="flex-1 rounded-lg py-1.5 {withTests ? 'text-muted' : 'bg-ink text-on-ink'}" aria-pressed={!withTests} onclick={() => (withTests = false)}>Carnet</button>
-		<button class="flex-1 rounded-lg py-1.5 {withTests ? 'bg-ink text-on-ink' : 'text-muted'}" aria-pressed={withTests} onclick={() => (withTests = true)}>Avec les mesures</button>
-	</div>
+		{#if loaded && days.length === 0}
+			<div class="mt-14 flex flex-col items-center px-6 text-center">
+				<span class="mb-3 text-label3"><Icon name="book" size={56} weight={1.4} /></span>
+				<h2 class="title3">Journal vide</h2>
+				<p class="subhead mt-1 text-label2">Note une observation, un incident, une taille de plantes, ou ajoute une photo du bac.</p>
+				<button class="btn-tinted mt-5" onclick={() => (writing = true)}>Nouvelle note</button>
+			</div>
+		{/if}
 
-	{#if loaded && days.length === 0}
-		<p class="hand text-lg text-muted">Le carnet est vierge. Première page à écrire.</p>
-	{/if}
-
-	<ol class="relative flex flex-col gap-7 border-l-2 border-dashed border-line pl-5">
-		{#each days as { day, entries }, di (day)}
-			<li class="rise relative" style="animation-delay: {Math.min(di, 6) * 40}ms">
-				<span class="absolute -left-[29px] top-1 h-4 w-4 rounded-full border-2 border-edge {day === today ? 'bg-sun' : 'bg-surface'}"></span>
-				<p class="num mb-3 text-xs uppercase tracking-wider text-muted">{dayLabel(day)}</p>
-				<div class="flex flex-col gap-3">
-					{#each entries as entry, ei (ei)}
-						{#if entry.kind === 'note'}
-							<figure class="lined card-flat relative px-4 pb-3 pt-2" style="rotate: {tilt(entry.note.id)}deg">
-								<p class="hand whitespace-pre-wrap pr-6 text-xl leading-[1.75rem]">{entry.note.body}</p>
-								<button class="absolute right-2 top-2 text-muted" onclick={() => removeNote(entry.note)} aria-label="Supprimer la note">
-									<Icon name="close" size={16} />
-								</button>
-							</figure>
-						{:else if entry.kind === 'photos'}
-							<div class="grid grid-cols-2 gap-4 py-1">
-								{#each entry.photos as photo (photo.id)}
-									<button
-										class="press border-2 border-edge bg-surface p-2 pb-1 shadow-[3px_3px_0_var(--shadow)]"
-										style="rotate: {tilt(photo.id)}deg"
-										onclick={() => (viewing = photo)}
-									>
-										<img src="/api/photos/{photo.id}" alt={photo.caption ?? `Photo du ${dayLabel(day)}`} loading="lazy" class="aspect-square w-full border-[1.5px] border-edge object-cover" />
-										<span class="hand block truncate pt-1 text-base text-muted">{photo.caption ?? dayLabel(day)}</span>
+		{#each days as { day, entries } (day)}
+			<section class="mb-6">
+				<h2 class="headline mb-2 px-1">{dayLabel(day)}</h2>
+				<div class="group">
+					{#each entries as entry, n (n)}
+						<div class="px-4 py-3 {n ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}">
+							{#if entry.kind === 'note'}
+								<div class="flex items-start gap-3">
+									<p class="body min-w-0 flex-1 whitespace-pre-line select-text">{entry.note.body}</p>
+									<button class="shrink-0 text-label3 active:opacity-50" onclick={() => removeNote(entry.note)} aria-label="Supprimer la note">
+										<Icon name="trash" size={19} />
 									</button>
-								{/each}
-							</div>
-						{:else if entry.kind === 'done'}
-							<p class="flex items-center gap-2 text-sm">
-								<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ok text-surface"><Icon name="check" size={13} /></span>
-								<span class="min-w-0 flex-1 truncate font-bold">{entry.title}</span>
-								<span class="num shrink-0 text-xs text-muted">{entry.time}</span>
-							</p>
-						{:else}
-							<a href="/aquariums/{id}" class="flex items-start gap-2 text-sm">
-								<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full border-[1.5px] border-edge bg-sun text-[#16202e]"><Icon name="drop" size={12} /></span>
-								<span class="min-w-0 flex-1 text-muted">
-									<span class="font-bold text-ink">{entry.count} mesure{entry.count > 1 ? 's' : ''}</span> · <span class="num text-xs">{entry.summary}{entry.count > 4 ? '…' : ''}</span>
-								</span>
-							</a>
-						{/if}
+								</div>
+							{:else if entry.kind === 'photos'}
+								<div class="grid gap-1 {entry.photos.length === 1 ? 'grid-cols-1' : entry.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}">
+									{#each entry.photos as photo (photo.id)}
+										<button class="pressable overflow-hidden rounded-xl" onclick={() => (viewing = photo)}>
+											<img
+												src="/api/photos/{photo.id}"
+												alt={photo.caption ?? `Photo du ${dayLabel(day)}`}
+												loading="lazy"
+												class="w-full bg-fill3 object-cover {entry.photos.length === 1 ? 'aspect-[4/3]' : 'aspect-square'}"
+											/>
+										</button>
+									{/each}
+								</div>
+							{:else if entry.kind === 'done'}
+								<p class="subhead flex items-center gap-2 text-label2">
+									<span class="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-green text-white"><Icon name="check" size={11} weight={3.4} /></span>
+									<span class="min-w-0 flex-1 truncate text-label">{entry.title}</span>
+									<span class="rounded-num">{entry.time}</span>
+								</p>
+							{:else if entry.kind === 'tests'}
+								<p class="subhead flex items-start gap-2 text-label2">
+									<span class="mt-px shrink-0 text-tint"><Icon name="drop" size={18} filled /></span>
+									<span class="min-w-0 flex-1">
+										<span class="text-label">{entry.count} mesure{entry.count > 1 ? 's' : ''}</span> · {entry.summary}{entry.count > 4 ? '…' : ''}
+									</span>
+								</p>
+							{/if}
+						</div>
 					{/each}
 				</div>
-			</li>
+			</section>
 		{/each}
-	</ol>
+	</div>
+
+	<Sheet open={writing} title="Nouvelle note" detent="medium" onclose={() => (writing = false)} action={{ label: 'Ajouter', onclick: addNote, disabled: !draft.trim() }}>
+		<textarea
+			bind:value={draft}
+			rows="6"
+			class="body group w-full resize-none p-4 outline-none placeholder:text-label3"
+			placeholder="Une observation, un comportement, un incident…"
+			aria-label="Texte de la note"
+		></textarea>
+		<p class="footnote mt-2 px-4 text-label2">Datée d’aujourd’hui, {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.</p>
+	</Sheet>
 {/if}
 
 {#if viewing}
-	<div class="fixed inset-0 z-50 flex flex-col bg-black/95 text-[#fafbf8]" role="dialog" aria-modal="true" aria-label="Photo">
-		<div class="flex items-center justify-between p-4 text-sm" style="padding-top: max(1rem, env(safe-area-inset-top))">
-			<span class="num">{dayLabel(viewing.takenOn.slice(0, 10))}</span>
-			<span class="flex gap-5">
-				<button class="flex items-center gap-1 font-bold text-bad" onclick={() => viewing && removePhoto(viewing)}><Icon name="trash" size={16} />Supprimer</button>
-				<button class="flex items-center gap-1 font-bold" onclick={() => (viewing = null)}><Icon name="close" size={16} />Fermer</button>
-			</span>
+	{@const photo = viewing}
+	<div
+		class="fixed inset-0 z-[55] flex flex-col bg-black text-white"
+		style="animation: fade-in 200ms both; opacity: {1 - Math.min(0.6, dragY / 500)}"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Photo"
+	>
+		<div class="flex items-center justify-between px-4" style="padding-top: calc(env(safe-area-inset-top) + 8px)">
+			<button class="grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur-xl active:opacity-60" onclick={() => (viewing = null)} aria-label="Fermer">
+				<Icon name="close" size={20} weight={2.4} />
+			</button>
+			<p class="subhead font-semibold">{dayLabel(photo.takenOn.slice(0, 10))}</p>
+			<button class="grid h-10 w-10 place-items-center rounded-full bg-white/15 text-[#ff453a] backdrop-blur-xl active:opacity-60" onclick={() => removePhoto(photo)} aria-label="Supprimer la photo">
+				<Icon name="trash" size={20} />
+			</button>
 		</div>
-		<img src="/api/photos/{viewing.id}" alt={viewing.caption ?? 'Photo'} class="min-h-0 flex-1 object-contain" />
+		<div
+			class="flex min-h-0 flex-1 touch-none items-center justify-center"
+			style="transform: translateY({dragY}px) scale({1 - Math.min(0.2, dragY / 1500)}); transition: {dragging ? 'none' : 'transform 300ms cubic-bezier(0.3,0.8,0.3,1)'}"
+			onpointerdown={(e) => {
+				dragging = true;
+				startY = e.clientY;
+				(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+			}}
+			onpointermove={(e) => dragging && (dragY = Math.max(0, e.clientY - startY))}
+			onpointerup={() => {
+				dragging = false;
+				if (dragY > 120) viewing = null;
+				dragY = 0;
+			}}
+			onpointercancel={() => ((dragging = false), (dragY = 0))}
+			role="presentation"
+		>
+			<img src="/api/photos/{photo.id}" alt={photo.caption ?? 'Photo'} class="max-h-full max-w-full object-contain" draggable="false" />
+		</div>
+		{#if photo.caption}<p class="subhead px-6 pb-2 text-center text-white/80">{photo.caption}</p>{/if}
+		<div style="height: calc(env(safe-area-inset-bottom) + 16px)"></div>
 	</div>
 {/if}
-
-<style>
-	/* Papier ligné du carnet. */
-	.lined {
-		background-image: repeating-linear-gradient(
-			to bottom,
-			transparent 0,
-			transparent calc(1.75rem - 1px),
-			var(--line) calc(1.75rem - 1px),
-			var(--line) 1.75rem
-		);
-		background-position: 0 0.45rem;
-		line-height: 1.75rem;
-	}
-	figure.lined {
-		background-color: var(--surface);
-	}
-</style>

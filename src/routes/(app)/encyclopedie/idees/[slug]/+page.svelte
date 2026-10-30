@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { api, createResource, listResource } from '$lib/client/api';
 	import { store } from '$lib/client/store.svelte';
@@ -28,7 +29,6 @@
 	let species = $state(new Map<string, Species>());
 	let loadError = $state('');
 	let adding = $state(false);
-	let addingGear = $state(false);
 	let planting = $state<Planting>('strict');
 	let projectItems = $state<ProjectItem[]>([]);
 	// Choix de l'utilisateur sur chaque élément de matériel ; sans choix, les indispensables manquants sont cochés.
@@ -106,11 +106,55 @@
 
 	const project = $derived(tank ? isProject(tank) : false);
 
-	async function addGear() {
-		if (!tankId || addingGear || !chosen.length) return;
-		addingGear = true;
+	let tab = $state<'faune' | 'plantes' | 'materiel' | 'infos'>('faune');
+
+	const animals = $derived(plan ? animalCount(plan) : 0);
+	const plantLabel = (name: string) => {
+		const s = speciesOf(name);
+		return s ? speciesName(s) : name;
+	};
+
+	/** Ajoute d'un coup au projet la faune, les plantes et le matériel cochés (sans doublon). */
+	async function adopt() {
+		if (!plan || !idea || !tankId || adding) return;
+		adding = true;
 		try {
-			let position = projectItems.reduce((max, i) => Math.max(max, i.position), 0) + 1;
+			const existing = await listResource<ProjectItem>('project_items', tankId);
+			const haveSpecies = new Set(existing.filter((i) => i.kind === 'espece').map((i) => i.speciesId ?? i.label.toLowerCase()));
+			const havePlants = new Set(existing.filter((i) => i.kind === 'plante').map((i) => i.speciesId ?? i.label.toLowerCase()));
+			const mode = planting === 'strict' ? 'strict' : 'mixte';
+			let position = existing.reduce((max, i) => Math.max(max, i.position), 0) + 1;
+			const added = { faune: 0, plantes: 0, materiel: 0 };
+
+			for (const line of plan.lines) {
+				const label = line.species ? speciesName(line.species) : line.latin;
+				const key = line.species?.id ?? label.toLowerCase();
+				if (haveSpecies.has(key)) continue;
+				haveSpecies.add(key);
+				await createResource('project_items', tankId, {
+					kind: 'espece',
+					label,
+					speciesId: line.species?.id ?? null,
+					notes: `${line.quantity} conseillé${line.quantity > 1 ? 's' : ''} pour ${volume} L (idée « ${idea.title} »)`,
+					position: position++
+				});
+				added.faune++;
+			}
+			for (const name of plantNames) {
+				const s = speciesOf(name);
+				const label = plantLabel(name);
+				const key = s?.id ?? label.toLowerCase();
+				if (havePlants.has(key)) continue;
+				havePlants.add(key);
+				await createResource('project_items', tankId, {
+					kind: 'plante',
+					label,
+					speciesId: s?.id ?? null,
+					notes: `Biotope ${mode} (idée « ${idea.title} »)`,
+					position: position++
+				});
+				added.plantes++;
+			}
 			for (const g of chosen) {
 				await createResource('project_items', tankId, {
 					kind: 'equipement',
@@ -119,41 +163,16 @@
 					notes: `Estimation ${euro(g.price[0])} à ${euro(g.price[1])} pour ${volume} L. ${g.detail}`,
 					position: position++
 				});
+				added.materiel++;
 			}
 			await loadProject();
-			ui.show(`${chosen.length} élément${chosen.length > 1 ? 's' : ''} ajouté${chosen.length > 1 ? 's' : ''} au matériel du projet`, undefined, 'check');
-		} catch (e) {
-			ui.show((e as Error).message);
-		} finally {
-			addingGear = false;
-		}
-	}
-
-	async function addToWishes() {
-		if (!plan || !tankId || adding) return;
-		adding = true;
-		try {
-			const existing = await listResource<{ speciesId: number | null; kind: string }>('project_items', tankId).catch(() => []);
-			const have = new Set(existing.filter((i) => i.kind === 'espece').map((i) => i.speciesId));
-			let position = existing.length + 1;
-			let added = 0;
-			const wanted: { species: Species | null; note: string }[] = [
-				...plan.lines.map((line) => ({ species: line.species, note: `${line.quantity} conseillé${line.quantity > 1 ? 's' : ''} pour ${volume} L (idée « ${idea?.title} »)` })),
-				...plantNames.map((name) => ({ species: speciesOf(name), note: `Plante du biotope ${planting === 'strict' ? 'strict' : 'mixte'} (idée « ${idea?.title} »)` }))
-			];
-			for (const line of wanted) {
-				if (!line.species || have.has(line.species.id)) continue;
-				have.add(line.species.id);
-				await createResource('project_items', tankId, {
-					kind: 'espece',
-					label: speciesName(line.species),
-					speciesId: line.species.id,
-					notes: line.note,
-					position: position++
-				});
-				added++;
-			}
-			ui.show(added ? `${added} espèce${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''} à ta liste` : 'Tout est déjà dans ta liste', undefined, 'check');
+			const parts = [
+				added.faune && `${added.faune} espèce${added.faune > 1 ? 's' : ''}`,
+				added.plantes && `${added.plantes} plante${added.plantes > 1 ? 's' : ''}`,
+				added.materiel && `${added.materiel} matériel${added.materiel > 1 ? 's' : ''}`
+			].filter(Boolean);
+			ui.show(parts.length ? `Ajouté au projet : ${parts.join(', ')}` : 'Tout est déjà dans ton projet', undefined, 'check');
+			if (parts.length) await goto(`/aquariums/${tankId}/projet`);
 		} catch (e) {
 			ui.show((e as Error).message);
 		} finally {
@@ -170,7 +189,7 @@
 	<p class="body px-4 py-8 text-label2">Cette idée n’existe pas. <a class="btn-plain" href="/encyclopedie/idees">Voir toutes les idées</a></p>
 {:else}
 	<article class="pb-4">
-		<header class="mb-5 px-1 pt-3">
+		<header class="mb-4 px-1 pt-3">
 			<p class="footnote font-semibold uppercase" style="color: {salt ? 'var(--cyan)' : 'var(--green)'}">{idea.region} · {SHORT_WATER[idea.water]}</p>
 			<h1 class="title1 mt-0.5">{idea.title}</h1>
 			<p class="body mt-1 text-label2">{idea.summary}</p>
@@ -179,8 +198,8 @@
 			</p>
 		</header>
 
-		<!-- Volume : les quantités s'adaptent -->
-		<section class="raised mb-5 p-4" aria-label="Volume du bac">
+		<!-- Étape 1 : le volume -->
+		<section class="raised mb-4 p-4" aria-label="Volume du bac">
 			<div class="flex items-baseline justify-between">
 				<h2 class="headline">Pour un bac de</h2>
 				<p class="title2 tabular-nums">{volume} L</p>
@@ -206,196 +225,222 @@
 			{/if}
 		</section>
 
-		<!-- Peuplement conseillé -->
-		{#each groups as group (group.title)}
-			<Section header={group.title} variant="title">
-				{#each group.lines as line (line.latin)}
-					{@const s = line.species}
-					<Row
-						href={s ? `/encyclopedie/especes?id=${s.id}` : `/encyclopedie/especes?q=${encodeURIComponent(line.latin)}`}
-						title={s ? speciesName(s) : line.latin}
-						subtitle="{s && speciesName(s) !== s.scientificName ? `${line.latin} · ` : ''}{ROLE_LABEL[line.role]}{s?.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}"
-						value="× {line.quantity}"
-					>
-						{#snippet leading()}
-							{#if s}
-								<SpeciesThumb species={s} class="h-10 w-10 shrink-0 rounded-[12px]" iconSize={20} />
-							{:else}
-								<span class="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] text-white" style="background: {group.color}; --cut: {group.color}"><Icon name={group.icon} size={20} filled weight={1.8} /></span>
-							{/if}
-						{/snippet}
-					</Row>
-				{/each}
-			</Section>
-		{/each}
+		<!-- Étape 2 : le choix, en un geste -->
+		<section class="raised mb-5 p-4" aria-label="Ce biotope pour mon projet">
+			<h2 class="headline">Ce biotope en un coup d’œil</h2>
+			<ul class="mt-3 grid grid-cols-3 gap-2 text-center">
+				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+					<p class="title3 tabular-nums">{animals}</p>
+					<p class="footnote text-label2">animaux</p>
+				</li>
+				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+					<p class="title3 tabular-nums">{plantNames.length}</p>
+					<p class="footnote text-label2">{salt ? 'algues' : 'plantes'}</p>
+				</li>
+				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+					<p class="title3 tabular-nums">{chosen.length}</p>
+					<p class="footnote text-label2">matériel</p>
+				</li>
+			</ul>
+			<p class="subhead mt-3 flex justify-between text-label2">
+				<span>Budget matériel estimé</span>
+				<span class="font-semibold tabular-nums text-label">{chosen.length ? `${euro(gearTotal[0])} à ${euro(gearTotal[1])}` : '0 €'}</span>
+			</p>
+			{#if project && tankId}
+				<button type="button" class="btn-filled mt-4 w-full" onclick={adopt} disabled={adding}>
+					{adding ? 'Ajout…' : `Choisir ce biotope pour ${tank?.name ?? 'mon projet'}`}
+				</button>
+				<p class="footnote mt-2 text-center text-label2">Ajoute les animaux, les plantes et le matériel coché à ton projet. Tu pourras tout retoucher ensuite.</p>
+			{:else if tankId}
+				<a href="/aquariums/{tankId}/peuplement" class="btn-filled mt-4 flex w-full items-center justify-center">Tester dans le simulateur</a>
+			{:else}
+				<p class="footnote mt-3 text-label2">Ouvre cette idée depuis un projet d’aquarium pour l’ajouter d’un seul geste.</p>
+			{/if}
+		</section>
 
-		{#if loadError}
-			<p class="footnote mb-4 px-1 text-label2">Fiches indisponibles hors ligne : les quantités sont données, la charge biologique ne peut pas être calculée.</p>
+		{#if idea.warn}
+			<div class="mb-5 flex gap-3 rounded-[22px] bg-orange/12 py-3 pl-4 pr-4">
+				<span class="mt-0.5 shrink-0 text-orange" style="--cut: var(--bg)"><Icon name="alert" size={22} filled /></span>
+				<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Attention.</span> {idea.warn}</p>
+			</div>
 		{/if}
 
-		<!-- Charge biologique -->
-		{#if plan.analysed && plan.bioload}
-			{@const b = plan.bioload}
-			<section class="raised mb-5 p-4" aria-label="Charge biologique">
-				<div class="flex items-baseline justify-between">
-					<h2 class="headline">Charge biologique</h2>
-					{#if b.level}<p class="subhead font-semibold" style="color: {levelColor[b.level]}">{BIOLOAD_LABELS[b.level]}</p>{/if}
-				</div>
-				<div class="mt-3 h-3 overflow-hidden rounded-full bg-fill3" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(gauge * 100)}>
-					<div class="h-full rounded-full transition-all duration-500" style="width: {Math.max(4, gauge * 100)}%; background: {b.level ? levelColor[b.level] : 'var(--gray)'}"></div>
-				</div>
-				<p class="footnote mt-2 text-label2">
-					{animalCount(plan)} animaux · {b.loadG} g de biomasse adulte pour une capacité estimée de {b.capacityG ?? '?'} g
-					({b.ratio != null ? Math.round(b.ratio * 100) : '?'} %).
+		<!-- Détail par onglet -->
+		<div class="mb-4">
+			<Segmented
+				label="Détail du biotope"
+				bind:value={tab}
+				options={[
+					{ value: 'faune', label: 'Faune' },
+					{ value: 'plantes', label: salt ? 'Algues' : 'Plantes' },
+					{ value: 'materiel', label: 'Matériel' },
+					{ value: 'infos', label: 'Infos' }
+				]}
+			/>
+		</div>
+
+		{#if tab === 'faune'}
+			{#each groups as group (group.title)}
+				<Section header={group.title} variant="title">
+					{#each group.lines as line (line.latin)}
+						{@const s = line.species}
+						<Row
+							href={s ? `/encyclopedie/especes?id=${s.id}` : `/encyclopedie/especes?q=${encodeURIComponent(line.latin)}`}
+							title={s ? speciesName(s) : line.latin}
+							subtitle="{s && speciesName(s) !== s.scientificName ? `${line.latin} · ` : ''}{ROLE_LABEL[line.role]}{s?.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}"
+							value="× {line.quantity}"
+						>
+							{#snippet leading()}
+								{#if s}
+									<SpeciesThumb species={s} class="h-10 w-10 shrink-0 rounded-[12px]" iconSize={20} />
+								{:else}
+									<span class="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] text-white" style="background: {group.color}; --cut: {group.color}"><Icon name={group.icon} size={20} filled weight={1.8} /></span>
+								{/if}
+							{/snippet}
+						</Row>
+					{/each}
+				</Section>
+			{/each}
+
+			{#if loadError}
+				<p class="footnote mb-4 px-1 text-label2">Fiches indisponibles hors ligne : les quantités sont données, la charge biologique ne peut pas être calculée.</p>
+			{/if}
+
+			{#if plan.analysed && plan.bioload}
+				{@const b = plan.bioload}
+				<section class="raised mb-5 p-4" aria-label="Charge biologique">
+					<div class="flex items-baseline justify-between">
+						<h2 class="headline">Charge biologique</h2>
+						{#if b.level}<p class="subhead font-semibold" style="color: {levelColor[b.level]}">{BIOLOAD_LABELS[b.level]}</p>{/if}
+					</div>
+					<div class="mt-3 h-3 overflow-hidden rounded-full bg-fill3" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(gauge * 100)}>
+						<div class="h-full rounded-full transition-all duration-500" style="width: {Math.max(4, gauge * 100)}%; background: {b.level ? levelColor[b.level] : 'var(--gray)'}"></div>
+					</div>
+					<p class="footnote mt-2 text-label2">
+						{animals} animaux · {b.loadG} g de biomasse adulte pour une capacité estimée de {b.capacityG ?? '?'} g
+						({b.ratio != null ? Math.round(b.ratio * 100) : '?'} %).
+					</p>
+					{#if plan.reduced}
+						<p class="footnote mt-1 text-label2">Les quantités ont été réduites pour garder une marge de confort.</p>
+					{/if}
+					{#if idea.dense}
+						<p class="footnote mt-1 text-label2">Bac volontairement dense : le calcul tient compte d’une filtration très puissante.</p>
+					{/if}
+				</section>
+			{/if}
+
+			{#if plan.analysed}
+				<Section header="Compatibilité" variant="title" footer="Analyse automatique d’après les fiches : une aide, pas une garantie.">
+					{#if plan.issues.length}
+						{#each plan.issues as issue, i (i)}
+							<li class="flex gap-3 px-4 py-3 shadow-[inset_0_0.5px_0_var(--sep)]">
+								<span class="mt-0.5 shrink-0" style="color: {severityColor[issue.severity]}; --cut: var(--bg2)"><Icon name="alert" size={18} filled /></span>
+								<p class="subhead min-w-0 flex-1"><span class="font-semibold" style="color: {severityColor[issue.severity]}">{severityLabel[issue.severity]}.</span> {issue.message}</p>
+							</li>
+						{/each}
+					{:else}
+						<li class="flex gap-3 px-4 py-3">
+							<span class="mt-0.5 shrink-0 text-green" style="--cut: var(--bg2)"><Icon name="info" size={18} filled /></span>
+							<p class="subhead min-w-0 flex-1">Aucun conflit détecté entre ces espèces à {volume} L.</p>
+						</li>
+					{/if}
+				</Section>
+			{/if}
+		{:else if tab === 'plantes'}
+			<section class="mb-5" aria-label="Plantes">
+				<Segmented
+					label="Choix des plantes"
+					bind:value={planting}
+					options={[
+						{ value: 'strict', label: 'Biotope strict' },
+						{ value: 'mixte', label: 'Biotope mixte' }
+					]}
+				/>
+				<p class="footnote mt-2 px-1 text-label2">
+					{#if planting === 'strict'}
+						Seulement ce qui pousse dans le milieu d’origine{plantNames.length ? '' : ' : et ce milieu n’en comporte pas'}.
+					{:else}
+						Les plantes du milieu, complétées de plantes d’aquarium qui supportent la même eau.
+					{/if}
 				</p>
-				{#if plan.reduced}
-					<p class="footnote mt-1 text-label2">Les quantités ont été réduites pour garder une marge de confort.</p>
+				{#if plantNames.length}
+					<ul class="raised mt-3 overflow-hidden">
+						{#each plantNames as name, i (name)}
+							{@const s = speciesOf(name)}
+							<li class={i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}>
+								<a href={s ? `/encyclopedie/especes?id=${s.id}` : `/encyclopedie/especes?q=${encodeURIComponent(name)}`} class="tappable flex min-h-14 items-center gap-3 px-4 py-2">
+									{#if s}
+										<SpeciesThumb species={s} class="h-10 w-10 shrink-0 rounded-[12px]" iconSize={20} />
+									{:else}
+										<span class="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-green text-white" style="--cut: var(--green)"><Icon name="leaf" size={20} filled weight={1.8} /></span>
+									{/if}
+									<span class="min-w-0 flex-1">
+										<span class="body block truncate">{plantLabel(name)}</span>
+										<span class="footnote block truncate text-label2">{name}{s?.light ? ` · lumière ${['', 'faible', 'moyenne', 'forte'][s.light]}` : ''}{s?.co2 === 2 ? ' · CO₂ indispensable' : ''}</span>
+									</span>
+									<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="subhead mt-3 rounded-[14px] bg-fill3 px-3 py-3">
+						{#if salt}
+							Un récif se passe de plantes : la roche vive et les coraux font le décor. Choisis « mixte » pour des macro-algues de refuge.
+						{:else}
+							Dans ce biotope, les rives sont nues : roches, sable et algues du biofilm. Choisis « mixte » si tu veux quelques plantes robustes.
+						{/if}
+					</p>
 				{/if}
-				{#if idea.dense}
-					<p class="footnote mt-1 text-label2">Bac volontairement dense : le calcul tient compte d’une filtration très puissante.</p>
+				{#if salt && plantNames.includes('Caulerpa prolifera')}
+					<p class="footnote mt-2 px-1 text-label2">La caulerpe peut envahir le bac et se multiplie vite : surveille-la ou préfère la chaeto.</p>
+				{/if}
+			</section>
+		{:else if tab === 'materiel'}
+			<section class="mb-5" aria-label="Matériel conseillé">
+				<p class="footnote mb-2 px-1 text-label2">Coche ce que tu veux acheter : seul le matériel coché est ajouté au projet.</p>
+				<ul class="raised overflow-hidden">
+					{#each gear as g, i (g.id)}
+						{@const owned = ownedIds.has(g.id)}
+						<li class="flex items-start gap-3 px-4 py-3 {i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}">
+							<div class="min-w-0 flex-1">
+								<p class="body {owned ? 'text-label2' : ''}">{g.label}</p>
+								<p class="footnote text-label2">{CATEGORY_LABELS[g.category]}{g.essential ? '' : ' · facultatif'}</p>
+								<p class="footnote mt-0.5 text-label2">{g.detail}</p>
+								<p class="subhead mt-1 font-semibold tabular-nums {owned ? 'text-green' : ''}">{owned ? 'Déjà dans ton projet' : `${euro(g.price[0])} à ${euro(g.price[1])}`}</p>
+							</div>
+							<Switch checked={isOn(g)} disabled={owned} label={g.label} onchange={(e) => (gearChoice[g.id] = e.currentTarget.checked)} />
+						</li>
+					{/each}
+				</ul>
+				<div class="raised mt-3 flex items-baseline justify-between px-4 py-3">
+					<div>
+						<p class="body font-semibold">Budget estimé</p>
+						<p class="footnote text-label2">{chosen.length} élément{chosen.length > 1 ? 's' : ''} coché{chosen.length > 1 ? 's' : ''}</p>
+					</div>
+					<p class="title3 tabular-nums">{chosen.length ? `${euro(gearTotal[0])} à ${euro(gearTotal[1])}` : '0 €'}</p>
+				</div>
+				<p class="footnote mt-2 px-1 text-label2">Estimations indicatives du neuf en France : compare plusieurs boutiques, l’occasion coûte souvent moins cher.</p>
+			</section>
+		{:else}
+			<section class="mb-5 px-1">
+				<h2 class="title3 mb-2 font-bold">Eau et décor</h2>
+				<ul class="mb-3 flex flex-wrap gap-2">
+					<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">{idea.conditions.temp[0]} – {idea.conditions.temp[1]} °C</li>
+					<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">pH {idea.conditions.ph[0]} – {idea.conditions.ph[1]}</li>
+					{#if idea.conditions.dgh}<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">GH {idea.conditions.dgh[0]} – {idea.conditions.dgh[1]} °dGH</li>{/if}
+				</ul>
+				<p class="body leading-relaxed">{idea.decor}</p>
+				{#if idea.tip}
+					<div class="mt-3 flex gap-3 rounded-[22px] bg-blue/12 py-3 pl-4 pr-4">
+						<span class="mt-0.5 shrink-0 text-blue" style="--cut: var(--bg)"><Icon name="info" size={22} filled /></span>
+						<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Astuce.</span> {idea.tip}</p>
+					</div>
 				{/if}
 			</section>
 		{/if}
 
-		<!-- Compatibilité -->
-		{#if plan.analysed}
-			<Section header="Compatibilité" variant="title" footer="Analyse automatique d’après les fiches : une aide, pas une garantie.">
-				{#if plan.issues.length}
-					{#each plan.issues as issue, i (i)}
-						<li class="flex gap-3 px-4 py-3 shadow-[inset_0_0.5px_0_var(--sep)]">
-							<span class="mt-0.5 shrink-0" style="color: {severityColor[issue.severity]}; --cut: var(--bg2)"><Icon name="alert" size={18} filled /></span>
-							<p class="subhead min-w-0 flex-1"><span class="font-semibold" style="color: {severityColor[issue.severity]}">{severityLabel[issue.severity]}.</span> {issue.message}</p>
-						</li>
-					{/each}
-				{:else}
-					<li class="flex gap-3 px-4 py-3">
-						<span class="mt-0.5 shrink-0 text-green" style="--cut: var(--bg2)"><Icon name="info" size={18} filled /></span>
-						<p class="subhead min-w-0 flex-1">Aucun conflit détecté entre ces espèces à {volume} L.</p>
-					</li>
-				{/if}
-			</Section>
-		{/if}
-
-		<!-- Plantes : biotope strict ou mixte -->
-		<section class="mb-5" aria-label="Plantes">
-			<div class="mb-2.5 flex items-baseline justify-between px-1">
-				<h2 class="title3 font-bold">{salt ? 'Macro-algues' : 'Plantes'}</h2>
-				<p class="footnote text-label2">{plantNames.length ? `${plantNames.length} proposée${plantNames.length > 1 ? 's' : ''}` : 'Aucune'}</p>
-			</div>
-			<Segmented
-				label="Choix des plantes"
-				bind:value={planting}
-				options={[
-					{ value: 'strict', label: 'Biotope strict' },
-					{ value: 'mixte', label: 'Biotope mixte' }
-				]}
-			/>
-			<p class="footnote mt-2 px-1 text-label2">
-				{#if planting === 'strict'}
-					Seulement ce qui pousse dans le milieu d’origine{plantNames.length ? '' : ' : et ce milieu n’en comporte pas'}.
-				{:else}
-					Les plantes du milieu, complétées de plantes d’aquarium qui supportent la même eau.
-				{/if}
-			</p>
-			{#if plantNames.length}
-				<ul class="raised mt-3 overflow-hidden">
-					{#each plantNames as name, i (name)}
-						{@const s = speciesOf(name)}
-						<li class={i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}>
-							<a href={s ? `/encyclopedie/especes?id=${s.id}` : `/encyclopedie/especes?q=${encodeURIComponent(name)}`} class="tappable flex min-h-14 items-center gap-3 px-4 py-2">
-								{#if s}
-									<SpeciesThumb species={s} class="h-10 w-10 shrink-0 rounded-[12px]" iconSize={20} />
-								{:else}
-									<span class="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-green text-white" style="--cut: var(--green)"><Icon name="leaf" size={20} filled weight={1.8} /></span>
-								{/if}
-								<span class="min-w-0 flex-1">
-									<span class="body block truncate">{s ? speciesName(s) : name}</span>
-									<span class="footnote block truncate text-label2">{name}{s?.light ? ` · lumière ${['', 'faible', 'moyenne', 'forte'][s.light]}` : ''}{s?.co2 === 2 ? ' · CO₂ indispensable' : ''}</span>
-								</span>
-								<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="subhead mt-3 rounded-[14px] bg-fill3 px-3 py-3">
-					{#if salt}
-						Un récif se passe de plantes : la roche vive et les coraux font le décor. Choisis « mixte » pour des macro-algues de refuge.
-					{:else}
-						Dans ce biotope, les rives sont nues : roches, sable et algues du biofilm. Choisis « mixte » si tu veux quelques plantes robustes.
-					{/if}
-				</p>
-			{/if}
-			{#if salt && plantNames.includes('Caulerpa prolifera')}
-				<p class="footnote mt-2 px-1 text-label2">La caulerpe peut envahir le bac et se multiplie vite : surveille-la ou préfère la chaeto.</p>
-			{/if}
-		</section>
-
-		<!-- Matériel conseillé -->
-		<section class="mb-5" aria-label="Matériel conseillé">
-			<div class="mb-2.5 flex items-baseline justify-between px-1">
-				<h2 class="title3 font-bold">Matériel conseillé</h2>
-				<p class="footnote text-label2">pour {volume} L</p>
-			</div>
-			<ul class="raised overflow-hidden">
-				{#each gear as g, i (g.id)}
-					{@const owned = ownedIds.has(g.id)}
-					<li class="flex items-start gap-3 px-4 py-3 {i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}">
-						<div class="min-w-0 flex-1">
-							<p class="body {owned ? 'text-label2' : ''}">{g.label}</p>
-							<p class="footnote text-label2">{CATEGORY_LABELS[g.category]}{g.essential ? '' : ' · facultatif'}</p>
-							<p class="footnote mt-0.5 text-label2">{g.detail}</p>
-							<p class="subhead mt-1 font-semibold tabular-nums {owned ? 'text-green' : ''}">{owned ? 'Déjà dans ton projet' : `${euro(g.price[0])} à ${euro(g.price[1])}`}</p>
-						</div>
-						<Switch checked={isOn(g)} disabled={owned} label={g.label} onchange={(e) => (gearChoice[g.id] = e.currentTarget.checked)} />
-					</li>
-				{/each}
-			</ul>
-			<div class="raised mt-3 flex items-baseline justify-between px-4 py-3">
-				<div>
-					<p class="body font-semibold">Budget estimé</p>
-					<p class="footnote text-label2">{chosen.length} élément{chosen.length > 1 ? 's' : ''} coché{chosen.length > 1 ? 's' : ''}</p>
-				</div>
-				<p class="title3 tabular-nums">{chosen.length ? `${euro(gearTotal[0])} à ${euro(gearTotal[1])}` : '0 €'}</p>
-			</div>
-			{#if project && tankId}
-				<ul class="group mt-3">
-					<Row icon="plus" iconColor="var(--green)" title={chosen.length ? `Ajouter ${chosen.length} élément${chosen.length > 1 ? 's' : ''} au matériel du projet` : 'Rien de coché à ajouter'} subtitle="Prix estimé retenu : milieu de la fourchette" onclick={addGear} action disabled={!chosen.length || addingGear} />
-				</ul>
-			{/if}
-			<p class="footnote mt-2 px-1 text-label2">Estimations indicatives du neuf en France : compare plusieurs boutiques, l’occasion coûte souvent moins cher.</p>
-		</section>
-
-		<!-- Conditions et décor -->
-		<section class="mb-5 px-1">
-			<h2 class="title3 mb-2 font-bold">Eau et décor</h2>
-			<ul class="mb-3 flex flex-wrap gap-2">
-				<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">{idea.conditions.temp[0]} – {idea.conditions.temp[1]} °C</li>
-				<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">pH {idea.conditions.ph[0]} – {idea.conditions.ph[1]}</li>
-				{#if idea.conditions.dgh}<li class="footnote rounded-full bg-fill3 px-3 py-1.5 font-semibold">GH {idea.conditions.dgh[0]} – {idea.conditions.dgh[1]} °dGH</li>{/if}
-			</ul>
-			<p class="body leading-relaxed">{idea.decor}</p>
-			{#if idea.tip}
-				<div class="mt-3 flex gap-3 rounded-[22px] bg-blue/12 py-3 pl-4 pr-4">
-					<span class="mt-0.5 shrink-0 text-blue" style="--cut: var(--bg)"><Icon name="info" size={22} filled /></span>
-					<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Astuce.</span> {idea.tip}</p>
-				</div>
-			{/if}
-			{#if idea.warn}
-				<div class="mt-3 flex gap-3 rounded-[22px] bg-orange/12 py-3 pl-4 pr-4">
-					<span class="mt-0.5 shrink-0 text-orange" style="--cut: var(--bg)"><Icon name="alert" size={22} filled /></span>
-					<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Attention.</span> {idea.warn}</p>
-				</div>
-			{/if}
-		</section>
-
-		<!-- Actions -->
 		<Section>
-			{#if project && tankId}
-				<Row icon="plus" iconColor="var(--green)" title="Ajouter à ma liste de souhaits" subtitle="{tank?.name} · animaux et plantes de cette idée" onclick={addToWishes} action />
-			{:else if tankId}
-				<Row icon="chart" iconColor="var(--indigo)" title="Tester dans le simulateur" subtitle="Compatibilité et charge de {tank?.name ?? 'ton bac'}" href="/aquariums/{tankId}/peuplement" />
-			{/if}
 			{#if idea.guide}
 				{@const [t, g] = idea.guide.split('/')}
 				<Row icon="book" iconColor="var(--orange)" title="Lire le guide du biotope" href="/encyclopedie/{t}/{g}" />

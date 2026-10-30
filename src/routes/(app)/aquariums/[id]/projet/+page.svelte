@@ -14,12 +14,12 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
 	import JourneyCard from '$lib/ios/JourneyCard.svelte';
-	import Carousel from '$lib/relief/Carousel.svelte';
 	import IdeaTile from '$lib/relief/IdeaTile.svelte';
 	import { IDEAS } from '$lib/content/ideas';
 	import { fitOf, ideasFor } from '$lib/domain/ideas';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Row from '$lib/ios/Row.svelte';
+	import Segmented from '$lib/ios/Segmented.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import SwipeRow from '$lib/ios/SwipeRow.svelte';
@@ -34,6 +34,7 @@
 	let loaded = $state(false);
 	let loadError = $state('');
 	let busy = $state(false);
+	let tab = $state<'apercu' | 'vivant' | 'materiel' | 'idees'>('apercu');
 
 	async function load() {
 		try {
@@ -49,6 +50,7 @@
 
 	const equipment = $derived(items.filter((i) => i.kind === 'equipement'));
 	const wishes = $derived(items.filter((i) => i.kind === 'espece'));
+	const plants = $derived(items.filter((i) => i.kind === 'plante'));
 	const checks = $derived(items.filter((i) => i.kind === 'etape'));
 	const budget = $derived(items.find((i) => i.kind === 'budget') ?? null);
 	const total = $derived(equipment.reduce((sum, i) => sum + (i.amount ?? 0), 0));
@@ -56,7 +58,7 @@
 	const target = $derived(budget?.amount ?? 0);
 
 	// Idées de peuplement adaptées au volume et au type d'eau du bac.
-	const ideas = $derived(aquarium ? ideasFor(IDEAS, aquarium.volumeL, aquarium.waterType).slice(0, 8) : []);
+	const ideas = $derived(aquarium ? ideasFor(IDEAS, aquarium.volumeL, aquarium.waterType).slice(0, 12) : []);
 
 	const euro = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`;
 	const nextPosition = () => items.reduce((max, i) => Math.max(max, i.position), 0) + 1;
@@ -123,7 +125,7 @@
 	}
 
 	// --- Feuille : matériel (ajout et édition) -----------------------------------
-	let sheet = $state<'equipement' | 'budget' | 'espece' | null>(null);
+	let sheet = $state<'equipement' | 'budget' | 'espece' | 'plante' | null>(null);
 	let editing = $state<ProjectItem | null>(null);
 	let label = $state('');
 	let amount = $state('');
@@ -188,12 +190,13 @@
 	}
 
 	async function addWish(s: Species) {
-		if (items.some((i) => i.kind === 'espece' && i.speciesId === s.id)) {
-			ui.show('Cette espèce est déjà dans ta liste');
+		const kind = s.kind === 'plante' ? 'plante' : 'espece';
+		if (items.some((i) => i.kind === kind && i.speciesId === s.id)) {
+			ui.show('Déjà dans ta liste');
 			return;
 		}
 		await run(async () => {
-			await createResource('project_items', id, { kind: 'espece', label: speciesName(s), speciesId: s.id, position: nextPosition() });
+			await createResource('project_items', id, { kind, label: speciesName(s), speciesId: s.id, position: nextPosition() });
 			await load();
 			ui.show(`${speciesName(s)} ajouté`, undefined, 'check');
 		});
@@ -238,8 +241,8 @@
 	function onaction(step: JourneyStep) {
 		const href = step.action?.href ?? '';
 		if (href.startsWith('?etape=mise-en-eau')) return void launch();
-		if (step.id === 'materiel' || step.id === 'budget') return document.getElementById('sec-materiel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		if (step.id === 'especes') return document.getElementById('sec-especes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		if (step.id === 'materiel' || step.id === 'budget') return void (tab = 'materiel');
+		if (step.id === 'especes') return void (tab = 'vivant');
 		void goto(href);
 	}
 
@@ -273,32 +276,123 @@
 		</p>
 	{/if}
 
-	<div class="mb-8 mt-2">
-		<JourneyCard {aquarium} {steps} {onaction} open />
+	<div class="mb-5 mt-1">
+		<Segmented
+			label="Sections du projet"
+			bind:value={tab}
+			options={[
+				{ value: 'apercu', label: 'Aperçu' },
+				{ value: 'vivant', label: 'Vivant' },
+				{ value: 'materiel', label: 'Matériel' },
+				{ value: 'idees', label: 'Idées' }
+			]}
+		/>
 	</div>
 
-	<!-- Budget -->
-	<section class="group mb-8 p-4" aria-label="Budget">
-		<p class="footnote font-semibold uppercase text-label2">Budget estimé</p>
-		<p class="rounded-num mt-1"><span class="text-[40px] font-semibold leading-[44px]">{euro(total)}</span></p>
-		{#if equipment.length === 0}
-			<p class="subhead mt-1 text-label2">Ajoute du matériel avec un prix pour chiffrer ton projet.</p>
-		{:else if acquired > 0}
-			<p class="subhead mt-1 text-label2">Déjà acquis : {euro(acquired)} · reste {euro(total - acquired)}</p>
-		{/if}
-		{#if target > 0}
-			<div class="mt-3 h-2.5 overflow-hidden rounded-full bg-fill" role="img" aria-label="Total estimé par rapport au budget visé">
-				<div class="h-full rounded-full transition-[width] duration-500" style="width: {gauge}%; background: {delta >= 0 ? 'var(--green)' : 'var(--red)'}"></div>
-			</div>
-			<p class="footnote mt-1.5 {delta >= 0 ? 'text-label2' : 'font-semibold text-red'}">
-				{delta >= 0 ? `Il reste ${euro(delta)} sur ton budget de ${euro(target)}` : `Tu dépasses ton budget de ${euro(-delta)} (visé : ${euro(target)})`}
-			</p>
-		{/if}
-		<button type="button" class="btn-plain subhead mt-2 font-semibold" onclick={openBudget}>{target > 0 ? 'Modifier le budget visé' : 'Définir un budget visé'}</button>
-	</section>
+	{#if tab === 'apercu'}
+		<ul class="mb-6 grid grid-cols-2 gap-3">
+			<li>
+				<button type="button" class="group tappable w-full p-4 text-left" onclick={() => (tab = 'vivant')}>
+					<p class="footnote font-semibold uppercase text-label2">Vivant</p>
+					<p class="title2 tabular-nums">{wishes.length + plants.length}</p>
+					<p class="footnote text-label2">{wishes.length} espèce{wishes.length > 1 ? 's' : ''} · {plants.length} plante{plants.length > 1 ? 's' : ''}</p>
+				</button>
+			</li>
+			<li>
+				<button type="button" class="group tappable w-full p-4 text-left" onclick={() => (tab = 'materiel')}>
+					<p class="footnote font-semibold uppercase text-label2">Budget</p>
+					<p class="title2 tabular-nums">{euro(total)}</p>
+					<p class="footnote {target > 0 && delta < 0 ? 'font-semibold text-red' : 'text-label2'}">
+						{equipment.length} élément{equipment.length > 1 ? 's' : ''}{target > 0 ? ` · visé ${euro(target)}` : ''}
+					</p>
+				</button>
+			</li>
+		</ul>
 
-	<!-- Matériel -->
-	<div id="sec-materiel" class="scroll-mt-16">
+		<div class="mb-8">
+			<JourneyCard {aquarium} {steps} {onaction} open />
+		</div>
+
+		{#if checks.length}
+			<Section header="Avant la mise en eau" variant="title" footer="Coche ces étapes au fil de ta préparation.">
+				{#each checks as item (item.id)}
+					<li class="pl-4">
+						<button type="button" class="tappable flex w-full items-center gap-3 text-left" onclick={() => toggleDone(item)} aria-pressed={item.done}>
+							<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {item.done ? 'border-green bg-green text-white' : 'border-label3'}">
+								{#if item.done}<span class="grid" style="animation: pop-in 220ms both"><Icon name="check" size={14} weight={3.2} /></span>{/if}
+							</span>
+							<span class="row-body body min-h-11 flex-1 py-2.5 pr-4 {item.done ? 'text-label2' : ''}">{item.label}</span>
+						</button>
+					</li>
+				{/each}
+			</Section>
+		{/if}
+
+		<button type="button" class="btn-filled mb-3 w-full" onclick={launch} disabled={busy}>Lancer la mise en eau</button>
+		<p class="footnote mb-8 px-2 text-center text-label2">Le bac passe en cyclage : je te dirai quand tu pourras ajouter des poissons.</p>
+
+		<Section>
+			<Row icon="reglages" iconColor="var(--gray)" title="Nom, type d’eau et volume" href="/aquariums/{id}/reglages" />
+			<Row title="Supprimer le projet" destructive onclick={removeProject} />
+		</Section>
+	{:else if tab === 'vivant'}
+		<Section header="Animaux" variant="title" footer={wishes.length ? 'Glisse une ligne pour la retirer.' : undefined}>
+			{#each wishes as item (item.id)}
+				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
+					<div class="flex items-center gap-3 pl-4">
+						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--blue); --cut: var(--blue)">
+							<Icon name="fish" size={19} filled weight={2} />
+						</span>
+						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">
+							<span class="body truncate">{item.label}</span>
+							{#if item.notes}<span class="footnote truncate text-label2">{item.notes}</span>{/if}
+						</div>
+					</div>
+				</SwipeRow>
+			{/each}
+			<Row icon="plus" action title="Ajouter un animal" onclick={() => (sheet = 'espece')} />
+			<Row icon="chart" iconColor="var(--indigo)" title="Tester dans le simulateur" subtitle="Compatibilité, charge biologique" href="/aquariums/{id}/peuplement" />
+		</Section>
+
+		<Section header={speciesWater === 'mer' ? 'Algues et plantes' : 'Plantes'} variant="title">
+			{#each plants as item (item.id)}
+				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
+					<div class="flex items-center gap-3 pl-4">
+						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--green); --cut: var(--green)">
+							<Icon name="leaf" size={19} filled weight={2} />
+						</span>
+						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">
+							<span class="body truncate">{item.label}</span>
+							{#if item.notes}<span class="footnote truncate text-label2">{item.notes}</span>{/if}
+						</div>
+					</div>
+				</SwipeRow>
+			{/each}
+			<Row icon="plus" action title="Ajouter une plante" onclick={() => (sheet = 'plante')} />
+		</Section>
+		{#if !wishes.length && !plants.length}
+			<p class="footnote px-4 text-label2">Pas d’idée ? Ouvre l’onglet « Idées » : choisis un biotope et tout est ajouté d’un coup.</p>
+		{/if}
+	{:else if tab === 'materiel'}
+		<section class="group mb-8 p-4" aria-label="Budget">
+			<p class="footnote font-semibold uppercase text-label2">Budget estimé</p>
+			<p class="rounded-num mt-1"><span class="text-[40px] font-semibold leading-[44px]">{euro(total)}</span></p>
+			{#if equipment.length === 0}
+				<p class="subhead mt-1 text-label2">Ajoute du matériel avec un prix pour chiffrer ton projet.</p>
+			{:else if acquired > 0}
+				<p class="subhead mt-1 text-label2">Déjà acquis : {euro(acquired)} · reste {euro(total - acquired)}</p>
+			{/if}
+			{#if target > 0}
+				<div class="mt-3 h-2.5 overflow-hidden rounded-full bg-fill" role="img" aria-label="Total estimé par rapport au budget visé">
+					<div class="h-full rounded-full transition-[width] duration-500" style="width: {gauge}%; background: {delta >= 0 ? 'var(--green)' : 'var(--red)'}"></div>
+				</div>
+				<p class="footnote mt-1.5 {delta >= 0 ? 'text-label2' : 'font-semibold text-red'}">
+					{delta >= 0 ? `Il reste ${euro(delta)} sur ton budget de ${euro(target)}` : `Tu dépasses ton budget de ${euro(-delta)} (visé : ${euro(target)})`}
+				</p>
+			{/if}
+			<button type="button" class="btn-plain subhead mt-2 font-semibold" onclick={openBudget}>{target > 0 ? 'Modifier le budget visé' : 'Définir un budget visé'}</button>
+		</section>
+
 		<Section header="Matériel" variant="title" footer={equipment.length ? 'Touche le rond quand tu as acheté l’élément, touche la ligne pour la modifier, glisse pour la retirer.' : undefined}>
 			{#each equipment as item (item.id)}
 				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
@@ -321,63 +415,22 @@
 			{/each}
 			<Row icon="plus" action title="Ajouter du matériel" onclick={() => openEquipment(null)} />
 		</Section>
-	</div>
-
-	<!-- Idées de peuplement -->
-	{#if aquarium}
-		<Carousel header={aquarium.volumeL ? `Idées pour ${aquarium.volumeL} L` : 'Idées de peuplement'} more={{ href: `/encyclopedie/idees?bac=${id}`, label: 'Tout voir' }}>
-			{#each ideas as idea (idea.slug)}
-				<IdeaTile {idea} tall href="/encyclopedie/idees/{idea.slug}?bac={id}" fit={aquarium.volumeL ? fitOf(idea, aquarium.volumeL) : null} />
-			{:else}
-				<p class="subhead px-1 text-label2">Renseigne le volume du bac pour obtenir des idées adaptées.</p>
-			{/each}
-		</Carousel>
-	{/if}
-
-	<!-- Espèces souhaitées -->
-	<div id="sec-especes" class="scroll-mt-16">
-		<Section header="Espèces souhaitées" variant="title">
-			{#each wishes as item (item.id)}
-				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
-					<div class="flex items-center gap-3 pl-4">
-						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--green); --cut: var(--green)">
-							<Icon name="fish" size={19} filled weight={2} />
-						</span>
-						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">
-							<span class="body truncate">{item.label}</span>
-							{#if item.notes}<span class="footnote truncate text-label2">{item.notes}</span>{/if}
-						</div>
-					</div>
-				</SwipeRow>
-			{/each}
-			<Row icon="plus" action title="Ajouter une espèce" onclick={() => (sheet = 'espece')} />
-			<Row icon="chart" iconColor="var(--indigo)" title="Tester dans le simulateur" subtitle="Compatibilité, charge biologique" href="/aquariums/{id}/peuplement" />
-		</Section>
-	</div>
-
-	<!-- Étapes à cocher -->
-	{#if checks.length}
-		<Section header="Avant la mise en eau" variant="title" footer="Coche ces étapes au fil de ta préparation.">
-			{#each checks as item (item.id)}
-				<li class="pl-4">
-					<button type="button" class="tappable flex w-full items-center gap-3 text-left" onclick={() => toggleDone(item)} aria-pressed={item.done}>
-						<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {item.done ? 'border-green bg-green text-white' : 'border-label3'}">
-							{#if item.done}<span class="grid" style="animation: pop-in 220ms both"><Icon name="check" size={14} weight={3.2} /></span>{/if}
-						</span>
-						<span class="row-body body min-h-11 flex-1 py-2.5 pr-4 {item.done ? 'text-label2' : ''}">{item.label}</span>
-					</button>
-				</li>
-			{/each}
+	{:else}
+		<h2 class="title3 mb-2.5 px-1 font-bold">{aquarium.volumeL ? `Idées pour ${aquarium.volumeL} L` : 'Idées de peuplement'}</h2>
+		<p class="footnote mb-3 px-1 text-label2">Choisis un biotope : animaux, plantes et matériel conseillés sont ajoutés à ton projet.</p>
+		{#if ideas.length}
+			<div class="mb-4 grid gap-3 sm:grid-cols-2">
+				{#each ideas as idea (idea.slug)}
+					<IdeaTile {idea} href="/encyclopedie/idees/{idea.slug}?bac={id}" fit={aquarium.volumeL ? fitOf(idea, aquarium.volumeL) : null} />
+				{/each}
+			</div>
+		{:else}
+			<p class="subhead mb-4 px-1 text-label2">Renseigne le volume du bac pour obtenir des idées adaptées.</p>
+		{/if}
+		<Section>
+			<Row icon="search" iconColor="var(--teal)" title="Voir toutes les idées" href="/encyclopedie/idees?bac={id}" />
 		</Section>
 	{/if}
-
-	<button type="button" class="btn-filled mb-3 w-full" onclick={launch} disabled={busy}>Lancer la mise en eau</button>
-	<p class="footnote mb-8 px-2 text-center text-label2">Le bac passe en cyclage : je te dirai quand tu pourras ajouter des poissons.</p>
-
-	<Section>
-		<Row icon="reglages" iconColor="var(--gray)" title="Nom, type d’eau et volume" href="/aquariums/{id}/reglages" />
-		<Row title="Supprimer le projet" destructive onclick={removeProject} />
-	</Section>
 
 	<!-- Feuilles -->
 	<Sheet
@@ -417,10 +470,10 @@
 		<p class="footnote mt-2 px-4 text-label2">Laisse vide pour retirer le budget visé. Il sert à comparer avec le total du matériel.</p>
 	</Sheet>
 
-	<Sheet open={sheet === 'espece'} title="Ajouter une espèce" onclose={close} cancelLabel="OK">
-		<SpeciesPicker onpick={addWish} water={speciesWater} placeholder="Chercher une espèce" />
-		{#if wishes.length}
-			<p class="footnote mt-4 px-1 text-label2">Dans ta liste : {wishes.map((w) => w.label).join(', ')}.</p>
+	<Sheet open={sheet === 'espece' || sheet === 'plante'} title={sheet === 'plante' ? 'Ajouter une plante' : 'Ajouter un animal'} onclose={close} cancelLabel="OK">
+		<SpeciesPicker onpick={addWish} water={speciesWater} placeholder={sheet === 'plante' ? 'Chercher une plante' : 'Chercher un animal'} />
+		{#if (sheet === 'plante' ? plants : wishes).length}
+			<p class="footnote mt-4 px-1 text-label2">Dans ta liste : {(sheet === 'plante' ? plants : wishes).map((w) => w.label).join(', ')}.</p>
 		{/if}
 	</Sheet>
 {/if}

@@ -216,3 +216,9 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 
 - **Plantes** (`src/lib/content/ideas/plants.ts`) : pour chaque idée, une liste « biotope strict » (plantes du milieu d'origine, vide quand le biotope n'en a pas : lacs rocheux, récif) et une liste « biotope mixte » (le strict, complété de plantes compatibles avec l'eau, la température et la taille du bac). En mer, ce sont des macro-algues. Un test vérifie que chaque plante existe, qu'elle est du bon milieu et qu'elle supporte la température de l'idée.
 - **Matériel** (`src/lib/domain/equipment.ts`) : filtration, chauffage, éclairage, sol, décor, eau (osmoseur, sels, feuilles), tests, engrais, CO₂, courant, couvercle, refroidissement, écumeur, roche, sel… selon le milieu, le volume et le choix de plantes. Chaque élément a une fourchette de prix, un interrupteur (indispensables cochés par défaut) et est reconnu s'il figure déjà dans le projet. Le bouton ajoute les éléments cochés au matériel du bac en projet, avec le milieu de la fourchette comme prix. Prix : ordres de grandeur du neuf en France.
+
+## Réorganisation des écrans projet et idées
+
+- Choix d’un biotope en un geste : le bouton « Choisir ce biotope » de l’écran d’une idée ajoute au projet les espèces (`espece`), les plantes (`plante`, nouveau type, migration `1763400000000_projet_plantes.sql`) et le matériel coché (`equipement`, prix moyen estimé), sans doublon, puis ouvre le projet.
+- Écran d’une idée : volume, résumé chiffré et bouton de choix en tête, puis onglets Faune / Plantes / Matériel / Infos.
+- Écran du projet : onglets Aperçu / Vivant (animaux et plantes) / Matériel (budget) / Idées.

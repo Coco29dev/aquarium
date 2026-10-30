@@ -34,7 +34,7 @@ export interface ProjectItem {
 	id: number;
 	/** Identifiant du bac (nom de la colonne de rattachement de la ressource générique). */
 	scopeId?: number;
-	kind: 'equipement' | 'espece' | 'budget' | 'etape';
+	kind: 'equipement' | 'espece' | 'plante' | 'budget' | 'etape';
 	label: string;
 	done: boolean;
 	amount: number | null;

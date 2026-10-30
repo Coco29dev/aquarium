@@ -123,7 +123,7 @@ export function parseNewAquarium(body: Body, today: string): NewAquariumInput {
 	}
 
 	out.projectItems = list(body.projectItems, 'projectItems').map((p) => {
-		if (p.kind !== 'equipement' && p.kind !== 'espece' && p.kind !== 'budget' && p.kind !== 'etape') error(400, 'Champ invalide : projectItems.kind');
+		if (p.kind !== 'equipement' && p.kind !== 'espece' && p.kind !== 'plante' && p.kind !== 'budget' && p.kind !== 'etape') error(400, 'Champ invalide : projectItems.kind');
 		if (p.amount != null && (typeof p.amount !== 'number' || !Number.isFinite(p.amount) || p.amount < 0 || p.amount > 1e9)) {
 			error(400, 'Champ invalide : projectItems.amount');
 		}

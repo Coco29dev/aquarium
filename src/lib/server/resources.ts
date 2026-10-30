@@ -85,7 +85,7 @@ export const RESOURCES: Record<string, Resource> = {
 		scopeColumn: 'aquarium_id',
 		orderBy: 'position, id',
 		fields: {
-			kind: { column: 'kind', type: 'enum', required: true, values: ['equipement', 'espece', 'budget', 'etape'] },
+			kind: { column: 'kind', type: 'enum', required: true, values: ['equipement', 'espece', 'plante', 'budget', 'etape'] },
 			label: text('label', true),
 			done: { column: 'done', type: 'bool' },
 			amount: { column: 'amount', type: 'number' },

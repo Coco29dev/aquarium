@@ -1,9 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+	test: { include: ['src/**/*.test.ts'] },
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -37,7 +38,7 @@ export default defineConfig({
 				]
 			},
 			injectManifest: {
-				globPatterns: []
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webmanifest}']
 			},
 			kit: {
 				adapterFallback: undefined

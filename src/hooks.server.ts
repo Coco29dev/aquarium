@@ -1,9 +1,11 @@
 import { json, redirect, type Handle, type ServerInit } from '@sveltejs/kit';
-import { ensureSchema } from '$lib/server/db';
+import { migrate } from '$lib/server/db';
+import { startScheduler } from '$lib/server/scheduler';
 import { SESSION_COOKIE, verifySessionToken } from '$lib/server/session';
 
 export const init: ServerInit = async () => {
-	await ensureSchema();
+	await migrate();
+	startScheduler();
 };
 
 // Ressources nécessaires avant connexion : page de login, assets, manifeste, service worker, icônes.

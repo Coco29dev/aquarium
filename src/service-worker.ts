@@ -3,11 +3,47 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: unknown[] };
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst } from 'workbox-strategies';
+
+declare const self: ServiceWorkerGlobalScope & {
+	__WB_MANIFEST: { url: string; revision: string | null }[];
+};
 const sw = self;
 
-// Jeton requis par injectManifest (remplacé au build) ; aucune mise en cache en phase 0.
-console.debug('[sw] ressources du build :', self.__WB_MANIFEST.length);
+// Ressources du build (JS, CSS, icônes) : disponibles hors ligne.
+precacheAndRoute(self.__WB_MANIFEST);
+cleanupOutdatedCaches();
+
+// Pages : réseau d'abord (la session est vérifiée par le serveur), cache en secours.
+// Hors ligne sur une page jamais chargée en entier : retour à l'écran d'accueil, qui est en cache.
+const pages = new NetworkFirst({
+	cacheName: 'pages',
+	networkTimeoutSeconds: 3,
+	plugins: [
+		{
+			cacheWillUpdate: async ({ response }) =>
+				response.status === 200 && !response.redirected && response.type !== 'opaqueredirect'
+					? response
+					: null
+		}
+	]
+});
+
+registerRoute(
+	({ request, url }) =>
+		request.mode === 'navigate' && url.pathname !== '/login' && !url.pathname.startsWith('/api/'),
+	async (options) => {
+		try {
+			return await pages.handle(options);
+		} catch {
+			const home = await caches.match('/', { cacheName: 'pages' });
+			if (home && new URL(options.request.url).pathname === '/') return home;
+			return Response.redirect('/', 302);
+		}
+	}
+);
 
 sw.addEventListener('install', () => {
 	void sw.skipWaiting();

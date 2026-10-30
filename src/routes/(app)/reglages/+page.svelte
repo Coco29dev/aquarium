@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { store } from '$lib/client/store.svelte';
 	import {
 		enableReminders,
 		isStandalone,
@@ -72,11 +73,13 @@
 </script>
 
 <svelte:head>
-	<title>Aquarium</title>
+	<title>Réglages · Aquarium</title>
 </svelte:head>
 
-<main class="mx-auto flex min-h-dvh max-w-sm flex-col gap-6 px-6 py-10">
-	<h1 class="text-2xl font-semibold">Aquarium · phase 0</h1>
+<div class="flex flex-col gap-6">
+	<h1 class="text-2xl font-semibold">Réglages</h1>
+
+	<h2 class="-mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Rappels</h2>
 
 	<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
 		<dt class="text-slate-400">Installée</dt>
@@ -124,7 +127,19 @@
 		<p class="text-sm" role="status">{message}</p>
 	{/if}
 
-	<form method="POST" action="/logout" class="mt-auto">
+	<h2 class="-mb-3 mt-4 text-sm font-medium uppercase tracking-wide text-slate-400">Sauvegarde</h2>
+	<ul class="flex flex-col gap-2 text-sm">
+		<li><a href="/api/export?format=json" download class="text-cyan-300 underline">Tout exporter (JSON)</a></li>
+		<li><a href="/api/export?format=csv&table=measurements" download class="text-cyan-300 underline">Mesures (CSV)</a></li>
+		<li><a href="/api/export?format=csv&table=completions" download class="text-cyan-300 underline">Tâches réalisées (CSV)</a></li>
+	</ul>
+
+	<p class="text-xs text-slate-500">
+		{store.pending.length} saisie(s) en attente · dernière synchronisation :
+		{store.lastSync ? new Date(store.lastSync).toLocaleString('fr-FR') : 'jamais'}
+	</p>
+
+	<form method="POST" action="/logout">
 		<button class="text-sm text-slate-400 underline">Se déconnecter</button>
 	</form>
-</main>
+</div>

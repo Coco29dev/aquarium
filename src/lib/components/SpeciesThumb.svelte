@@ -2,7 +2,8 @@
 	import Icon, { type IconName } from './Icon.svelte';
 	import type { Species, SpeciesKind } from '$lib/types';
 
-	// Vignette d'espèce (bordure fournie par l'appelant) ; sans photo (ou si elle ne charge pas), un aplat illustré.
+	// Vignette d'espèce (arrondi fourni par l'appelant) ; sans photo, ou si elle ne charge pas,
+	// un dégradé de couleur système avec une icône blanche, comme une pochette par défaut.
 	interface Props {
 		species: Pick<Species, 'id' | 'kind' | 'hasPhoto' | 'salt' | 'fresh'>;
 		alt?: string;
@@ -19,10 +20,18 @@
 		plante: 'leaf',
 		autre: 'drop'
 	};
-	const tone = $derived(species.kind === 'plante' ? 'var(--t-plantee)' : species.salt && !species.fresh ? 'var(--t-mer)' : 'var(--t-douce)');
+	const tone = $derived(
+		species.kind === 'plante'
+			? ['var(--mint)', 'var(--green)']
+			: species.kind === 'corail'
+				? ['var(--orange)', 'var(--pink)']
+				: species.salt && !species.fresh
+					? ['var(--cyan)', 'var(--indigo)']
+					: ['var(--cyan)', 'var(--blue)']
+	);
 </script>
 
-<div class="relative overflow-hidden border-edge {cls}" style="background: {tone}">
+<div class="relative overflow-hidden {cls}" style="background: linear-gradient(160deg, {tone[0]}, {tone[1]})">
 	{#if species.hasPhoto && !failed}
 		<img
 			src="/api/species/{species.id}/photo"
@@ -32,8 +41,8 @@
 			onerror={() => (failed = true)}
 		/>
 	{:else}
-		<div class="absolute inset-0 grid place-items-center opacity-70">
-			<Icon name={ICON[species.kind]} size={iconSize} />
+		<div class="absolute inset-0 grid place-items-center text-white/90" style="--cut: transparent">
+			<Icon name={ICON[species.kind]} size={iconSize} weight={1.6} />
 		</div>
 	{/if}
 </div>

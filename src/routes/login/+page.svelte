@@ -1,22 +1,27 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Logo from '$lib/components/Logo.svelte';
 
 	let { form } = $props();
 	let busy = $state(false);
 </script>
 
 <svelte:head>
-	<title>Connexion · Bulle</title>
+	<title>Connexion · Aquarium</title>
 </svelte:head>
 
-<main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-	<div class="rise relative mb-10">
-		<div class="mb-6 grid h-28 w-28 place-items-center rounded-[1.75rem] border-2 border-edge bg-t-douce shadow-[5px_5px_0_var(--shadow)]">
-			<Logo size={84} />
-		</div>
-		<h1 class="display text-[4rem]">bulle</h1>
-		<p class="hand mt-2 text-xl leading-snug text-muted">Le carnet de tes bacs. Les mesures, les tâches, et ce qui dérive.</p>
+<main
+	class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5"
+	style="padding-top: calc(env(safe-area-inset-top) + 24px); padding-bottom: calc(env(safe-area-inset-bottom) + 24px)"
+>
+	<div class="mb-10 flex flex-col items-center text-center" style="animation: fade-in 500ms both">
+		<img
+			src="/apple-touch-icon-180x180.png"
+			alt=""
+			class="mb-5 h-[104px] w-[104px] rounded-[22%] shadow-[0_10px_30px_rgb(0_80_200/0.28),0_1px_3px_rgb(0_0_0/0.12)]"
+			style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both"
+		/>
+		<h1 class="large-title">Aquarium</h1>
+		<p class="body mt-1.5 text-label2">Saisis ton mot de passe pour ouvrir tes bacs.</p>
 	</div>
 
 	<form
@@ -28,16 +33,33 @@
 				busy = false;
 			};
 		}}
-		class="card rise flex flex-col gap-4 p-5"
-		style="animation-delay: 60ms"
+		class="flex flex-col"
 	>
-		<label class="flex flex-col gap-2 text-sm font-bold">
-			Mot de passe
-			<input type="password" name="password" autocomplete="current-password" required class="field" />
-		</label>
+		<ul class="group">
+			<li>
+				<label class="flex min-h-12 items-center gap-3 px-4">
+					<span class="body shrink-0">Mot de passe</span>
+					<input
+						type="password"
+						name="password"
+						autocomplete="current-password"
+						required
+						placeholder="Requis"
+						class="body min-w-0 flex-1 bg-transparent text-right outline-none placeholder:text-label3"
+					/>
+				</label>
+			</li>
+		</ul>
 		{#if form?.error}
-			<p class="rounded-lg border-2 border-bad bg-bad-soft px-3 py-2 text-sm font-bold text-bad" role="alert">{form.error}</p>
+			<p class="footnote mt-2 px-4 text-red" role="alert">{form.error}</p>
 		{/if}
-		<button class="btn" disabled={busy}>{busy ? 'Ouverture…' : 'Ouvrir le carnet'}</button>
+		<button class="btn-filled mt-6 w-full" disabled={busy}>
+			{#if busy}
+				<span class="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/40 border-t-white" aria-hidden="true"></span>
+				Connexion…
+			{:else}
+				Se connecter
+			{/if}
+		</button>
 	</form>
 </main>

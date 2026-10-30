@@ -10,41 +10,30 @@
 		syncSubscription,
 		type SyncState
 	} from '$lib/push-client';
-	import Icon from '$lib/components/Icon.svelte';
-	import Logo from '$lib/components/Logo.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
+	import Switch from '$lib/ios/Switch.svelte';
+	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 
 	let installed = $state(false);
 	let supported = $state(true);
 	let permission = $state<NotificationPermission | 'indisponible'>('indisponible');
-	let subscription = $state<SyncState | 'vérification…'>('vérification…');
-	let message = $state('');
+	let subscription = $state<SyncState | 'vérification'>('vérification');
 	let busy = $state(false);
+	let syncing = $state(false);
 
-	type Tone = 'ok' | 'warn' | 'bad' | 'muted';
-	const permissionInfo: Record<NotificationPermission | 'indisponible', [string, Tone]> = {
-		granted: ['accordée', 'ok'],
-		denied: ['refusée', 'bad'],
-		default: ['pas encore demandée', 'warn'],
-		indisponible: ['indisponible', 'muted']
-	};
-	const subscriptionInfo: Record<SyncState | 'vérification…', [string, Tone]> = {
-		actif: ['actif', 'ok'],
-		'recréé': ['recréé à l’instant', 'ok'],
-		inactif: ['inactif', 'warn'],
-		'vérification…': ['vérification…', 'muted']
-	};
-	const dot: Record<Tone, string> = { ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', muted: 'bg-surface2' };
+	const active = $derived(permission === 'granted' && (subscription === 'actif' || subscription === 'recréé'));
 
 	async function refresh() {
 		permission = 'Notification' in window ? Notification.permission : 'indisponible';
 		try {
 			const state = await syncSubscription();
 			subscription = state;
-			if (state === 'recréé') message = 'Abonnement recréé automatiquement.';
+			if (state === 'recréé') ui.show('Abonnement aux rappels recréé');
 		} catch (error) {
 			subscription = 'inactif';
-			message = (error as Error).message;
+			ui.show((error as Error).message);
 		}
 	}
 
@@ -56,160 +45,128 @@
 
 	async function run(action: () => Promise<void>) {
 		busy = true;
-		message = '';
 		try {
 			await action();
 		} catch (error) {
-			message = (error as Error).message;
+			ui.show((error as Error).message);
 		} finally {
 			busy = false;
 		}
 	}
 
-	const enable = () =>
-		run(async () => {
+	async function toggleReminders(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (!input.checked) return;
+		await run(async () => {
 			subscription = await enableReminders();
 			permission = Notification.permission;
-			message = subscription === 'inactif' ? 'Permission non accordée.' : 'Rappels activés.';
+			ui.show(subscription === 'inactif' ? 'Notifications non autorisées' : 'Rappels activés', undefined, subscription === 'inactif' ? undefined : 'check');
 		});
+		input.checked = active;
+	}
 
 	const test = () =>
 		run(async () => {
 			const { sent, total } = await sendTest();
-			message =
-				total === 0
-					? 'Aucun abonnement enregistré sur le serveur.'
-					: `Notification envoyée (${sent}/${total}). Verrouille l'écran pour vérifier.`;
+			ui.show(total === 0 ? 'Aucun appareil abonné' : `Notification envoyée (${sent}/${total})`, undefined, total ? 'check' : undefined);
 			await refresh();
 		});
 
 	async function syncNow() {
+		syncing = true;
 		await store.sync();
-		ui.show(store.error ? 'Synchronisation impossible' : 'Données à jour');
+		syncing = false;
+		ui.show(store.error ? 'Synchronisation impossible' : 'Données à jour', undefined, store.error ? undefined : 'check');
 	}
 
+	const time = (iso: string | null) =>
+		iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null;
 	const lastSync = $derived(
 		store.lastSync
-			? new Date(store.lastSync).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-			: 'jamais'
+			? new Date(store.lastSync).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+			: 'Jamais'
 	);
-
-	const exports = [
-		{ href: '/api/export?format=json', label: 'Tout exporter', hint: 'JSON, sauvegarde complète' },
-		{ href: '/api/export?format=csv&table=measurements', label: 'Mesures', hint: 'CSV, pour un tableur' },
-		{ href: '/api/export?format=csv&table=completions', label: 'Tâches réalisées', hint: 'CSV' },
-		{ href: '/api/export?format=csv&table=expenses', label: 'Dépenses', hint: 'CSV' }
+	const exports: { href: string; title: string; format: string; icon: IconName; color: string }[] = [
+		{ href: '/api/export?format=json', title: 'Tout exporter', format: 'JSON', icon: 'box', color: 'var(--green)' },
+		{ href: '/api/export?format=csv&table=measurements', title: 'Mesures', format: 'CSV', icon: 'drop', color: 'var(--teal)' },
+		{ href: '/api/export?format=csv&table=completions', title: 'Tâches réalisées', format: 'CSV', icon: 'today', color: 'var(--indigo)' },
+		{ href: '/api/export?format=csv&table=expenses', title: 'Dépenses', format: 'CSV', icon: 'euro', color: 'var(--brown)' }
 	];
+	const tankCount = $derived(store.view?.aquariums.length ?? 0);
+	const remindersFooter = $derived(
+		!supported
+			? 'Les notifications ne sont pas disponibles sur cet appareil.'
+			: !installed
+				? 'Sur iPhone, les rappels demandent l’appli sur l’écran d’accueil : dans Safari, touche Partager, puis « Sur l’écran d’accueil », et ouvre Aquarium depuis son icône.'
+				: permission === 'denied'
+					? 'Notifications refusées : réactive-les dans Réglages > Notifications > Aquarium.'
+					: active
+						? 'Pour couper les rappels, désactive les notifications d’Aquarium dans les Réglages de l’iPhone.'
+						: 'Un rappel chaque jour entre 8 h et 21 h quand une tâche est due.'
+	);
 </script>
 
-{#snippet status(label: string, value: string, tone: Tone)}
-	<div class="flex items-center justify-between gap-3 py-2.5">
-		<dt class="text-sm text-muted">{label}</dt>
-		<dd class="flex items-center gap-2 text-sm font-bold">
-			<span class="h-2.5 w-2.5 rounded-full border border-edge {dot[tone]}"></span>{value}
-		</dd>
-	</div>
-{/snippet}
+<svelte:head><title>Réglages · Aquarium</title></svelte:head>
 
-<svelte:head><title>Réglages · Bulle</title></svelte:head>
+<NavBar title="Réglages" />
 
-<div class="rise">
-	<PageHeader title="Réglages" kicker="L’appli" />
-</div>
-
-<div class="flex flex-col gap-6">
-	<!-- Rappels -->
-	<section class="card rise overflow-hidden" style="animation-delay: 40ms">
-		<div class="flex items-center gap-3 border-b-2 border-edge bg-sun px-4 py-3 text-[#16202e]">
-			<Icon name="bell" size={24} />
-			<h2 class="display text-xl">Rappels</h2>
-		</div>
-		<div class="flex flex-col gap-4 p-4">
-			<dl class="divide-y-2 divide-line">
-				{@render status('Installée sur l’écran d’accueil', installed ? 'oui' : 'non', installed ? 'ok' : 'warn')}
-				{@render status('Permission', permissionInfo[permission][0], permissionInfo[permission][1])}
-				{@render status('Abonnement', subscriptionInfo[subscription][0], subscriptionInfo[subscription][1])}
-			</dl>
-
-			{#if !supported}
-				<p class="rounded-lg border-2 border-warn bg-warn-soft p-3 text-sm font-bold text-warn">
-					Les notifications ne sont pas disponibles dans ce navigateur.
-				</p>
-			{:else if !installed}
-				<div class="rounded-lg border-2 border-edge bg-surface2 p-3 text-sm">
-					<p class="mb-2 font-bold">Sur iPhone, les rappels demandent l’appli installée :</p>
-					<ol class="flex flex-col gap-1.5">
-						<li class="flex gap-2"><span class="num">1.</span>Dans Safari, touche Partager.</li>
-						<li class="flex gap-2"><span class="num">2.</span>Choisis « Sur l’écran d’accueil ».</li>
-						<li class="flex gap-2"><span class="num">3.</span>Ouvre Bulle depuis l’icône, puis reviens ici.</li>
-					</ol>
-				</div>
-			{:else}
-				<div class="grid grid-cols-2 gap-3">
-					<button onclick={enable} disabled={busy || permission === 'granted' || permission === 'denied'} class="btn px-3">
-						Activer
-					</button>
-					<button onclick={test} disabled={busy || permission !== 'granted'} class="btn-ghost px-3">Envoyer un test</button>
-				</div>
-				{#if permission === 'denied'}
-					<p class="text-sm text-muted">Permission refusée : réactive-la dans Réglages → Notifications → Bulle.</p>
-				{/if}
-			{/if}
-			{#if message}
-				<p class="break-words text-sm font-bold" role="status">{message}</p>
-			{/if}
-		</div>
-	</section>
-
-	<!-- Synchronisation -->
-	<section class="card rise p-4" style="animation-delay: 80ms">
-		<div class="mb-3 flex items-center gap-3">
-			<Icon name="sync" size={24} />
-			<h2 class="display text-xl">Synchronisation</h2>
-		</div>
-		<dl class="mb-4 divide-y-2 divide-line">
-			{@render status('Saisies en attente', String(store.pending.length), store.pending.length ? 'warn' : 'ok')}
-			{@render status('Dernière synchro', lastSync, store.error ? 'bad' : 'ok')}
-		</dl>
-		{#if store.error}<p class="mb-3 text-sm font-bold text-bad">{store.error}</p>{/if}
-		<button class="btn-ghost w-full" onclick={syncNow} disabled={store.syncing}>
-			<span class={store.syncing ? 'animate-spin' : ''}><Icon name="sync" size={18} /></span>
-			{store.syncing ? 'Synchronisation…' : 'Synchroniser maintenant'}
-		</button>
-	</section>
-
-	<!-- Sauvegarde -->
-	<section class="rise" style="animation-delay: 120ms">
-		<h2 class="tape mb-3">Sauvegarde et export</h2>
-		<ul class="card divide-y-2 divide-line">
-			{#each exports as e (e.href)}
-				<li>
-					<a href={e.href} download class="flex items-center gap-3 px-4 py-3 active:bg-surface2">
-						<span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border-2 border-edge bg-surface2">
-							<Icon name="download" size={18} />
-						</span>
-						<span class="min-w-0 flex-1">
-							<span class="block font-bold">{e.label}</span>
-							<span class="block text-xs text-muted">{e.hint}</span>
-						</span>
-					</a>
-				</li>
-			{/each}
-		</ul>
-		<p class="hand mt-2 text-base text-muted">Le serveur garde tout ; l’export, c’est ta copie à toi.</p>
-	</section>
-
-	<!-- À propos -->
-	<section class="card-flat rise flex items-center gap-4 p-4" style="animation-delay: 160ms">
-		<Logo size={56} />
+<!-- Carte de l'appli, façon identifiant Apple -->
+<Section class="mt-2">
+	<li class="flex items-center gap-4 px-4 py-3">
+		<img src="/apple-touch-icon-180x180.png" alt="" class="h-[60px] w-[60px] rounded-[22%] shadow-[0_1px_3px_rgb(0_0_0/0.15)]" />
 		<div class="min-w-0 flex-1">
-			<p class="display text-2xl">bulle</p>
-			<p class="num text-xs text-muted">version 0.0.1</p>
-			<p class="hand text-base text-muted">Un carnet pour tes bacs.</p>
+			<p class="title3 font-semibold">Aquarium</p>
+			<p class="subhead text-label2">
+				{tankCount} bac{tankCount > 1 ? 's' : ''}{store.lastSync ? ` · synchronisé à ${time(store.lastSync)}` : ''}
+			</p>
 		</div>
-	</section>
+	</li>
+</Section>
 
-	<form method="POST" action="/logout">
-		<button class="btn-ghost w-full text-bad">Se déconnecter</button>
-	</form>
-</div>
+<Section header="Notifications" footer={remindersFooter}>
+	<Row icon="bell" iconColor="var(--red)" title="Rappels">
+		{#snippet trailing()}
+			<Switch checked={active} disabled={busy || !supported || !installed || permission === 'denied' || active} onchange={toggleReminders} label="Activer les rappels" />
+		{/snippet}
+	</Row>
+	<Row icon="today" iconColor="var(--orange)" title="Envoyer une notification de test" onclick={test} disabled={busy || !active} />
+	{#if installed && supported}
+		<Row title="Autorisation" value={permission === 'granted' ? 'Accordée' : permission === 'denied' ? 'Refusée' : permission === 'default' ? 'Pas demandée' : 'Indisponible'} />
+	{/if}
+</Section>
+
+<Section header="Synchronisation" footer="L’appli marche hors ligne : tes saisies partent dès que le réseau revient.">
+	<Row icon="sync" iconColor="var(--blue)" title="Saisies en attente" value={String(store.pending.length)} />
+	<Row title="Dernière synchronisation" value={lastSync} />
+	<Row title={syncing ? 'Synchronisation…' : 'Synchroniser maintenant'} action onclick={syncNow} disabled={syncing} />
+</Section>
+
+<Section header="Données" footer="Le serveur garde tout ; l’export est ta copie personnelle.">
+	{#each exports as x (x.href)}
+		<li>
+			<a href={x.href} download data-sveltekit-reload class="tappable flex items-center gap-3 pl-4">
+				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: {x.color}; --cut: {x.color}">
+					<Icon name={x.icon} size={19} filled weight={2} />
+				</span>
+				<span class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
+					<span class="body min-w-0 flex-1 truncate">{x.title}</span>
+					<span class="body text-label2">{x.format}</span>
+					<span class="text-tint"><Icon name="download" size={20} weight={2} /></span>
+				</span>
+			</a>
+		</li>
+	{/each}
+</Section>
+
+<Section header="À propos">
+	<Row title="Version" value="0.0.1" />
+	<Row title="Espèces" value="FishBase, SeaLifeBase" />
+</Section>
+
+<form method="POST" action="/logout" class="mb-8">
+	<ul class="group">
+		<li>
+			<button class="tappable body flex min-h-11 w-full items-center justify-center text-red">Se déconnecter</button>
+		</li>
+	</ul>
+</form>

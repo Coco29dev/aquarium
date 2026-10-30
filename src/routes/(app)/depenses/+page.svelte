@@ -6,7 +6,13 @@
 	import { dayInParis } from '$lib/domain/dates';
 	import { TANK_TONE } from '$lib/ui';
 	import Icon from '$lib/components/Icon.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
+	import Sheet from '$lib/ios/Sheet.svelte';
+	import Segmented from '$lib/ios/Segmented.svelte';
+	import InputRow from '$lib/ios/InputRow.svelte';
+	import SelectRow from '$lib/ios/SelectRow.svelte';
 
 	interface Expense { id: number; scopeId: number | null; label: string; category: string | null; amount: number; spentOn: string }
 
@@ -17,8 +23,10 @@
 	let expenses = $state<Expense[]>([]);
 	let loaded = $state(false);
 	let message = $state('');
-	let filter = $state<'all' | number>('all');
+	// 0 : tous les bacs.
+	let filter = $state<number>(0);
 	let adding = $state(false);
+	let editing = $state(false);
 	let busy = $state(false);
 
 	async function load() {
@@ -46,8 +54,7 @@
 				amount: toNumber(f.get('amount')),
 				spentOn: toText(f.get('spentOn')) ?? dayInParis()
 			});
-			ui.show(`« ${f.get('label')} » ajouté`);
-			form.reset();
+			ui.show(`${f.get('label')} ajouté`, undefined, 'check');
 			adding = false;
 			await load();
 		} catch (e) {
@@ -58,10 +65,16 @@
 	}
 
 	async function remove(e: Expense) {
-		if (!confirm(`Supprimer « ${e.label} » ?`)) return;
+		const ok = await ui.confirm({
+			title: `Supprimer « ${e.label} » ?`,
+			message: `${eur(e.amount)} le ${new Date(e.spentOn).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.`,
+			confirmLabel: 'Supprimer',
+			destructive: true
+		});
+		if (!ok) return;
 		try {
 			await deleteResource('expenses', e.id);
-			ui.show(`« ${e.label} » supprimé`);
+			ui.show(`${e.label} supprimé`);
 			await load();
 		} catch (err) {
 			message = (err as Error).message;
@@ -69,7 +82,7 @@
 	}
 
 	const month = dayInParis().slice(0, 7);
-	const shown = $derived(expenses.filter((e) => filter === 'all' || e.scopeId === filter));
+	const shown = $derived(expenses.filter((e) => filter === 0 || e.scopeId === filter));
 	const total = $derived(shown.reduce((sum, e) => sum + e.amount, 0));
 	const thisMonth = $derived(shown.filter((e) => e.spentOn.slice(0, 7) === month).reduce((sum, e) => sum + e.amount, 0));
 	const byCategory = $derived(
@@ -77,7 +90,18 @@
 			(a, b) => b[1] - a[1]
 		)
 	);
-	const maxCategory = $derived(byCategory.length ? byCategory[0][1] : 1);
+
+	// Six derniers mois pour le graphique en barres.
+	const months = $derived.by(() => {
+		const [y, m] = month.split('-').map(Number);
+		return Array.from({ length: 6 }, (_, i) => {
+			const d = new Date(Date.UTC(y, m - 1 - (5 - i), 15));
+			const key = d.toISOString().slice(0, 7);
+			const sum = shown.filter((e) => e.spentOn.slice(0, 7) === key).reduce((s, e) => s + e.amount, 0);
+			return { key, sum, label: d.toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' }).replace('.', '') };
+		});
+	});
+	const peak = $derived(Math.max(1, ...months.map((m) => m.sum)));
 
 	// Regroupement par mois, du plus récent au plus ancien.
 	const byMonth = $derived.by(() => {
@@ -96,123 +120,126 @@
 
 	const eur = (v: number) => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 	const monthName = new Date().toLocaleDateString('fr-FR', { month: 'long', timeZone: 'Europe/Paris' });
+	const filterOptions = $derived([{ value: 0, label: 'Tous' }, ...aquariums.map((a) => ({ value: a.id, label: a.name }))]);
+	const cap = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 </script>
 
-<svelte:head><title>Dépenses · Bulle</title></svelte:head>
+<svelte:head><title>Dépenses · Aquarium</title></svelte:head>
 
-<div class="rise">
-	<PageHeader title="Dépenses" kicker="Atelier" back="/outils" backLabel="Atelier" />
-</div>
-
-{#if message}<p class="mb-4 rounded-lg border-2 border-bad bg-bad-soft p-3 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
-
-<div class="rise -mx-5 mb-5 flex gap-2 overflow-x-auto px-5 pb-1" style="scrollbar-width: none; animation-delay: 30ms">
-	<button
-		class="shrink-0 rounded-full border-2 border-edge px-3 py-1 text-sm font-bold {filter === 'all' ? 'bg-ink text-on-ink' : 'bg-surface'}"
-		aria-pressed={filter === 'all'}
-		onclick={() => (filter = 'all')}
-	>
-		Tous
-	</button>
-	{#each aquariums as a (a.id)}
-		{@const on = filter === a.id}
-		<button
-			class="flex shrink-0 items-center gap-1.5 rounded-full border-2 border-edge px-3 py-1 text-sm font-bold {on ? 'bg-ink text-on-ink' : 'bg-surface'}"
-			aria-pressed={on}
-			onclick={() => (filter = a.id)}
-		>
-			<span class="h-2.5 w-2.5 rounded-full border border-edge" style="background: {TANK_TONE[a.waterType]}"></span>
-			{a.name}
+<NavBar title="Dépenses" back={{ href: '/outils', label: 'Atelier' }}>
+	{#snippet trailing()}
+		{#if expenses.length}
+			<button class="btn-plain px-2" onclick={() => (editing = !editing)}>{editing ? 'OK' : 'Modifier'}</button>
+		{/if}
+		<button class="btn-plain grid h-10 w-10 place-items-center" aria-label="Ajouter un achat" onclick={() => (adding = true)}>
+			<Icon name="plus" size={24} weight={2.2} />
 		</button>
-	{/each}
-</div>
+	{/snippet}
+</NavBar>
 
-<section class="card rise mb-6 overflow-hidden" style="animation-delay: 60ms">
-	<div class="border-b-2 border-edge bg-sun px-4 py-4 text-[#16202e]">
-		<p class="num text-[11px] uppercase tracking-wider">En {monthName}</p>
-		<p class="num mt-1 text-[2.6rem] leading-none">{eur(thisMonth)}</p>
+{#if aquariums.length}
+	<div class="mb-5 mt-1"><Segmented options={filterOptions} bind:value={filter} label="Bac" /></div>
+{/if}
+
+{#if message}<p class="subhead mb-4 rounded-2xl bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+
+<!-- Total du mois, façon Forme / Cartes -->
+<section class="group mb-8 p-4">
+	<p class="subhead font-semibold text-label2">En {monthName}</p>
+	<p class="rounded-num mt-0.5 text-[44px] font-bold leading-[1.05] tracking-tight text-green">{eur(thisMonth)}</p>
+	<p class="footnote mt-1 text-label2">Depuis le début : <span class="rounded-num font-semibold text-label">{eur(total)}</span></p>
+
+	<div class="mt-5 flex h-32 items-end gap-2.5" aria-label="Dépenses des six derniers mois">
+		{#each months as m (m.key)}
+			{@const current = m.key === month}
+			<div class="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+				<span class="caption2 rounded-num font-semibold {current ? 'text-green' : 'text-label3'}">{m.sum ? Math.round(m.sum) : ''}</span>
+				<div
+					class="w-full max-w-9 rounded-[7px] transition-[height] duration-500 {current ? 'bg-green' : 'bg-fill'}"
+					style="height: {m.sum ? Math.max(6, (m.sum / peak) * 100) : 3}%"
+				></div>
+				<span class="caption1 font-semibold {current ? 'text-label' : 'text-label2'}">{m.label}</span>
+			</div>
+		{/each}
 	</div>
-	<div class="flex items-center justify-between px-4 py-3 text-sm">
-		<span class="text-muted">Depuis le début</span>
-		<span class="num font-bold">{eur(total)}</span>
-	</div>
-	{#if byCategory.length}
-		<ul class="flex flex-col gap-2.5 border-t-2 border-edge px-4 py-4">
-			{#each byCategory as [category, sum] (category)}
-				<li class="text-sm">
-					<div class="mb-1 flex justify-between gap-3">
-						<span class="truncate first-letter:uppercase">{category}</span>
-						<span class="num shrink-0">{eur(sum)}</span>
-					</div>
-					<div class="h-2.5 overflow-hidden rounded-full border-[1.5px] border-edge bg-surface2">
-						<div class="h-full bg-ink" style="width: {Math.max(4, (sum / maxCategory) * 100)}%"></div>
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{/if}
 </section>
 
-<section class="rise mb-8" style="animation-delay: 90ms">
-	{#if adding}
-		<form onsubmit={add} class="card flex flex-col gap-3 p-4">
-			<div class="flex items-center justify-between">
-				<h2 class="display text-xl">Nouvel achat</h2>
-				<button type="button" class="grid h-9 w-9 place-items-center rounded-full border-2 border-edge" aria-label="Fermer" onclick={() => (adding = false)}>
-					<Icon name="close" size={18} />
-				</button>
-			</div>
-			<input name="label" required placeholder="Ce que tu as acheté" class="field" aria-label="Libellé" />
-			<div class="grid grid-cols-2 gap-2">
-				<label class="flex items-center gap-2">
-					<input name="amount" required inputmode="decimal" placeholder="0,00" class="field num" aria-label="Montant en euros" />
-					<span class="font-bold text-muted">€</span>
-				</label>
-				<input name="spentOn" type="date" value={dayInParis()} class="field" aria-label="Date" />
-			</div>
-			<select name="category" class="field" aria-label="Catégorie">{#each CATEGORIES as c (c)}<option>{c}</option>{/each}</select>
-			<select name="aquarium" class="field" aria-label="Bac">
-				<option value="">Général</option>
-				{#each aquariums as a (a.id)}<option value={a.id} selected={filter === a.id}>{a.name}</option>{/each}
-			</select>
-			<button class="btn" disabled={busy}>Ajouter</button>
-		</form>
-	{:else}
-		<button class="btn w-full" onclick={() => (adding = true)}><Icon name="plus" size={20} />Ajouter un achat</button>
-	{/if}
-</section>
+{#if byCategory.length}
+	<Section header="Par catégorie">
+		{#each byCategory as [category, sum] (category)}
+			<Row title={cap(category)} value={eur(sum)} />
+		{/each}
+	</Section>
+{/if}
 
 {#if loaded && byMonth.length === 0}
-	<p class="hand text-center text-xl text-muted">Aucun achat noté pour l’instant.</p>
+	<div class="flex flex-col items-center px-8 py-10 text-center">
+		<span class="mb-3 text-label3"><Icon name="euro" size={44} weight={1.6} /></span>
+		<p class="title3">Aucun achat</p>
+		<p class="subhead mt-1 text-label2">Note tes achats pour suivre ce que te coûtent tes bacs.</p>
+		<button class="btn-tinted mt-5" onclick={() => (adding = true)}>Ajouter un achat</button>
+	</div>
 {/if}
 
 {#each byMonth as m (m.key)}
-	<section class="mb-6">
-		<div class="mb-2 flex items-baseline justify-between">
-			<h2 class="tape first-letter:uppercase">{m.label}</h2>
-			<span class="num text-sm font-bold">{eur(m.sum)}</span>
-		</div>
-		<ul class="card divide-y-2 divide-line">
-			{#each m.list as e (e.id)}
-				{@const tank = tankOf(e.scopeId)}
-				<li class="flex items-center gap-3 px-4 py-3">
-					<div class="min-w-0 flex-1">
-						<p class="truncate font-bold">{e.label}</p>
-						<p class="flex items-center gap-1.5 text-xs text-muted">
-							<span class="num shrink-0 whitespace-nowrap">{new Date(e.spentOn).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
-							<span aria-hidden="true">·</span>
-							<span class="truncate first-letter:uppercase">{e.category ?? 'Autre'}</span>
-							<span aria-hidden="true">·</span>
-							{#if tank}<span class="h-2 w-2 shrink-0 rounded-full border border-edge" style="background: {TANK_TONE[tank.waterType]}"></span>{/if}
-							<span class="truncate">{tank?.name ?? 'Général'}</span>
-						</p>
-					</div>
-					<span class="num shrink-0 font-bold">{eur(e.amount)}</span>
-					<button class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted active:bg-surface2" aria-label="Supprimer « {e.label} »" onclick={() => remove(e)}>
-						<Icon name="trash" size={18} />
-					</button>
-				</li>
-			{/each}
-		</ul>
-	</section>
+	<Section header="{cap(m.label)} · {eur(m.sum)}">
+		{#each m.list as e (e.id)}
+			{@const tank = tankOf(e.scopeId)}
+			<Row>
+				{#snippet leading()}
+					{#if editing}
+						<button
+							class="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-red text-white"
+							style="animation: pop-in 200ms both"
+							aria-label="Supprimer « {e.label} »"
+							onclick={() => remove(e)}
+						>
+							<span class="h-[2.5px] w-3 rounded-full bg-white"></span>
+						</button>
+					{/if}
+				{/snippet}
+				{#snippet trailing()}
+					<span class="body rounded-num shrink-0 font-semibold">{eur(e.amount)}</span>
+				{/snippet}
+				<p class="body truncate">{e.label}</p>
+				<p class="footnote flex min-w-0 items-center gap-1.5 text-label2">
+					<span class="shrink-0">{new Date(e.spentOn).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+					<span aria-hidden="true">·</span>
+					<span class="truncate">{cap(e.category ?? 'Autre')}</span>
+					{#if tank}
+						<span aria-hidden="true">·</span>
+						<span class="truncate font-semibold" style="color: {TANK_TONE[tank.waterType]}">{tank.name}</span>
+					{/if}
+				</p>
+			</Row>
+		{/each}
+	</Section>
 {/each}
+
+<Sheet open={adding} title="Nouvel achat" onclose={() => (adding = false)} action={{ label: 'Ajouter', onclick: () => (document.getElementById('expense-form') as HTMLFormElement | null)?.requestSubmit(), disabled: busy }}>
+	{#if adding}
+		<form id="expense-form" onsubmit={add}>
+			<Section>
+				<InputRow label="Ce que tu as acheté" name="label" required wide />
+				<InputRow label="Montant" name="amount" required inputmode="decimal" placeholder="0,00" unit="€" />
+				<li>
+					<label class="flex min-h-11 items-center gap-3 pl-4">
+						<span class="row-body flex min-h-11 flex-1 items-center gap-2 py-1.5 pr-4">
+							<span class="body flex-1">Date</span>
+							<input name="spentOn" type="date" value={dayInParis()} class="body rounded-lg bg-fill3 px-2.5 py-1 text-right outline-none" />
+						</span>
+					</label>
+				</li>
+			</Section>
+			<Section>
+				<SelectRow label="Catégorie" name="category" value={CATEGORIES[0]} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
+				<SelectRow
+					label="Bac"
+					name="aquarium"
+					value={filter ? String(filter) : ''}
+					options={[{ value: '', label: 'Général' }, ...aquariums.map((a) => ({ value: String(a.id), label: a.name }))]}
+				/>
+			</Section>
+		</form>
+	{/if}
+</Sheet>

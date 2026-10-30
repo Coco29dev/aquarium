@@ -3,9 +3,13 @@
 	import { store } from '$lib/client/store.svelte';
 	import { listResource } from '$lib/client/api';
 	import { dayInParis } from '$lib/domain/dates';
-	import { TANK_TONE } from '$lib/ui';
-	import Icon, { type IconName } from '$lib/components/Icon.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import type { IconName } from '$lib/components/Icon.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
+	import Sheet from '$lib/ios/Sheet.svelte';
+	import Segmented from '$lib/ios/Segmented.svelte';
+	import InputRow from '$lib/ios/InputRow.svelte';
 	import {
 		afterWaterChange,
 		dosageEffect,
@@ -33,19 +37,29 @@
 	}
 
 	const aquariums = $derived(store.view?.aquariums ?? []);
-	let selected = $state<number | null>(null);
-	const prefill = $derived(aquariums.find((a) => a.id === selected)?.volumeL ?? null);
+	// 0 : volume saisi à la main.
+	let selected = $state<number>(0);
+	const tankOptions = $derived([
+		...aquariums.map((a) => ({ value: a.id, label: a.name })),
+		{ value: 0, label: 'Autre' }
+	]);
 
 	// Les champs sont des chaînes pour accepter la virgule et le vide.
 	const n = (v: string) => Number(v.replace(',', '.'));
 	const fmt = (v: number, d = 1) => v.toLocaleString('fr-FR', { maximumFractionDigits: d });
 
 	let volume = $state('100');
+	let touched = false;
 	$effect(() => {
-		if (prefill) volume = String(prefill);
+		// Au premier affichage, le premier bac est présélectionné.
+		if (!touched && selected === 0 && aquariums.length) selected = aquariums[0].id;
+	});
+	$effect(() => {
+		const tank = aquariums.find((a) => a.id === selected);
+		if (tank?.volumeL) volume = String(tank.volumeL);
 	});
 
-	// Dépenses du mois, pour l'entrée « Dépenses » (en ligne seulement).
+	// Dépenses du mois, pour la ligne « Dépenses » (en ligne seulement).
 	let monthTotal = $state<number | null>(null);
 	onMount(async () => {
 		try {
@@ -57,10 +71,6 @@
 		}
 	});
 	const eur = (v: number) => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-
-	// Une seule carte de calcul ouverte à la fois.
-	let open = $state<string | null>('eau');
-	const toggle = (id: string) => (open = open === id ? null : id);
 
 	// Volume réel
 	let L = $state('100'), W = $state('40'), H = $state('50'), glass = $state('8'), free = $state('3'), decor = $state('10');
@@ -89,186 +99,171 @@
 	const salt = $derived(run(() => saltForBatch(n(volume), n(ppt))));
 	const adjust = $derived(run(() => salinityAdjust(n(volume), n(curPpt), n(ppt), n(freshPpt))));
 
-	const tools: { id: string; title: string; hint: string; icon: IconName }[] = [
-		{ id: 'eau', title: "Changement d'eau", hint: 'Litres à remplacer, valeur après, cible à atteindre', icon: 'drop' },
-		{ id: 'dosage', title: "Dosage d'un produit", hint: 'Dose à verser pour une hausse donnée', icon: 'chart' },
-		{ id: 'remin', title: 'Reminéralisation', hint: 'Mélange robinet et osmose, sels à ajouter', icon: 'leaf' },
-		{ id: 'sel', title: 'Salinité', hint: 'Densité, ppt, sel pour un bidon', icon: 'bacs' },
-		{ id: 'volume', title: 'Volume réel', hint: 'Dimensions, verre, sol et décor', icon: 'box' }
+	type ToolId = 'eau' | 'dosage' | 'remin' | 'sel' | 'volume';
+	const tools: { id: ToolId; title: string; hint: string; icon: IconName; color: string }[] = [
+		{ id: 'eau', title: "Changement d'eau", hint: 'Litres à remplacer, effet sur une valeur', icon: 'drop', color: 'var(--blue)' },
+		{ id: 'dosage', title: "Dosage d'un produit", hint: 'Dose pour une hausse donnée', icon: 'flask', color: 'var(--purple)' },
+		{ id: 'remin', title: 'Reminéralisation', hint: 'Robinet et osmose, sels à ajouter', icon: 'leaf', color: 'var(--green)' },
+		{ id: 'sel', title: 'Salinité', hint: 'Densité, ppt, sel pour un bidon', icon: 'bacs', color: 'var(--indigo)' },
+		{ id: 'volume', title: 'Volume réel', hint: 'Dimensions, verre, sol et décor', icon: 'box', color: 'var(--orange)' }
 	];
+	let open = $state<ToolId | null>(null);
+	const tool = $derived(tools.find((t) => t.id === open));
 </script>
 
-{#snippet field(label: string, id: string, getter: () => string, setter: (v: string) => void)}
-	<label class="flex min-w-0 flex-col gap-1 text-xs font-bold text-muted" for={id}>
-		{label}
-		<input {id} value={getter()} oninput={(e) => setter(e.currentTarget.value)} inputmode="decimal" class="field num" />
-	</label>
-{/snippet}
+<svelte:head><title>Atelier · Aquarium</title></svelte:head>
 
-{#snippet big(r: Result<unknown>, value: (v: any) => string, unit: string, label: string)}
-	{#if r.ok}
-		<div class="flex flex-col">
-			<span class="num text-[2.1rem] leading-none">{value(r.value)}<span class="ml-1 text-base text-muted">{unit}</span></span>
-			<span class="mt-1 text-xs font-bold text-muted">{label}</span>
-		</div>
-	{:else}
-		<p class="hand text-lg text-warn">{r.error}</p>
-	{/if}
-{/snippet}
-
-{#snippet line(r: Result<unknown>, text: (v: any) => string)}
-	{#if r.ok}
-		<p class="flex items-start gap-2 text-sm"><Icon name="next" size={16} class="mt-0.5 text-muted" />{text(r.value)}</p>
-	{:else}
-		<p class="hand text-base text-warn">{r.error}</p>
-	{/if}
-{/snippet}
-
-<svelte:head><title>Atelier · Bulle</title></svelte:head>
-
-<div class="rise">
-	<PageHeader title="Atelier" kicker="Outils, guide et comptes" />
-</div>
-
-<div class="rise mb-8 grid grid-cols-2 gap-3" style="animation-delay: 40ms">
-	<a href="/especes" class="card press flex flex-col gap-3 overflow-hidden">
-		<div class="border-b-2 border-edge px-4 pb-3 pt-4" style="background: var(--t-mer)">
-			<Icon name="book" size={30} />
-		</div>
-		<div class="px-4 pb-4">
-			<p class="display text-lg leading-tight">Encyclopédie des espèces</p>
-			<p class="mt-1 text-xs text-muted">Poissons, coraux, plantes</p>
-		</div>
-	</a>
-	<a href="/depenses" class="card press flex flex-col gap-3 overflow-hidden">
-		<div class="border-b-2 border-edge bg-sun px-4 pb-3 pt-4 text-[#16202e]">
-			<Icon name="euro" size={30} />
-		</div>
-		<div class="px-4 pb-4">
-			<p class="display text-lg leading-tight">Dépenses</p>
-			<p class="mt-1 text-xs text-muted">
-				{#if monthTotal != null}Ce mois : <span class="num font-bold text-ink">{eur(monthTotal)}</span>{:else}Achats et budget{/if}
+{#snippet hero(r: Result<unknown>, value: (v: any) => string, unit: string, label: string, color: string)}
+	<div class="mb-6 mt-2 px-1 text-center">
+		{#if r.ok}
+			<p class="rounded-num leading-none" style="color: {color}">
+				<span class="text-[64px] font-bold tracking-tight">{value(r.value)}</span>
+				<span class="title3 font-semibold">{unit}</span>
 			</p>
-		</div>
-	</a>
-</div>
-
-<section class="rise" style="animation-delay: 80ms">
-	<h2 class="tape mb-3">Calculateurs</h2>
-
-	<div class="card-flat mb-4 flex flex-col gap-3 p-3">
-		<p class="text-xs font-bold text-muted">Calculer pour</p>
-		<div class="flex flex-wrap gap-2">
-			{#each aquariums as a (a.id)}
-				{@const on = selected === a.id}
-				<button
-					class="flex items-center gap-1.5 rounded-full border-2 border-edge px-3 py-1 text-sm font-bold {on ? 'bg-ink text-on-ink' : 'bg-surface'}"
-					aria-pressed={on}
-					onclick={() => (selected = on ? null : a.id)}
-				>
-					<span class="h-2.5 w-2.5 rounded-full border border-edge" style="background: {TANK_TONE[a.waterType]}"></span>
-					{a.name}
-				</button>
-			{/each}
-		</div>
-		<label class="flex items-center gap-3 text-sm font-bold" for="volume">
-			Volume
-			<input id="volume" value={volume} oninput={(e) => { volume = e.currentTarget.value; selected = null; }} inputmode="decimal" class="field num w-28" />
-			<span class="text-muted">L</span>
-		</label>
+			<p class="subhead mt-1.5 text-label2">{label}</p>
+		{:else}
+			<p class="title3 text-label3">–</p>
+			<p class="subhead mt-1.5 text-orange">{r.error}</p>
+		{/if}
 	</div>
+{/snippet}
 
-	<ul class="flex flex-col gap-3">
-		{#each tools as t (t.id)}
-			{@const on = open === t.id}
-			<li class={on ? 'card' : 'card-flat'}>
-				<button class="flex w-full items-center gap-3 p-4 text-left" aria-expanded={on} onclick={() => toggle(t.id)}>
-					<span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border-2 border-edge {on ? 'bg-sun text-[#16202e]' : 'bg-surface2'}">
-						<Icon name={t.icon} size={22} />
-					</span>
-					<span class="min-w-0 flex-1">
-						<span class="block font-bold">{t.title}</span>
-						<span class="block truncate text-xs text-muted">{t.hint}</span>
-					</span>
-					<Icon name={on ? 'down' : 'next'} size={18} class="text-muted" />
-				</button>
+{#snippet info(r: Result<unknown>, title: string, text: (v: any) => string)}
+	<li class="flex items-center gap-3 pl-4">
+		<div class="row-body flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 py-2.5 pr-4">
+			<span class="body">{title}</span>
+			{#if r.ok}
+				<span class="body rounded-num text-right text-label2">{text(r.value)}</span>
+			{:else}
+				<span class="subhead text-right text-orange">{r.error}</span>
+			{/if}
+		</div>
+	</li>
+{/snippet}
 
-				{#if on}
-					<div class="rise flex flex-col gap-4 border-t-2 border-edge p-4">
-						{#if t.id === 'eau'}
-							<div class="grid grid-cols-2 gap-2">
-								{@render field('Changement (%)', 'pct', () => pct, (v) => (pct = v))}
-								{@render field('Valeur actuelle', 'cur', () => cur, (v) => (cur = v))}
-								{@render field('Valeur eau neuve', 'fresh', () => fresh, (v) => (fresh = v))}
-								{@render field('Valeur visée', 'target', () => target, (v) => (target = v))}
-							</div>
-							<p class="hand -mt-2 text-base text-muted">« Valeur » : nitrates, phosphates, ce que tu veux faire baisser.</p>
-							<div class="rounded-xl border-2 border-edge bg-surface2 p-4">
-								{@render big(change, (v) => fmt(v.litres), 'L', 'à retirer et remplacer')}
-							</div>
-							{@render line(after, (v) => `Après ce changement : ${fmt(v, 2)}`)}
-							{@render line(need, (v) => `Pour atteindre la cible : ${fmt(v.percent)} %, soit ${fmt(v.litres)} L`)}
-						{:else if t.id === 'dosage'}
-							<p class="hand -mb-1 text-base text-muted">Puissance = hausse × litres pour 1 mL. « 1 mL monte le KH de 1 dans 100 L » → 100.</p>
-							<div class="grid grid-cols-3 gap-2">
-								{@render field('Puissance', 'power', () => power, (v) => (power = v))}
-								{@render field('Hausse visée', 'inc', () => inc, (v) => (inc = v))}
-								{@render field('Dose (mL)', 'ml', () => ml, (v) => (ml = v))}
-							</div>
-							<div class="rounded-xl border-2 border-edge bg-surface2 p-4">
-								{@render big(dose, (v) => fmt(v.ml, 2), 'mL', 'à verser')}
-							</div>
-							{@render line(doseEffect, (v) => `${fmt(n(ml), 2)} mL font monter de ${fmt(v.increase, 3)}`)}
-						{:else if t.id === 'remin'}
-							<div class="grid grid-cols-3 gap-2">
-								{@render field('GH robinet', 'tapGh', () => tapGh, (v) => (tapGh = v))}
-								{@render field('GH osmose', 'roGh', () => roGh, (v) => (roGh = v))}
-								{@render field('GH visé', 'targetGh', () => targetGh, (v) => (targetGh = v))}
-								{@render field('GH de départ', 'fromGh', () => fromGh, (v) => (fromGh = v))}
-								<div class="col-span-2">{@render field('g/L par °dGH (produit)', 'gPerDeg', () => gPerDeg, (v) => (gPerDeg = v))}</div>
-							</div>
-							<div class="grid grid-cols-2 gap-3 rounded-xl border-2 border-edge bg-surface2 p-4">
-								{@render big(mix, (v) => fmt(v.tapL), 'L', `robinet (${mix.ok ? mix.value.tapPercent : 0} %)`)}
-								{#if mix.ok}{@render big(mix, (v) => fmt(v.roL), 'L', 'osmose')}{/if}
-							</div>
-							{@render line(remin, (v) => `Sels à ajouter à de l'osmose pure : ${fmt(v.grams)} g`)}
-						{:else if t.id === 'sel'}
-							<p class="hand -mb-1 text-base text-muted">Conversion indicative à 25 °C (± 0,5 ppt). Vérifie au réfractomètre.</p>
-							<div class="grid grid-cols-2 gap-2">
-								{@render field('Densité (SG)', 'sg', () => sg, (v) => (sg = v))}
-								{@render field('Salinité visée (ppt)', 'ppt', () => ppt, (v) => (ppt = v))}
-								{@render field('Salinité actuelle (ppt)', 'curPpt', () => curPpt, (v) => (curPpt = v))}
-								{@render field('Eau ajoutée (ppt)', 'freshPpt', () => freshPpt, (v) => (freshPpt = v))}
-							</div>
-							<div class="grid grid-cols-2 gap-3 rounded-xl border-2 border-edge bg-surface2 p-4">
-								{@render big(toPpt, (v) => fmt(v), 'ppt', `pour ${sg} SG`)}
-								{@render big(salt, (v) => fmt(v.kg, 2), 'kg', `de sel pour ${fmt(n(volume), 0)} L`)}
-							</div>
-							{@render line(toSg, (v) => `${ppt} ppt ≈ ${v.toFixed(4)} SG`)}
-							{@render line(adjust, (v) => `Pour ${v.direction} la salinité : retirer puis remplacer ${fmt(v.replaceL)} L`)}
-							<p class="text-xs text-muted">Pour la quantité de sel, suis aussi la notice de ta marque.</p>
-						{:else if t.id === 'volume'}
-							<div class="grid grid-cols-3 gap-2">
-								{@render field('Longueur (cm)', 'L', () => L, (v) => (L = v))}
-								{@render field('Largeur (cm)', 'W', () => W, (v) => (W = v))}
-								{@render field('Hauteur (cm)', 'H', () => H, (v) => (H = v))}
-								{@render field('Verre (mm)', 'glass', () => glass, (v) => (glass = v))}
-								{@render field('Sous le bord (cm)', 'free', () => free, (v) => (free = v))}
-								{@render field('Sol, décor (L)', 'decor', () => decor, (v) => (decor = v))}
-							</div>
-							<div class="rounded-xl border-2 border-edge bg-surface2 p-4">
-								{@render big(realV, (v) => fmt(v.netL), 'L', "d'eau réelle")}
-							</div>
-							{@render line(realV, (v) => `Volume brut ${fmt(v.grossL)} L, eau sans décor ${fmt(v.waterL)} L`)}
-							{#if realV.ok}
-								<button class="btn-ghost self-start" onclick={() => realV.ok && ((volume = String(realV.value.netL)), (selected = null))}>
-									Utiliser {fmt(realV.value.netL)} L comme volume
-								</button>
-							{/if}
-						{/if}
+<NavBar title="Atelier" />
+
+<Section class="mt-2">
+	<Row href="/especes" icon="book" iconColor="var(--teal)" title="Encyclopédie des espèces" />
+	<Row href="/depenses" icon="euro" iconColor="var(--green)" title="Dépenses" value={monthTotal != null ? eur(monthTotal) : undefined} />
+</Section>
+
+<Section header="Calculateurs" footer="Les calculs utilisent le volume du bac choisi. Vérifie toujours avec tes tests avant de doser.">
+	{#each tools as t (t.id)}
+		<Row onclick={() => (open = t.id)} icon={t.icon} iconColor={t.color} title={t.title} subtitle={t.hint} chevron />
+	{/each}
+</Section>
+
+<Sheet open={open != null} title={tool?.title} cancelLabel="OK" onclose={() => (open = null)}>
+	{#if tool}
+		{#if open === 'eau'}
+			{@render hero(change, (v) => fmt(v.litres), 'L', 'à retirer et remplacer', tool.color)}
+		{:else if open === 'dosage'}
+			{@render hero(dose, (v) => fmt(v.ml, 2), 'mL', 'à verser', tool.color)}
+		{:else if open === 'remin'}
+			{@render hero(remin, (v) => fmt(v.grams), 'g', 'de sels pour de l’osmose pure', tool.color)}
+		{:else if open === 'sel'}
+			{@render hero(salt, (v) => fmt(v.kg, 2), 'kg', `de sel pour ${fmt(n(volume), 0)} L à ${ppt} ppt`, tool.color)}
+		{:else if open === 'volume'}
+			{@render hero(realV, (v) => fmt(v.netL), 'L', 'd’eau réelle', tool.color)}
+		{/if}
+
+		{#if open !== 'volume'}
+			<section class="mb-8">
+				<h2 class="footnote px-4 pb-1.5 uppercase text-label2">Bac</h2>
+				{#if aquariums.length}
+					<div class="mb-2.5">
+						<Segmented options={tankOptions} bind:value={selected} label="Bac" onchange={() => (touched = true)} />
 					</div>
 				{/if}
-			</li>
-		{/each}
-	</ul>
-</section>
+				<ul class="group ios-form">
+					<InputRow label="Volume" bind:value={volume} inputmode="decimal" unit="L" oninput={() => ((selected = 0), (touched = true))} />
+				</ul>
+			</section>
+		{/if}
+
+		{#if open === 'eau'}
+			<Section header="Changement" footer="« Valeur » : nitrates, phosphates, ce que tu veux faire baisser.">
+				<InputRow label="Part changée" bind:value={pct} inputmode="decimal" unit="%" />
+				<InputRow label="Valeur actuelle" bind:value={cur} inputmode="decimal" />
+				<InputRow label="Valeur eau neuve" bind:value={fresh} inputmode="decimal" />
+				<InputRow label="Valeur visée" bind:value={target} inputmode="decimal" />
+			</Section>
+			<Section header="Résultat">
+				{@render info(after, 'Après ce changement', (v) => fmt(v, 2))}
+				{@render info(need, 'Pour la cible', (v) => `${fmt(v.percent)} % · ${fmt(v.litres)} L`)}
+			</Section>
+		{:else if open === 'dosage'}
+			<Section header="Produit" footer="Puissance : hausse × litres pour 1 mL. « 1 mL monte le KH de 1 dans 100 L » donne 100.">
+				<InputRow label="Puissance" bind:value={power} inputmode="decimal" />
+				<InputRow label="Hausse visée" bind:value={inc} inputmode="decimal" />
+			</Section>
+			<Section header="Effet d’une dose">
+				<InputRow label="Dose" bind:value={ml} inputmode="decimal" unit="mL" />
+				{@render info(doseEffect, 'Hausse obtenue', (v) => fmt(v.increase, 3))}
+			</Section>
+		{:else if open === 'remin'}
+			<Section header="Dureté (°dGH)">
+				<InputRow label="GH du robinet" bind:value={tapGh} inputmode="decimal" />
+				<InputRow label="GH de l’osmose" bind:value={roGh} inputmode="decimal" />
+				<InputRow label="GH visé" bind:value={targetGh} inputmode="decimal" />
+			</Section>
+			<Section header="Mélange robinet et osmose">
+				{@render info(mix, 'Robinet', (v) => `${fmt(v.tapL)} L · ${v.tapPercent} %`)}
+				{@render info(mix, 'Osmose', (v) => `${fmt(v.roL)} L`)}
+			</Section>
+			<Section header="Sels reminéralisants" footer="Dose de ton produit : grammes par litre pour monter de 1 °dGH (voir la notice).">
+				<InputRow label="GH de départ" bind:value={fromGh} inputmode="decimal" />
+				<InputRow label="Dose du produit" bind:value={gPerDeg} inputmode="decimal" unit="g/L" />
+			</Section>
+		{:else if open === 'sel'}
+			<Section header="Conversion" footer="Indicatif à 25 °C (± 0,5 ppt). Vérifie au réfractomètre.">
+				<InputRow label="Densité" bind:value={sg} inputmode="decimal" unit="SG" />
+				{@render info(toPpt, 'Salinité', (v) => `${fmt(v)} ppt`)}
+				<InputRow label="Salinité visée" bind:value={ppt} inputmode="decimal" unit="ppt" />
+				{@render info(toSg, 'Densité visée', (v) => `${v.toFixed(4)} SG`)}
+			</Section>
+			<Section header="Corriger la salinité" footer="Pour la quantité de sel, suis aussi la notice de ta marque.">
+				<InputRow label="Salinité actuelle" bind:value={curPpt} inputmode="decimal" unit="ppt" />
+				<InputRow label="Eau ajoutée" bind:value={freshPpt} inputmode="decimal" unit="ppt" />
+				{@render info(adjust, `Pour ${adjust.ok ? adjust.value.direction : 'corriger'}`, (v) => `${fmt(v.replaceL)} L à remplacer`)}
+			</Section>
+		{:else if open === 'volume'}
+			<Section header="Dimensions intérieures">
+				<InputRow label="Longueur" bind:value={L} inputmode="decimal" unit="cm" />
+				<InputRow label="Largeur" bind:value={W} inputmode="decimal" unit="cm" />
+				<InputRow label="Hauteur" bind:value={H} inputmode="decimal" unit="cm" />
+			</Section>
+			<Section header="Retranché">
+				<InputRow label="Épaisseur du verre" bind:value={glass} inputmode="decimal" unit="mm" />
+				<InputRow label="Sous le bord" bind:value={free} inputmode="decimal" unit="cm" />
+				<InputRow label="Sol et décor" bind:value={decor} inputmode="decimal" unit="L" />
+			</Section>
+			<Section header="Détail">
+				{@render info(realV, 'Volume brut', (v) => `${fmt(v.grossL)} L`)}
+				{@render info(realV, 'Eau sans décor', (v) => `${fmt(v.waterL)} L`)}
+			</Section>
+			{#if realV.ok}
+				<button
+					class="btn-tinted w-full"
+					onclick={() => {
+						if (realV.ok) {
+							volume = String(realV.value.netL);
+							selected = 0;
+							touched = true;
+							open = 'eau';
+						}
+					}}
+				>
+					Utiliser {fmt(realV.value.netL)} L pour les calculs
+				</button>
+			{/if}
+		{/if}
+	{/if}
+</Sheet>
+
+<style>
+	.ios-form > :global(li + li .row-body) {
+		box-shadow: inset 0 0.5px 0 var(--sep);
+	}
+</style>

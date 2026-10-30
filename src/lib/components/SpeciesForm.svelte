@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { api, toNumber, toText } from '$lib/client/api';
+	import Section from '$lib/ios/Section.svelte';
+	import InputRow from '$lib/ios/InputRow.svelte';
+	import Switch from '$lib/ios/Switch.svelte';
 	import { KIND_LABELS, type Species } from '$lib/types';
 
+	// Formulaire d'espèce en listes groupées ; il s'envoie par le bouton de la feuille (formId).
 	interface Props {
 		species?: Species;
+		formId: string;
 		onsaved: (id: number) => void;
-		oncancel?: () => void;
+		onbusy?: (busy: boolean) => void;
 	}
-	let { species, onsaved, oncancel }: Props = $props();
+	let { species, formId, onsaved, onbusy }: Props = $props();
 
 	const isNew = $derived(!species);
 	const editable = $derived(isNew || species?.source === 'maison');
 	let message = $state('');
-	let busy = $state(false);
 
 	const est = (key: string) => species?.estimated.includes(key);
+	const str = (v: number | string | null | undefined) => (v == null ? '' : String(v).replace('.', ','));
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -48,7 +53,7 @@
 				lifespanYears: toNumber(f.get('lifespanYears'))
 			});
 		}
-		busy = true;
+		onbusy?.(true);
 		message = '';
 		try {
 			if (species) {
@@ -61,94 +66,85 @@
 		} catch (e) {
 			message = (e as Error).message;
 		} finally {
-			busy = false;
+			onbusy?.(false);
 		}
 	}
-
-	const field = 'field text-sm';
-	const label = 'flex min-w-0 flex-col gap-1 text-xs font-bold text-muted';
-	const group = 'card-flat grid grid-cols-6 gap-2.5 p-4';
-	const legend = 'col-span-6 mb-0.5 text-[11px] font-bold uppercase tracking-wider text-muted';
-	const box = 'flex items-center gap-2 rounded-full border-2 border-edge bg-surface px-3 py-1.5 text-sm font-bold has-[:checked]:bg-ink has-[:checked]:text-on-ink';
 </script>
 
-<form onsubmit={submit} class="flex flex-col gap-4">
-	<fieldset class={group}>
-		<legend class="sr-only">Identité</legend>
-		<p class={legend}>Identité</p>
-		{#if editable}
-			<label class="{label} col-span-6">Nom scientifique<input name="scientificName" required value={species?.scientificName ?? ''} class="{field} italic" /></label>
-		{/if}
-		<label class="{label} col-span-3">Nom français<input name="nameFr" value={species?.nameFr ?? ''} class={field} /></label>
-		<label class="{label} col-span-3">Nom anglais<input name="nameEn" value={species?.nameEn ?? ''} class={field} /></label>
-		{#if editable}
-			<label class="{label} col-span-3">Type
-				<select name="kind" class={field}>
-					{#each Object.entries(KIND_LABELS) as [value, text] (value)}<option {value} selected={(species?.kind ?? 'poisson') === value}>{text}</option>{/each}
+{#snippet select(label: string, name: string, current: string, options: [string, string][], hint?: boolean)}
+	<li>
+		<label class="flex min-h-11 items-center gap-3 pl-4">
+			<span class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-2 py-1.5 pr-4">
+				<span class="body min-w-0 flex-1 truncate">{label}{#if hint}<span class="footnote ml-1.5 text-orange">estimé</span>{/if}</span>
+				<select {name} class="body max-w-[55%] appearance-none bg-transparent text-right text-label2 outline-none">
+					{#each options as [value, text] (value)}<option {value} selected={current === value}>{text}</option>{/each}
 				</select>
-			</label>
-			<label class="{label} col-span-3">Durée de vie (ans)<input name="lifespanYears" inputmode="decimal" value={species?.lifespanYears ?? ''} class="{field} num" /></label>
-			<div class="col-span-6 flex flex-wrap gap-2 pt-1">
-				<label class={box}><input type="checkbox" name="fresh" checked={species?.fresh ?? true} class="sr-only" />Eau douce</label>
-				<label class={box}><input type="checkbox" name="brackish" checked={species?.brackish ?? false} class="sr-only" />Saumâtre</label>
-				<label class={box}><input type="checkbox" name="salt" checked={species?.salt ?? false} class="sr-only" />Mer</label>
-			</div>
+				<svg class="shrink-0 text-label3" width="9" height="14" viewBox="0 0 9 14" aria-hidden="true"><path d="M1.5 5L4.5 2l3 3M1.5 9l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+			</span>
+		</label>
+	</li>
+{/snippet}
+
+{#snippet toggle(label: string, name: string, checked: boolean)}
+	<li>
+		<label class="flex min-h-11 items-center gap-3 pl-4">
+			<span class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-2 py-1.5 pr-4">
+				<span class="body min-w-0 flex-1">{label}</span>
+				<Switch {name} {checked} label={label} />
+			</span>
+		</label>
+	</li>
+{/snippet}
+
+<form id={formId} onsubmit={submit} class="species-form">
+	{#if message}<p class="subhead mb-4 rounded-2xl bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+
+	<Section header="Identité">
+		{#if editable}
+			<InputRow label="Nom scientifique" name="scientificName" value={species?.scientificName ?? ''} required wide italic />
 		{/if}
-	</fieldset>
+		<InputRow label="Nom français" name="nameFr" value={species?.nameFr ?? ''} placeholder="Facultatif" />
+		<InputRow label="Nom anglais" name="nameEn" value={species?.nameEn ?? ''} placeholder="Facultatif" />
+		{#if editable}
+			{@render select('Type', 'kind', species?.kind ?? 'poisson', Object.entries(KIND_LABELS))}
+			<InputRow label="Durée de vie" name="lifespanYears" value={str(species?.lifespanYears)} inputmode="decimal" unit="ans" />
+		{/if}
+	</Section>
 
-	<fieldset class={group}>
-		<legend class="sr-only">Conditions</legend>
-		<p class={legend}>Conditions</p>
-		<label class="{label} col-span-3">Température min (°C)<input name="tempMin" inputmode="decimal" value={species?.tempMin ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-3">Température max (°C)<input name="tempMax" inputmode="decimal" value={species?.tempMax ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-3">pH min<input name="phMin" inputmode="decimal" value={species?.phMin ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-3">pH max<input name="phMax" inputmode="decimal" value={species?.phMax ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-2">Taille (cm)<input name="maxLengthCm" inputmode="decimal" value={species?.maxLengthCm ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-2">Bac min. (L)<input name="minTankL" inputmode="numeric" value={species?.minTankL ?? ''} class="{field} num" /></label>
-		<label class="{label} col-span-2">Groupe min.{#if est('groupMin')}<em class="not-italic text-warn"> estimé</em>{/if}<input name="groupMin" inputmode="numeric" value={species?.groupMin ?? ''} class="{field} num" /></label>
-	</fieldset>
+	{#if editable}
+		<Section header="Eau">
+			{@render toggle('Eau douce', 'fresh', species?.fresh ?? true)}
+			{@render toggle('Eau saumâtre', 'brackish', species?.brackish ?? false)}
+			{@render toggle('Eau de mer', 'salt', species?.salt ?? false)}
+		</Section>
+	{/if}
 
-	<fieldset class={group}>
-		<legend class="sr-only">Comportement</legend>
-		<p class={legend}>Comportement</p>
-		<label class="{label} col-span-3">Tempérament
-			<select name="temperament" class={field}>
-				<option value="">À renseigner</option>
-				{#each ['paisible', 'semi-agressif', 'agressif'] as v (v)}<option value={v} selected={species?.temperament === v}>{v}</option>{/each}
-			</select>
-		</label>
-		<label class="{label} col-span-3">Régime{#if est('diet')}<em class="not-italic text-warn"> estimé</em>{/if}
-			<select name="diet" class={field}>
-				<option value="">À renseigner</option>
-				{#each ['carnivore', 'omnivore', 'herbivore', 'filtreur', 'autre'] as v (v)}<option value={v} selected={species?.diet === v}>{v}</option>{/each}
-			</select>
-		</label>
-		<label class="{label} col-span-3">Zone du bac{#if est('zone')}<em class="not-italic text-warn"> estimé</em>{/if}
-			<select name="zone" class={field}>
-				<option value="">À renseigner</option>
-				{#each ['haut', 'milieu', 'bas', 'tous'] as v (v)}<option value={v} selected={species?.zone === v}>{v}</option>{/each}
-			</select>
-		</label>
-		<label class="{label} col-span-3">Compatible récif
-			<select name="reefSafe" class={field}>
-				<option value="">Inconnu</option>
-				<option value="oui" selected={species?.reefSafe === true}>Oui</option>
-				<option value="non" selected={species?.reefSafe === false}>Non</option>
-			</select>
-		</label>
-		<label class="{label} col-span-6">Charge biologique adulte (g, sinon estimée d'après la taille)<input name="bioloadG" inputmode="decimal" value={species?.bioloadG ?? ''} class="{field} num" /></label>
-	</fieldset>
+	<Section header="Conditions">
+		<InputRow label="Température min." name="tempMin" value={str(species?.tempMin)} inputmode="decimal" unit="°C" />
+		<InputRow label="Température max." name="tempMax" value={str(species?.tempMax)} inputmode="decimal" unit="°C" />
+		<InputRow label="pH min." name="phMin" value={str(species?.phMin)} inputmode="decimal" />
+		<InputRow label="pH max." name="phMax" value={str(species?.phMax)} inputmode="decimal" />
+		<InputRow label="Taille adulte" name="maxLengthCm" value={str(species?.maxLengthCm)} inputmode="decimal" unit="cm" />
+		<InputRow label="Bac minimum" name="minTankL" value={str(species?.minTankL)} inputmode="numeric" unit="L" />
+		<InputRow label="Groupe minimum{est('groupMin') ? ' (estimé)' : ''}" name="groupMin" value={str(species?.groupMin)} inputmode="numeric" />
+	</Section>
 
-	<fieldset class={group}>
-		<legend class="sr-only">Textes</legend>
-		<p class={legend}>Textes</p>
-		<label class="{label} col-span-6">Description<textarea name="description" rows="4" maxlength="2000" class={field}>{species?.description ?? ''}</textarea></label>
-		<label class="{label} col-span-6">Notes d'élevage<textarea name="notes" rows="3" maxlength="2000" class={field}>{species?.notes ?? ''}</textarea></label>
-	</fieldset>
+	<Section header="Comportement" footer="Charge biologique : poids adulte en grammes. Vide, elle est estimée d’après la taille.">
+		{@render select('Tempérament', 'temperament', species?.temperament ?? '', [['', 'À renseigner'], ['paisible', 'Paisible'], ['semi-agressif', 'Semi-agressif'], ['agressif', 'Agressif']])}
+		{@render select('Régime', 'diet', species?.diet ?? '', [['', 'À renseigner'], ['carnivore', 'Carnivore'], ['omnivore', 'Omnivore'], ['herbivore', 'Herbivore'], ['filtreur', 'Filtreur'], ['autre', 'Autre']], est('diet'))}
+		{@render select('Zone du bac', 'zone', species?.zone ?? '', [['', 'À renseigner'], ['haut', 'Haut'], ['milieu', 'Milieu'], ['bas', 'Bas'], ['tous', 'Partout']], est('zone'))}
+		{@render select('Compatible récif', 'reefSafe', species?.reefSafe === true ? 'oui' : species?.reefSafe === false ? 'non' : '', [['', 'Inconnu'], ['oui', 'Oui'], ['non', 'Non']])}
+		<InputRow label="Charge biologique" name="bioloadG" value={str(species?.bioloadG)} inputmode="decimal" unit="g" />
+	</Section>
 
-	{#if message}<p class="rounded-lg border-2 border-bad bg-bad-soft p-3 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
-	<div class="grid grid-cols-2 gap-3">
-		<button disabled={busy} class="btn {oncancel ? '' : 'col-span-2'}">Enregistrer</button>
-		{#if oncancel}<button type="button" onclick={oncancel} class="btn-ghost">Annuler</button>{/if}
-	</div>
+	<Section header="Description">
+		<li class="px-4 py-2.5">
+			<textarea name="description" rows="4" maxlength="2000" placeholder="Ce qu’il faut savoir sur l’espèce" class="body w-full resize-none bg-transparent outline-none placeholder:text-label3">{species?.description ?? ''}</textarea>
+		</li>
+	</Section>
+	<Section header="Notes d’élevage">
+		<li class="px-4 py-2.5">
+			<textarea name="notes" rows="3" maxlength="2000" placeholder="Tes observations" class="body w-full resize-none bg-transparent outline-none placeholder:text-label3">{species?.notes ?? ''}</textarea>
+		</li>
+	</Section>
 </form>

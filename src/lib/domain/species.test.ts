@@ -29,6 +29,13 @@ const species = (over: Partial<Species>): Species => ({
 	bioloadG: null,
 	notes: null,
 	estimated: [],
+	description: null,
+	curated: true,
+	dataQuality: null,
+	hasPhoto: false,
+	photoAuthor: null,
+	photoLicense: null,
+	photoSource: null,
 	...over
 });
 

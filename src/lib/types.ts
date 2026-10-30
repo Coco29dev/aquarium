@@ -84,7 +84,7 @@ export const KIND_LABELS: Record<SpeciesKind, string> = {
 
 export interface Species {
 	id: number;
-	source: 'fishbase' | 'sealifebase' | 'maison';
+	source: 'fishbase' | 'sealifebase' | 'maison' | 'noyau';
 	scientificName: string;
 	nameFr: string | null;
 	nameEn: string | null;
@@ -108,6 +108,15 @@ export interface Species {
 	notes: string | null;
 	/** Champs déduits de FishBase, à confirmer. */
 	estimated: string[];
+	description: string | null;
+	/** Dans le noyau encyclopédique (visible par défaut). */
+	curated: boolean;
+	/** 'claude' : rédigé par Claude, à vérifier ; 'verifie' : confirmé par l'utilisateur. */
+	dataQuality: 'claude' | 'verifie' | null;
+	hasPhoto: boolean;
+	photoAuthor: string | null;
+	photoLicense: string | null;
+	photoSource: string | null;
 }
 
 export interface ConsumableRow {

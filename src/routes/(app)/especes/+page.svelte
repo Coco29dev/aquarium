@@ -48,7 +48,12 @@
 		clearTimeout(timer);
 		timer = setTimeout(search, 250);
 	}
-	onMount(search);
+	onMount(() => {
+		void search();
+		// Arrivée depuis la recherche globale : /especes?id=ID ouvre directement la fiche.
+		const id = Number(new URLSearchParams(location.search).get('id'));
+		if (Number.isInteger(id) && id > 0) void open(id);
+	});
 
 	async function open(id: number) {
 		try {

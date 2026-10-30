@@ -2,75 +2,32 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
-	import {
-		enableReminders,
-		isStandalone,
-		pushSupported,
-		sendTest,
-		syncSubscription,
-		type SyncState
-	} from '$lib/push-client';
+	import { isStandalone, pushSupported } from '$lib/push-client';
+	import { daysBetween, dayInParis } from '$lib/domain/dates';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
-	import Switch from '$lib/ios/Switch.svelte';
-	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import Spinner from '$lib/ios/Spinner.svelte';
+	import type { BackupStatus } from '$lib/types';
 
-	let installed = $state(false);
-	let supported = $state(true);
-	let permission = $state<NotificationPermission | 'indisponible'>('indisponible');
-	let subscription = $state<SyncState | 'vérification'>('vérification');
-	let busy = $state(false);
+	let notifications = $state('');
+	let backup = $state<BackupStatus | null>(null);
+	let online = $state(true);
 	let syncing = $state(false);
 
-	const active = $derived(permission === 'granted' && (subscription === 'actif' || subscription === 'recréé'));
-
-	async function refresh() {
-		permission = 'Notification' in window ? Notification.permission : 'indisponible';
-		try {
-			const state = await syncSubscription();
-			subscription = state;
-			if (state === 'recréé') ui.show('Abonnement aux rappels recréé');
-		} catch (error) {
-			subscription = 'inactif';
-			ui.show((error as Error).message);
-		}
-	}
-
 	onMount(() => {
-		installed = isStandalone();
-		supported = pushSupported();
-		if (supported) void refresh();
+		const enabled = pushSupported() && isStandalone() && 'Notification' in window && Notification.permission === 'granted';
+		notifications = enabled ? 'Activées' : 'Désactivées';
+		online = navigator.onLine;
+		const update = () => (online = navigator.onLine);
+		addEventListener('online', update);
+		addEventListener('offline', update);
+		store.fetchBackup().then((b) => (backup = b)).catch(() => {});
+		return () => {
+			removeEventListener('online', update);
+			removeEventListener('offline', update);
+		};
 	});
-
-	async function run(action: () => Promise<void>) {
-		busy = true;
-		try {
-			await action();
-		} catch (error) {
-			ui.show((error as Error).message);
-		} finally {
-			busy = false;
-		}
-	}
-
-	async function toggleReminders(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		if (!input.checked) return;
-		await run(async () => {
-			subscription = await enableReminders();
-			permission = Notification.permission;
-			ui.show(subscription === 'inactif' ? 'Notifications non autorisées' : 'Rappels activés', undefined, subscription === 'inactif' ? undefined : 'check');
-		});
-		input.checked = active;
-	}
-
-	const test = () =>
-		run(async () => {
-			const { sent, total } = await sendTest();
-			ui.show(total === 0 ? 'Aucun appareil abonné' : `Notification envoyée (${sent}/${total})`, undefined, total ? 'check' : undefined);
-			await refresh();
-		});
 
 	async function syncNow() {
 		syncing = true;
@@ -86,24 +43,15 @@
 			? new Date(store.lastSync).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 			: 'Jamais'
 	);
-	const exports: { href: string; title: string; format: string; icon: IconName; color: string }[] = [
-		{ href: '/api/export?format=json', title: 'Tout exporter', format: 'JSON', icon: 'box', color: 'var(--green)' },
-		{ href: '/api/export?format=csv&table=measurements', title: 'Mesures', format: 'CSV', icon: 'drop', color: 'var(--teal)' },
-		{ href: '/api/export?format=csv&table=completions', title: 'Tâches réalisées', format: 'CSV', icon: 'today', color: 'var(--indigo)' },
-		{ href: '/api/export?format=csv&table=expenses', title: 'Dépenses', format: 'CSV', icon: 'euro', color: 'var(--brown)' }
-	];
+	const backupValue = $derived.by(() => {
+		if (!backup) return '';
+		if (!backup.lastBackupAt) return 'Jamais';
+		const days = daysBetween(dayInParis(backup.lastBackupAt), dayInParis());
+		return days <= 0 ? 'Aujourd’hui' : days === 1 ? 'Hier' : `Il y a ${days} j`;
+	});
+	const themeLabel = $derived({ auto: 'Automatique', light: 'Clair', dark: 'Sombre' }[ui.theme]);
 	const tankCount = $derived(store.view?.aquariums.length ?? 0);
-	const remindersFooter = $derived(
-		!supported
-			? 'Les notifications ne sont pas disponibles sur cet appareil.'
-			: !installed
-				? 'Sur iPhone, les rappels demandent l’appli sur l’écran d’accueil : dans Safari, touche Partager, puis « Sur l’écran d’accueil », et ouvre Aquarium depuis son icône.'
-				: permission === 'denied'
-					? 'Notifications refusées : réactive-les dans Réglages > Notifications > Aquarium.'
-					: active
-						? 'Pour couper les rappels, désactive les notifications d’Aquarium dans les Réglages de l’iPhone.'
-						: 'Un rappel chaque jour entre 8 h et 21 h quand une tâche est due.'
-	);
+	const pending = $derived(store.pending.length);
 </script>
 
 <svelte:head><title>Réglages · Aquarium</title></svelte:head>
@@ -123,39 +71,44 @@
 	</li>
 </Section>
 
-<Section header="Notifications" footer={remindersFooter}>
-	<Row icon="bell" iconColor="var(--red)" title="Rappels">
-		{#snippet trailing()}
-			<Switch checked={active} disabled={busy || !supported || !installed || permission === 'denied' || active} onchange={toggleReminders} label="Activer les rappels" />
+<Section>
+	<Row href="/reglages/notifications" icon="bell" iconColor="var(--red)" title="Notifications" value={notifications} />
+	<Row href="/reglages/affichage" title="Affichage" value={themeLabel}>
+		{#snippet leading()}
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-blue text-[13px] font-bold tracking-tight text-white" aria-hidden="true">AA</span>
 		{/snippet}
 	</Row>
-	<Row icon="today" iconColor="var(--orange)" title="Envoyer une notification de test" onclick={test} disabled={busy || !active} />
-	{#if installed && supported}
-		<Row title="Autorisation" value={permission === 'granted' ? 'Accordée' : permission === 'denied' ? 'Refusée' : permission === 'default' ? 'Pas demandée' : 'Indisponible'} />
-	{/if}
+	<Row href="/reglages/sauvegarde" icon="sync" iconColor="var(--green)" title="Sauvegarde" value={backupValue} />
 </Section>
 
-<Section header="Synchronisation" footer="L’appli marche hors ligne : tes saisies partent dès que le réseau revient.">
-	<Row icon="sync" iconColor="var(--blue)" title="Saisies en attente" value={String(store.pending.length)} />
+<Section
+	header="Synchronisation"
+	footer={online
+		? 'L’appli marche hors ligne : tes saisies partent dès que le réseau revient.'
+		: 'Pas de réseau : tes saisies restent sur l’iPhone et partiront à la prochaine connexion.'}
+>
+	<Row title="État">
+		{#snippet trailing()}
+			<span class="body flex items-center gap-2 text-label2">
+				<span class="h-2.5 w-2.5 rounded-full {online ? 'bg-green' : 'bg-orange'}" aria-hidden="true"></span>
+				{online ? 'En ligne' : 'Hors ligne'}
+			</span>
+		{/snippet}
+	</Row>
+	<Row title="Saisies en attente">
+		{#snippet trailing()}
+			<span class="body {pending ? 'font-semibold text-orange' : 'text-label2'}">{pending ? `${pending} à envoyer` : 'Aucune'}</span>
+		{/snippet}
+	</Row>
 	<Row title="Dernière synchronisation" value={lastSync} />
-	<Row title={syncing ? 'Synchronisation…' : 'Synchroniser maintenant'} action onclick={syncNow} disabled={syncing} />
-</Section>
-
-<Section header="Données" footer="Le serveur garde tout ; l’export est ta copie personnelle.">
-	{#each exports as x (x.href)}
-		<li>
-			<a href={x.href} download data-sveltekit-reload class="tappable flex items-center gap-3 pl-4">
-				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: {x.color}; --cut: {x.color}">
-					<Icon name={x.icon} size={19} filled weight={2} />
-				</span>
-				<span class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
-					<span class="body min-w-0 flex-1 truncate">{x.title}</span>
-					<span class="body text-label2">{x.format}</span>
-					<span class="text-tint"><Icon name="download" size={20} weight={2} /></span>
-				</span>
-			</a>
-		</li>
-	{/each}
+	<li>
+		<button class="tappable flex w-full items-center gap-2 pl-4" onclick={syncNow} disabled={syncing || !online}>
+			<span class="row-body flex min-h-11 flex-1 items-center gap-2 py-2.5 pr-4">
+				<span class="body {syncing || !online ? 'text-label3' : 'text-tint'}">{syncing ? 'Synchronisation…' : 'Synchroniser maintenant'}</span>
+				{#if syncing}<Spinner spinning size={18} />{/if}
+			</span>
+		</button>
+	</li>
 </Section>
 
 <Section header="À propos">

@@ -40,31 +40,31 @@
 	}
 </script>
 
-<svelte:head><title>Aujourd'hui · Aquarium</title></svelte:head>
+<svelte:head><title>Aujourd'hui · Bulle</title></svelte:head>
 
 <h1 class="mb-6 text-2xl font-semibold">À faire aujourd'hui</h1>
 
 {#if view && view.aquariums.length === 0}
-	<p class="rounded-lg bg-slate-900 p-4 text-sm">
-		Aucun aquarium pour l'instant. <a href="/aquariums/nouveau" class="text-cyan-300 underline">Créer le premier</a>.
+	<p class="card p-4 text-sm">
+		Aucun aquarium pour l'instant. <a href="/aquariums/nouveau" class="text-primary underline">Créer le premier</a>.
 	</p>
 {:else}
 	<section class="mb-8">
-		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Tâches</h2>
+		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Tâches</h2>
 		{#if due.length === 0}
-			<p class="text-sm text-slate-400">Rien à faire. 🎉</p>
+			<p class="text-sm text-muted">Rien à faire. 🎉</p>
 		{:else}
 			<ul class="flex flex-col gap-2">
 				{#each due as task (task.id)}
-					<li class="flex items-center gap-3 rounded-lg bg-slate-900 p-3">
+					<li class="flex items-center gap-3 card p-3">
 						<button
 							onclick={() => store.completeTask(task.id)}
-							class="h-9 w-9 shrink-0 rounded-full border-2 border-cyan-600 active:bg-cyan-700"
+							class="h-9 w-9 shrink-0 rounded-full border-2 border-edge active:bg-primary"
 							aria-label="Marquer « {task.title} » comme fait"
 						></button>
 						<div class="min-w-0 flex-1">
 							<p class="truncate">{task.title}</p>
-							<p class="text-xs text-slate-400">{nameOf(task.aquariumId)} · {late(task.nextDue)}</p>
+							<p class="text-xs text-muted">{nameOf(task.aquariumId)} · {late(task.nextDue)}</p>
 						</div>
 					</li>
 				{/each}
@@ -74,13 +74,13 @@
 
 	{#if consumablesDue.length}
 		<section class="mb-8">
-			<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Consommables</h2>
+			<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Consommables</h2>
 			<ul class="flex flex-col gap-2">
 				{#each consumablesDue as { c, life } (c.id)}
-					<li class="rounded-lg bg-slate-900 p-3 text-sm">
+					<li class="card p-3 text-sm">
 						<a href="/aquariums/{c.aquariumId}/inventaire" class="block">
 							<p>{c.name}</p>
-							<p class="text-xs {life.status === 'en_retard' ? 'text-red-300' : 'text-amber-300'}">
+							<p class="text-xs {life.status === 'en_retard' ? 'text-bad' : 'text-warn'}">
 								{nameOf(c.aquariumId)} · {life.daysLeft! < 0 ? `à remplacer, en retard de ${-life.daysLeft!} j` : `à remplacer dans ${life.daysLeft} j`}
 							</p>
 						</a>
@@ -91,13 +91,13 @@
 	{/if}
 
 	<section class="mb-8">
-		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Alertes</h2>
+		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Alertes</h2>
 		{#if alerts.length === 0}
-			<p class="text-sm text-slate-400">Aucune alerte.</p>
+			<p class="text-sm text-muted">Aucune alerte.</p>
 		{:else}
 			<ul class="flex flex-col gap-2">
 				{#each alerts as alert (alert.parameterId)}
-					<li class="rounded-lg p-3 text-sm {alert.level === 'hors_plage' ? 'bg-red-950 text-red-100' : 'bg-amber-950 text-amber-100'}">
+					<li class="rounded-lg p-3 text-sm {alert.level === 'hors_plage' ? 'bg-bad-soft text-bad' : 'bg-warn-soft text-warn'}">
 						<a href="/aquariums/{alert.aquariumId}" class="block">
 							<span class="text-xs opacity-70">{nameOf(alert.aquariumId)} · {alert.level === 'hors_plage' ? 'hors plage' : 'dérive'}</span>
 							<br />{alert.message}
@@ -109,10 +109,10 @@
 	</section>
 
 	{#each coaches as { aquarium, status } (aquarium.id)}
-		<section class="mb-8 rounded-lg border border-cyan-900 p-4">
-			<p class="text-xs text-slate-400">{aquarium.name}</p>
+		<section class="mb-8 rounded-lg border-2 border-edge p-4">
+			<p class="text-xs text-muted">{aquarium.name}</p>
 			<h2 class="font-medium">{status?.title}</h2>
-			<p class="mt-1 text-sm text-slate-300">{status?.advice}</p>
+			<p class="mt-1 text-sm text-muted">{status?.advice}</p>
 		</section>
 	{/each}
 {/if}

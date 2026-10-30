@@ -1,16 +1,124 @@
 @import 'tailwindcss';
 
+/* Polices hébergées (sous-ensemble latin, suffisant pour le français) pour le mode hors ligne. */
+@font-face {
+	font-family: 'Fredoka Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 700;
+	src: url('../../node_modules/@fontsource-variable/fredoka/files/fredoka-latin-wght-normal.woff2') format('woff2-variations');
+}
+@font-face {
+	font-family: 'Figtree Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 900;
+	src: url('../../node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* Charte « Chirurgien » : bleu roi et jaune soleil, contours épais et ombres dures.
+   Clair par défaut ; sombre « Ardoise douce » quand l'iPhone est en mode sombre. */
 :root {
-	color-scheme: dark;
+	color-scheme: light;
+	--bg: #e8eeff;
+	--surface: #ffffff;
+	--surface2: #d3dfff;
+	--ink: #0f1b4d;
+	--muted: #4a5c94;
+	--line: #c5d3f5;
+	--edge: #0f1b4d;
+	--shadow: #0f1b4d;
+	--primary: #2f5bff;
+	--on-primary: #ffffff;
+	--accent: #e0a000;
+	--ok: #0e8a5b;
+	--warn: #9a6400;
+	--bad: #d42e48;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		color-scheme: dark;
+		--bg: #131a22;
+		--surface: #1c252f;
+		--surface2: #26323f;
+		--ink: #e9eff6;
+		--muted: #98a7b8;
+		--line: #2e3b49;
+		--edge: #6f8199;
+		--shadow: #0a0f14;
+		--primary: #5c8dff;
+		--on-primary: #07142e;
+		--accent: #ffc93c;
+		--ok: #3dd598;
+		--warn: #ffc54d;
+		--bad: #ff6b81;
+	}
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface2: var(--surface2);
+	--color-ink: var(--ink);
+	--color-muted: var(--muted);
+	--color-line: var(--line);
+	--color-edge: var(--edge);
+	--color-primary: var(--primary);
+	--color-on-primary: var(--on-primary);
+	--color-accent: var(--accent);
+	--color-ok: var(--ok);
+	--color-warn: var(--warn);
+	--color-bad: var(--bad);
+	--color-ok-soft: color-mix(in srgb, var(--ok) 16%, var(--surface));
+	--color-warn-soft: color-mix(in srgb, var(--warn) 17%, var(--surface));
+	--color-bad-soft: color-mix(in srgb, var(--bad) 15%, var(--surface));
+	--font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'Fredoka Variable', 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+	--radius-lg: 1.1rem;
 }
 
 html,
 body {
-	background: #0b1f2a;
-	color: #e6f1f5;
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font-sans);
 }
 
 body {
 	padding-top: env(safe-area-inset-top);
 	padding-bottom: env(safe-area-inset-bottom);
+}
+
+h1,
+h2 {
+	font-family: var(--font-display);
+	font-weight: 600;
+}
+
+input,
+select,
+textarea {
+	color: var(--ink);
+}
+
+/* Carte : fond, contour épais et ombre dure. */
+@utility card {
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	border: 2.5px solid var(--edge);
+	box-shadow: 3px 3px 0 var(--shadow);
+}
+
+/* Bouton principal : bleu roi, texte clair (sombre en mode sombre), s'enfonce au toucher. */
+@utility btn-primary {
+	background: var(--primary);
+	color: var(--on-primary);
+	border: 2.5px solid var(--edge);
+	box-shadow: 3px 3px 0 var(--shadow);
+	font-weight: 700;
+	&:active {
+		transform: translate(2px, 2px);
+		box-shadow: 1px 1px 0 var(--shadow);
+	}
 }

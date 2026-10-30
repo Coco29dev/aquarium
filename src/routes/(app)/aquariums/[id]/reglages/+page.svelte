@@ -113,23 +113,23 @@
 		await run(() => store.mutate('DELETE', `/api/tasks/${taskId}`));
 	}
 
-	const field = 'rounded-lg border border-cyan-900 bg-slate-900 px-3 py-2 text-base';
-	const small = 'w-full rounded-lg border border-cyan-900 bg-slate-900 px-2 py-2 text-sm';
-	const button = 'rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium active:bg-cyan-800';
+	const field = 'rounded-lg border-2 border-edge bg-surface px-3 py-2 text-base';
+	const small = 'w-full rounded-lg border-2 border-edge bg-surface px-2 py-2 text-sm';
+	const button = 'rounded-lg btn-primary px-4 py-2 text-sm font-medium';
 </script>
 
 <svelte:head><title>Réglages · {aquarium?.name ?? 'Aquarium'}</title></svelte:head>
 
 {#if !aquarium}
-	<p class="text-sm text-slate-400">Aquarium introuvable.</p>
+	<p class="text-sm text-muted">Aquarium introuvable.</p>
 {:else}
-	<a href="/aquariums/{id}" class="text-sm text-cyan-300 underline">← {aquarium.name}</a>
+	<a href="/aquariums/{id}" class="text-sm text-primary underline">← {aquarium.name}</a>
 	<h1 class="mb-6 mt-2 text-2xl font-semibold">Réglages</h1>
 
-	{#if message}<p class="mb-4 rounded-lg bg-red-950 p-3 text-sm text-red-200" role="alert">{message}</p>{/if}
+	{#if message}<p class="mb-4 rounded-lg bg-bad-soft p-3 text-sm text-bad" role="alert">{message}</p>{/if}
 
 	<section class="mb-8">
-		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Aquarium</h2>
+		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Aquarium</h2>
 		<form onsubmit={saveAquarium} class="flex flex-col gap-3">
 			<input name="name" value={aquarium.name} required class={field} aria-label="Nom" />
 			<div class="flex gap-3">
@@ -141,26 +141,26 @@
 	</section>
 
 	<section class="mb-8">
-		<h2 class="mb-1 text-sm font-medium uppercase tracking-wide text-slate-400">Paramètres</h2>
-		<p class="mb-3 text-xs text-slate-500">
+		<h2 class="mb-1 text-sm font-medium uppercase tracking-wide text-muted">Paramètres</h2>
+		<p class="mb-3 text-xs text-muted">
 			Plage acceptable et dérive maximale sur 7 jours (laisse vide : 25 % de la plage).
 		</p>
 		<ul class="flex flex-col gap-3">
 			{#each parameters as p (p.id)}
 				<li>
-					<form onsubmit={(e) => saveParameter(e, p.id)} class="grid grid-cols-6 gap-2 rounded-lg bg-slate-900 p-3">
+					<form onsubmit={(e) => saveParameter(e, p.id)} class="grid grid-cols-6 gap-2 card p-3">
 						<input name="name" value={p.name} required class="{small} col-span-4" aria-label="Nom" />
 						<input name="unit" value={p.unit} class="{small} col-span-2" aria-label="Unité" />
-						<label class="col-span-2 text-xs text-slate-400">Min<input name="min" value={p.min ?? ''} inputmode="decimal" class={small} /></label>
-						<label class="col-span-2 text-xs text-slate-400">Max<input name="max" value={p.max ?? ''} inputmode="decimal" class={small} /></label>
-						<label class="col-span-2 text-xs text-slate-400">Dérive/7 j<input name="driftPerWeek" value={p.driftPerWeek ?? ''} inputmode="decimal" class={small} /></label>
+						<label class="col-span-2 text-xs text-muted">Min<input name="min" value={p.min ?? ''} inputmode="decimal" class={small} /></label>
+						<label class="col-span-2 text-xs text-muted">Max<input name="max" value={p.max ?? ''} inputmode="decimal" class={small} /></label>
+						<label class="col-span-2 text-xs text-muted">Dérive/7 j<input name="driftPerWeek" value={p.driftPerWeek ?? ''} inputmode="decimal" class={small} /></label>
 						<button class="{button} col-span-3">Enregistrer</button>
-						<button type="button" onclick={() => removeParameter(p.id, p.name)} class="col-span-3 rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300">Supprimer</button>
+						<button type="button" onclick={() => removeParameter(p.id, p.name)} class="col-span-3 rounded-lg border border-bad px-4 py-2 text-sm text-bad">Supprimer</button>
 					</form>
 				</li>
 			{/each}
 		</ul>
-		<form onsubmit={addParameter} class="mt-3 grid grid-cols-6 gap-2 rounded-lg border border-dashed border-cyan-900 p-3">
+		<form onsubmit={addParameter} class="mt-3 grid grid-cols-6 gap-2 rounded-lg border-2 border-dashed border-edge p-3">
 			<input name="name" required placeholder="Nouveau paramètre" class="{small} col-span-4" />
 			<input name="unit" placeholder="Unité" class="{small} col-span-2" />
 			<input name="min" inputmode="decimal" placeholder="Min" class="{small} col-span-2" />
@@ -171,22 +171,22 @@
 	</section>
 
 	<section class="mb-8">
-		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Tâches récurrentes</h2>
+		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Tâches récurrentes</h2>
 		<ul class="flex flex-col gap-3">
 			{#each tasks as t (t.id)}
 				<li>
-					<form onsubmit={(e) => saveTask(e, t.id)} class="grid grid-cols-6 gap-2 rounded-lg bg-slate-900 p-3">
+					<form onsubmit={(e) => saveTask(e, t.id)} class="grid grid-cols-6 gap-2 card p-3">
 						<input name="title" value={t.title} required class="{small} col-span-6" aria-label="Titre" />
-						<label class="col-span-2 text-xs text-slate-400">Tous les (j)<input name="everyDays" type="number" min="1" max="365" value={t.everyDays} class={small} /></label>
-						<label class="col-span-3 text-xs text-slate-400">Prochaine<input name="nextDue" type="date" value={t.nextDue} class={small} /></label>
-						<label class="col-span-1 flex flex-col items-center text-xs text-slate-400">Actif<input name="active" type="checkbox" checked={t.active} class="mt-2 h-5 w-5 accent-cyan-500" /></label>
+						<label class="col-span-2 text-xs text-muted">Tous les (j)<input name="everyDays" type="number" min="1" max="365" value={t.everyDays} class={small} /></label>
+						<label class="col-span-3 text-xs text-muted">Prochaine<input name="nextDue" type="date" value={t.nextDue} class={small} /></label>
+						<label class="col-span-1 flex flex-col items-center text-xs text-muted">Actif<input name="active" type="checkbox" checked={t.active} class="mt-2 h-5 w-5 accent-primary" /></label>
 						<button class="{button} col-span-3">Enregistrer</button>
-						<button type="button" onclick={() => removeTask(t.id, t.title)} class="col-span-3 rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300">Supprimer</button>
+						<button type="button" onclick={() => removeTask(t.id, t.title)} class="col-span-3 rounded-lg border border-bad px-4 py-2 text-sm text-bad">Supprimer</button>
 					</form>
 				</li>
 			{/each}
 		</ul>
-		<form onsubmit={addTask} class="mt-3 grid grid-cols-6 gap-2 rounded-lg border border-dashed border-cyan-900 p-3">
+		<form onsubmit={addTask} class="mt-3 grid grid-cols-6 gap-2 rounded-lg border-2 border-dashed border-edge p-3">
 			<input name="title" required placeholder="Nouvelle tâche" class="{small} col-span-6" />
 			<select name="kind" class="{small} col-span-4" onchange={(e) => {
 				const kind = TASK_KINDS.find((k) => k.value === e.currentTarget.value);
@@ -200,7 +200,7 @@
 		</form>
 	</section>
 
-	<button onclick={removeAquarium} class="w-full rounded-lg border border-red-900 px-4 py-3 text-sm text-red-300">
+	<button onclick={removeAquarium} class="w-full rounded-lg border border-bad px-4 py-3 text-sm text-bad">
 		Supprimer cet aquarium
 	</button>
 {/if}

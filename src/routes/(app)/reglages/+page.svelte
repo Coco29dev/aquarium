@@ -73,29 +73,29 @@
 </script>
 
 <svelte:head>
-	<title>Réglages · Aquarium</title>
+	<title>Réglages · Bulle</title>
 </svelte:head>
 
 <div class="flex flex-col gap-6">
 	<h1 class="text-2xl font-semibold">Réglages</h1>
 
-	<h2 class="-mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Rappels</h2>
+	<h2 class="-mb-3 text-sm font-medium uppercase tracking-wide text-muted">Rappels</h2>
 
 	<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-		<dt class="text-slate-400">Installée</dt>
+		<dt class="text-muted">Installée</dt>
 		<dd>{installed ? 'oui (plein écran)' : 'non (ouverte dans le navigateur)'}</dd>
-		<dt class="text-slate-400">Permission</dt>
+		<dt class="text-muted">Permission</dt>
 		<dd>{permissionLabels[permission]}</dd>
-		<dt class="text-slate-400">Abonnement</dt>
+		<dt class="text-muted">Abonnement</dt>
 		<dd>{subscription}</dd>
 	</dl>
 
 	{#if !supported}
-		<p class="rounded-lg bg-amber-950 p-4 text-sm text-amber-200">
+		<p class="rounded-lg bg-warn-soft p-4 text-sm text-warn">
 			Les notifications push ne sont pas disponibles ici.
 		</p>
 	{:else if !installed}
-		<p class="rounded-lg bg-amber-950 p-4 text-sm text-amber-200">
+		<p class="rounded-lg bg-warn-soft p-4 text-sm text-warn">
 			Sur iPhone, ajoute d'abord l'appli à l'écran d'accueil (Partager → Sur l'écran d'accueil), puis
 			ouvre-la depuis l'icône pour activer les rappels.
 		</p>
@@ -104,20 +104,20 @@
 			<button
 				onclick={enable}
 				disabled={busy || permission === 'granted' || permission === 'denied'}
-				class="rounded-lg bg-cyan-700 px-4 py-3 font-medium active:bg-cyan-800 disabled:opacity-40"
+				class="rounded-lg btn-primary px-4 py-3 font-medium disabled:opacity-40"
 			>
 				Activer les rappels
 			</button>
 			<button
 				onclick={test}
 				disabled={busy || permission !== 'granted'}
-				class="rounded-lg border border-cyan-700 px-4 py-3 font-medium active:bg-cyan-950 disabled:opacity-40"
+				class="rounded-lg border-2 border-edge px-4 py-3 font-medium active:bg-surface2 disabled:opacity-40"
 			>
 				Envoyer un test
 			</button>
 		</div>
 		{#if permission === 'denied'}
-			<p class="text-sm text-slate-400">
+			<p class="text-sm text-muted">
 				Permission refusée : réactive-la dans Réglages → Notifications → Aquarium.
 			</p>
 		{/if}
@@ -127,20 +127,20 @@
 		<p class="text-sm" role="status">{message}</p>
 	{/if}
 
-	<h2 class="-mb-3 mt-4 text-sm font-medium uppercase tracking-wide text-slate-400">Sauvegarde</h2>
+	<h2 class="-mb-3 mt-4 text-sm font-medium uppercase tracking-wide text-muted">Sauvegarde</h2>
 	<ul class="flex flex-col gap-2 text-sm">
-		<li><a href="/api/export?format=json" download class="text-cyan-300 underline">Tout exporter (JSON)</a></li>
-		<li><a href="/api/export?format=csv&table=measurements" download class="text-cyan-300 underline">Mesures (CSV)</a></li>
-		<li><a href="/api/export?format=csv&table=completions" download class="text-cyan-300 underline">Tâches réalisées (CSV)</a></li>
-		<li><a href="/api/export?format=csv&table=expenses" download class="text-cyan-300 underline">Dépenses (CSV)</a></li>
+		<li><a href="/api/export?format=json" download class="text-primary underline">Tout exporter (JSON)</a></li>
+		<li><a href="/api/export?format=csv&table=measurements" download class="text-primary underline">Mesures (CSV)</a></li>
+		<li><a href="/api/export?format=csv&table=completions" download class="text-primary underline">Tâches réalisées (CSV)</a></li>
+		<li><a href="/api/export?format=csv&table=expenses" download class="text-primary underline">Dépenses (CSV)</a></li>
 	</ul>
 
-	<p class="text-xs text-slate-500">
+	<p class="text-xs text-muted">
 		{store.pending.length} saisie(s) en attente · dernière synchronisation :
 		{store.lastSync ? new Date(store.lastSync).toLocaleString('fr-FR') : 'jamais'}
 	</p>
 
 	<form method="POST" action="/logout">
-		<button class="text-sm text-slate-400 underline">Se déconnecter</button>
+		<button class="text-sm text-muted underline">Se déconnecter</button>
 	</form>
 </div>

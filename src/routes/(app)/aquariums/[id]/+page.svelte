@@ -66,83 +66,83 @@
 
 	const status = (p: Parameter) => {
 		const alert = analyzeParameter(p, measurements.filter((m) => m.parameterId === p.id));
-		return alert ? (alert.level === 'hors_plage' ? 'text-red-300' : 'text-amber-300') : 'text-slate-400';
+		return alert ? (alert.level === 'hors_plage' ? 'text-bad' : 'text-warn') : 'text-muted';
 	};
 </script>
 
-<svelte:head><title>{aquarium?.name ?? 'Aquarium'} · Aquarium</title></svelte:head>
+<svelte:head><title>{aquarium?.name ?? 'Aquarium'} · Bulle</title></svelte:head>
 
 {#if !aquarium}
-	<p class="text-sm text-slate-400">Aquarium introuvable.</p>
+	<p class="text-sm text-muted">Aquarium introuvable.</p>
 {:else}
 	<header class="mb-6 flex items-start justify-between gap-4">
 		<h1 class="text-2xl font-semibold">{aquarium.name}</h1>
-		<a href="/aquariums/{id}/reglages" class="text-sm text-cyan-300 underline">Réglages</a>
+		<a href="/aquariums/{id}/reglages" class="text-sm text-primary underline">Réglages</a>
 	</header>
 
 	<nav class="mb-6 grid grid-cols-4 gap-2 text-center text-sm">
-		<a href="/aquariums/{id}/inventaire" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Inventaire</a>
-		<a href="/aquariums/{id}/peuplement" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Peuplement</a>
-		<a href="/aquariums/{id}/journal" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Journal</a>
-		<a href="/depenses" class="rounded-lg bg-slate-900 py-3 active:bg-slate-800">Dépenses</a>
+		<a href="/aquariums/{id}/inventaire" class="card py-3 active:bg-surface2">Inventaire</a>
+		<a href="/aquariums/{id}/peuplement" class="card py-3 active:bg-surface2">Peuplement</a>
+		<a href="/aquariums/{id}/journal" class="card py-3 active:bg-surface2">Journal</a>
+		<a href="/depenses" class="card py-3 active:bg-surface2">Dépenses</a>
 	</nav>
 
 	{#if coach && coach.stage !== 'aucune_mesure'}
-		<section class="mb-6 rounded-lg border {coach.ready ? 'border-emerald-700' : 'border-cyan-900'} p-4">
+		<section class="mb-6 rounded-lg border-2 {coach.ready ? 'border-ok' : 'border-edge'} p-4">
 			<h2 class="font-medium">{coach.title}</h2>
-			<p class="mt-1 text-sm text-slate-300">{coach.advice}</p>
+			<p class="mt-1 text-sm text-muted">{coach.advice}</p>
 		</section>
 	{/if}
 
 	<section class="mb-8">
 		<div class="mb-3 flex items-center justify-between">
-			<h2 class="text-sm font-medium uppercase tracking-wide text-slate-400">Saisie</h2>
-			<button onclick={confirmAll} class="text-sm text-cyan-300 underline">Tout confirmer</button>
+			<h2 class="text-sm font-medium uppercase tracking-wide text-muted">Saisie</h2>
+			<button onclick={confirmAll} class="text-sm text-primary underline">Tout confirmer</button>
 		</div>
 		<ul class="flex flex-col gap-2">
 			{#each parameters as p (p.id)}
-				<li class="flex items-center gap-2 rounded-lg bg-slate-900 p-2 pl-3">
+				<li class="flex items-center gap-2 card p-2 pl-3">
 					<input
 						type="checkbox"
 						bind:checked={checked[p.id]}
-						class="h-5 w-5 shrink-0 accent-cyan-500"
+						class="h-5 w-5 shrink-0 accent-primary"
 						aria-label="Enregistrer {p.name}"
 					/>
 					<span class="min-w-0 flex-1 truncate text-sm">
 						{p.name}
-						{#if p.unit}<span class="text-slate-500">({p.unit})</span>{/if}
+						{#if p.unit}<span class="text-muted">({p.unit})</span>{/if}
 					</span>
-					<button onclick={() => nudge(p, -1)} class="h-10 w-10 rounded-lg bg-slate-800 text-lg active:bg-slate-700" aria-label="Diminuer">−</button>
+					<button onclick={() => nudge(p, -1)} class="h-10 w-10 rounded-lg border-2 border-edge bg-surface2 text-lg active:bg-surface2" aria-label="Diminuer">−</button>
 					<input
 						value={current(p)}
 						oninput={(e) => edit(p, e.currentTarget.value)}
 						inputmode="decimal"
-						class="w-20 rounded-lg border border-cyan-900 bg-slate-950 px-2 py-2 text-center text-base"
+						class="w-20 rounded-lg border-2 border-edge bg-surface px-2 py-2 text-center text-base"
 						aria-label="Valeur de {p.name}"
 					/>
-					<button onclick={() => nudge(p, 1)} class="h-10 w-10 rounded-lg bg-slate-800 text-lg active:bg-slate-700" aria-label="Augmenter">+</button>
+					<button onclick={() => nudge(p, 1)} class="h-10 w-10 rounded-lg border-2 border-edge bg-surface2 text-lg active:bg-surface2" aria-label="Augmenter">+</button>
 				</li>
 			{/each}
 		</ul>
 		<button
 			onclick={save}
 			disabled={selected.length === 0}
-			class="mt-4 w-full rounded-lg bg-cyan-700 px-4 py-3 font-medium active:bg-cyan-800 disabled:opacity-40"
+			class="mt-4 w-full rounded-lg btn-primary px-4 py-3 font-medium disabled:opacity-40"
 		>
 			Enregistrer{selected.length ? ` (${selected.length})` : ''}
 		</button>
-		{#if savedNote}<p class="mt-2 text-center text-sm text-emerald-300" role="status">{savedNote}</p>{/if}
+		{#if savedNote}<p class="mt-2 text-center text-sm text-ok" role="status">{savedNote}</p>{/if}
 	</section>
 
 	<section>
-		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Graphes</h2>
+		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Graphes</h2>
 		<div class="flex flex-col gap-6">
 			{#each parameters as p (p.id)}
 				<div>
 					<p class="mb-1 text-sm {status(p)}">
 						{p.name}
 						{#if p.min != null || p.max != null}
-							<span class="text-xs text-slate-500">· plage {p.min ?? '…'} – {p.max ?? '…'} {p.unit}</span>
+							<span class="text-xs text-muted">· plage {p.min ?? '…'} – {p.max ?? '…'} {p.unit}</span>
 						{/if}
 					</p>
 					<Chart points={points(p)} min={p.min} max={p.max} decimals={p.decimals} />

@@ -68,7 +68,7 @@ sw.addEventListener('push', (event) => {
 	}
 	// iOS exige qu'une notification soit affichée à chaque push reçu.
 	event.waitUntil(
-		sw.registration.showNotification(data.title ?? 'Aquarium', {
+		sw.registration.showNotification(data.title ?? 'Bulle', {
 			body: data.body ?? '',
 			icon: '/pwa-192x192.png',
 			badge: '/pwa-64x64.png',

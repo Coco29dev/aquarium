@@ -89,78 +89,78 @@
 	}
 
 	const severityStyle = {
-		bloquant: 'bg-red-950 text-red-100',
-		attention: 'bg-amber-950 text-amber-100',
-		info: 'bg-slate-900 text-slate-300'
+		bloquant: 'bg-bad-soft text-bad',
+		attention: 'bg-warn-soft text-warn',
+		info: 'bg-surface text-muted'
 	} as const;
 	const severityLabel = { bloquant: 'À éviter', attention: 'Attention', info: 'Info' } as const;
-	const levelStyle = { ok: 'bg-emerald-500', elevee: 'bg-lime-500', limite: 'bg-amber-500', surcharge: 'bg-red-500' } as const;
+	const levelStyle = { ok: 'bg-ok', elevee: 'bg-accent', limite: 'bg-warn', surcharge: 'bg-bad' } as const;
 </script>
 
 {#snippet gauge(b: ReturnType<typeof bioload>, title: string)}
 	<div>
-		<div class="mb-1 flex justify-between text-xs text-slate-400">
+		<div class="mb-1 flex justify-between text-xs text-muted">
 			<span>{title}</span>
 			<span>{b.level ? BIOLOAD_LABELS[b.level] : 'Volume inconnu'}</span>
 		</div>
-		<div class="h-3 overflow-hidden rounded-full bg-slate-800">
-			<div class="h-full {b.level ? levelStyle[b.level] : 'bg-slate-600'}" style="width: {Math.min(100, (b.ratio ?? 0) * 100)}%"></div>
+		<div class="h-3 overflow-hidden rounded-full bg-surface2">
+			<div class="h-full {b.level ? levelStyle[b.level] : 'bg-muted'}" style="width: {Math.min(100, (b.ratio ?? 0) * 100)}%"></div>
 		</div>
-		<p class="mt-1 text-xs text-slate-500">{b.loadG} g{b.capacityG ? ` sur ${b.capacityG} g de capacité` : ''}</p>
+		<p class="mt-1 text-xs text-muted">{b.loadG} g{b.capacityG ? ` sur ${b.capacityG} g de capacité` : ''}</p>
 	</div>
 {/snippet}
 
 <svelte:head><title>Peuplement · {aquarium?.name ?? 'Aquarium'}</title></svelte:head>
 
-<a href="/aquariums/{id}" class="text-sm text-cyan-300 underline">← {aquarium?.name ?? 'Aquarium'}</a>
+<a href="/aquariums/{id}" class="text-sm text-primary underline">← {aquarium?.name ?? 'Aquarium'}</a>
 <h1 class="mb-2 mt-2 text-2xl font-semibold">Peuplement</h1>
-<p class="mb-5 text-xs text-slate-500">
+<p class="mb-5 text-xs text-muted">
 	Estimations indicatives d'après la taille adulte (poissons jeunes comptés comme adultes). Plus les fiches sont complètes, plus l'analyse est fiable.
 </p>
-{#if message}<p class="mb-4 rounded-lg bg-red-950 p-3 text-sm text-red-200" role="alert">{message}</p>{/if}
-{#if saved}<p class="mb-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200" role="status">{saved}</p>{/if}
+{#if message}<p class="mb-4 rounded-lg bg-bad-soft p-3 text-sm text-bad" role="alert">{message}</p>{/if}
+{#if saved}<p class="mb-4 rounded-lg bg-ok-soft p-3 text-sm text-ok" role="status">{saved}</p>{/if}
 
 <section class="mb-6 flex flex-col gap-4">
 	{@render gauge(now, 'Charge biologique actuelle')}
 	{#if draft.length}{@render gauge(after, 'Avec le brouillon')}{/if}
 	{#if after.unknown.length}
-		<p class="text-xs text-amber-300">Taille inconnue, charge non comptée : {after.unknown.join(', ')}.</p>
+		<p class="text-xs text-warn">Taille inconnue, charge non comptée : {after.unknown.join(', ')}.</p>
 	{/if}
 	{#if unlinked.length}
-		<p class="text-xs text-slate-400">
+		<p class="text-xs text-muted">
 			Hors analyse (pas reliés à une fiche) : {unlinked.map((i) => i.species).join(', ')}. Relie-les depuis
-			<a href="/aquariums/{id}/inventaire" class="text-cyan-300 underline">l'inventaire</a>.
+			<a href="/aquariums/{id}/inventaire" class="text-primary underline">l'inventaire</a>.
 		</p>
 	{/if}
 </section>
 
 <section class="mb-6">
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Simulateur : et si j'ajoutais…</h2>
+	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Simulateur : et si j'ajoutais…</h2>
 	<SpeciesPicker onpick={addDraft} water={tank.waterType === 'mer' || tank.waterType === 'recif' ? 'mer' : 'douce'} />
 	{#if draft.length}
 		<ul class="mt-3 flex flex-col gap-2">
 			{#each draft as d, i (d.species.id)}
-				<li class="flex items-center gap-2 rounded-lg bg-slate-900 p-2 pl-3">
+				<li class="flex items-center gap-2 card p-2 pl-3">
 					<span class="min-w-0 flex-1 truncate text-sm">{speciesName(d.species)}</span>
-					<button class="h-9 w-9 rounded-lg bg-slate-800" onclick={() => (d.quantity = Math.max(1, d.quantity - 1))} aria-label="Moins">−</button>
+					<button class="h-9 w-9 rounded-lg border-2 border-edge bg-surface2" onclick={() => (d.quantity = Math.max(1, d.quantity - 1))} aria-label="Moins">−</button>
 					<span class="w-6 text-center text-sm">{d.quantity}</span>
-					<button class="h-9 w-9 rounded-lg bg-slate-800" onclick={() => (d.quantity += 1)} aria-label="Plus">+</button>
-					<button class="px-2 text-xs text-red-300" onclick={() => draft.splice(i, 1)} aria-label="Retirer">×</button>
+					<button class="h-9 w-9 rounded-lg border-2 border-edge bg-surface2" onclick={() => (d.quantity += 1)} aria-label="Plus">+</button>
+					<button class="px-2 text-xs text-bad" onclick={() => draft.splice(i, 1)} aria-label="Retirer">×</button>
 				</li>
 			{/each}
 		</ul>
-		<button onclick={validate} class="mt-3 w-full rounded-lg bg-cyan-700 px-4 py-3 text-sm font-medium active:bg-cyan-800">
+		<button onclick={validate} class="mt-3 w-full rounded-lg btn-primary px-4 py-3 text-sm font-medium">
 			Ajouter ces espèces à l'inventaire
 		</button>
 	{/if}
 </section>
 
 <section>
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Compatibilité</h2>
+	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Compatibilité</h2>
 	{#if planned.length === 0}
-		<p class="text-sm text-slate-400">Aucune espèce reliée à une fiche. Ajoute-en depuis le simulateur ou l'inventaire.</p>
+		<p class="text-sm text-muted">Aucune espèce reliée à une fiche. Ajoute-en depuis le simulateur ou l'inventaire.</p>
 	{:else if issues.length === 0}
-		<p class="rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">Aucun conflit détecté avec les données disponibles.</p>
+		<p class="rounded-lg bg-ok-soft p-3 text-sm text-ok">Aucun conflit détecté avec les données disponibles.</p>
 	{:else}
 		<ul class="flex flex-col gap-2">
 			{#each issues as issue (issue.severity + issue.message)}

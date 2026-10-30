@@ -31,10 +31,10 @@
 		}
 	}
 
-	const field = 'rounded-lg border border-cyan-900 bg-slate-900 px-4 py-3 text-base';
+	const field = 'rounded-lg border-2 border-edge bg-surface px-4 py-3 text-base';
 </script>
 
-<svelte:head><title>Nouvel aquarium · Aquarium</title></svelte:head>
+<svelte:head><title>Nouvel aquarium · Bulle</title></svelte:head>
 
 <h1 class="mb-6 text-2xl font-semibold">Nouvel aquarium</h1>
 
@@ -51,7 +51,7 @@
 			{/each}
 		</select>
 	</label>
-	<p class="text-xs text-slate-400">
+	<p class="text-xs text-muted">
 		Paramètres créés : {PARAMETER_TEMPLATES[waterType].map((p) => p.name).join(', ')}. Tous modifiables ensuite.
 	</p>
 	<label class="flex flex-col gap-2 text-sm">
@@ -62,8 +62,8 @@
 		Date de mise en eau
 		<input bind:value={startedOn} type="date" class={field} />
 	</label>
-	{#if message}<p class="text-sm text-red-400" role="alert">{message}</p>{/if}
-	<button disabled={busy} class="rounded-lg bg-cyan-700 px-4 py-3 font-medium active:bg-cyan-800 disabled:opacity-40">
+	{#if message}<p class="text-sm text-bad" role="alert">{message}</p>{/if}
+	<button disabled={busy} class="rounded-lg btn-primary px-4 py-3 font-medium disabled:opacity-40">
 		Créer
 	</button>
 </form>

@@ -64,12 +64,12 @@
 	const salt = $derived(run(() => saltForBatch(n(volume), n(ppt))));
 	const adjust = $derived(run(() => salinityAdjust(n(volume), n(curPpt), n(ppt), n(freshPpt))));
 
-	const input = 'w-full rounded-lg border border-cyan-900 bg-slate-950 px-3 py-2 text-base';
-	const card = 'rounded-lg bg-slate-900 p-4';
+	const input = 'w-full rounded-lg border-2 border-edge bg-surface px-3 py-2 text-base';
+	const card = 'card p-4';
 </script>
 
 {#snippet field(label: string, id: string, getter: () => string, setter: (v: string) => void)}
-	<label class="flex flex-col gap-1 text-xs text-slate-400">
+	<label class="flex flex-col gap-1 text-xs text-muted">
 		{label}
 		<input {id} value={getter()} oninput={(e) => setter(e.currentTarget.value)} inputmode="decimal" class={input} />
 	</label>
@@ -77,18 +77,18 @@
 
 {#snippet result(r: { ok: true; value: unknown } | { ok: false; error: string }, text: (v: any) => string)}
 	{#if r.ok}
-		<p class="mt-2 rounded-lg bg-cyan-950 p-3 text-sm text-cyan-100">{text(r.value)}</p>
+		<p class="mt-2 rounded-lg bg-surface2 p-3 text-sm text-ink">{text(r.value)}</p>
 	{:else}
-		<p class="mt-2 text-sm text-amber-300">{r.error}</p>
+		<p class="mt-2 text-sm text-warn">{r.error}</p>
 	{/if}
 {/snippet}
 
-<svelte:head><title>Outils · Aquarium</title></svelte:head>
+<svelte:head><title>Outils · Bulle</title></svelte:head>
 
 <h1 class="mb-4 text-2xl font-semibold">Outils</h1>
 
 <div class="mb-6 grid grid-cols-2 gap-3">
-	<label class="flex flex-col gap-1 text-xs text-slate-400">
+	<label class="flex flex-col gap-1 text-xs text-muted">
 		Aquarium
 		<select bind:value={selected} class={input}>
 			<option value={null}>—</option>
@@ -111,7 +111,7 @@
 		</div>
 		{@render result(realV, (v) => `Volume brut ${fmt(v.grossL)} L · eau ${fmt(v.waterL)} L · volume net ${fmt(v.netL)} L`)}
 		{#if realV.ok}
-			<button class="mt-2 text-sm text-cyan-300 underline" onclick={() => realV.ok && (volume = String(realV.value.netL))}>
+			<button class="mt-2 text-sm text-primary underline" onclick={() => realV.ok && (volume = String(realV.value.netL))}>
 				Utiliser {fmt(realV.value.netL)} L comme volume
 			</button>
 		{/if}
@@ -132,7 +132,7 @@
 
 	<details class={card}>
 		<summary class="font-medium">Dosage d'un produit</summary>
-		<p class="mt-2 text-xs text-slate-500">
+		<p class="mt-2 text-xs text-muted">
 			Puissance = hausse × litres pour 1 mL. Ex. « 1 mL monte le KH de 1 °dKH dans 100 L » → 100.
 		</p>
 		<div class="mt-3 grid grid-cols-3 gap-2">
@@ -159,7 +159,7 @@
 
 	<details class={card}>
 		<summary class="font-medium">Salinité (eau de mer)</summary>
-		<p class="mt-2 text-xs text-slate-500">Conversion indicative à 25 °C (±0,5 ppt) ; vérifie avec ton réfractomètre.</p>
+		<p class="mt-2 text-xs text-muted">Conversion indicative à 25 °C (±0,5 ppt) ; vérifie avec ton réfractomètre.</p>
 		<div class="mt-3 grid grid-cols-2 gap-2">
 			{@render field('Densité (SG)', 'sg', () => sg, (v) => (sg = v))}
 			{@render field('Salinité visée (ppt)', 'ppt', () => ppt, (v) => (ppt = v))}

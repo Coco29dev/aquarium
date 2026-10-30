@@ -69,112 +69,112 @@
 		({ fishbase: 'FishBase', sealifebase: 'SeaLifeBase', maison: 'saisie à la main', noyau: 'noyau encyclopédique' })[s.source];
 </script>
 
-<svelte:head><title>Espèces · Aquarium</title></svelte:head>
+<svelte:head><title>Espèces · Bulle</title></svelte:head>
 
-{#if message}<p class="mb-4 rounded-lg bg-red-950 p-3 text-sm text-red-200" role="alert">{message}</p>{/if}
+{#if message}<p class="mb-4 rounded-lg bg-bad-soft p-3 text-sm text-bad" role="alert">{message}</p>{/if}
 
 {#if adding}
-	<button class="mb-3 text-sm text-cyan-300 underline" onclick={() => (adding = false)}>← Retour</button>
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Nouvelle espèce</h2>
+	<button class="mb-3 text-sm text-primary underline" onclick={() => (adding = false)}>← Retour</button>
+	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Nouvelle espèce</h2>
 	<SpeciesForm onsaved={open} oncancel={() => (adding = false)} />
 {:else if selected}
-	<button class="mb-3 text-sm text-cyan-300 underline" onclick={() => (selected = null)}>← Retour</button>
+	<button class="mb-3 text-sm text-primary underline" onclick={() => (selected = null)}>← Retour</button>
 	{#if selected.hasPhoto}
 		<figure class="mb-4">
 			<img src="/api/species/{selected.id}/photo" alt={speciesName(selected)} class="max-h-72 w-full rounded-lg object-cover" />
-			<figcaption class="mt-1 text-xs text-slate-500">
+			<figcaption class="mt-1 text-xs text-muted">
 				{selected.photoAuthor ?? 'Auteur inconnu'} · {selected.photoLicense}
 				{#if selected.photoSource}· <a href={selected.photoSource} target="_blank" rel="noreferrer" class="underline">source</a>{/if}
 			</figcaption>
 		</figure>
 	{/if}
 	<h1 class="text-2xl font-semibold">{speciesName(selected)}</h1>
-	<p class="mb-1 text-sm italic text-slate-400">{selected.scientificName}</p>
-	{#if selected.nameEn && selected.nameEn !== speciesName(selected)}<p class="text-xs text-slate-500">{selected.nameEn}</p>{/if}
-	<p class="mb-3 mt-1 text-xs text-slate-500">{KIND_LABELS[selected.kind]} · source : {sourceLabel(selected)}</p>
+	<p class="mb-1 text-sm italic text-muted">{selected.scientificName}</p>
+	{#if selected.nameEn && selected.nameEn !== speciesName(selected)}<p class="text-xs text-muted">{selected.nameEn}</p>{/if}
+	<p class="mb-3 mt-1 text-xs text-muted">{KIND_LABELS[selected.kind]} · source : {sourceLabel(selected)}</p>
 
 	{#if selected.dataQuality === 'claude'}
-		<div class="mb-4 flex items-center justify-between gap-3 rounded-lg bg-amber-950 p-3 text-xs text-amber-200">
+		<div class="mb-4 flex items-center justify-between gap-3 rounded-lg bg-warn-soft p-3 text-xs text-warn">
 			<span>Fiche rédigée par Claude de mémoire, à vérifier avant de t'y fier.</span>
 			<button class="shrink-0 underline" onclick={() => selected && verify(selected)}>Marquer vérifiée</button>
 		</div>
 	{:else if selected.dataQuality === 'verifie'}
-		<p class="mb-4 text-xs text-emerald-300">✓ Fiche vérifiée</p>
+		<p class="mb-4 text-xs text-ok">✓ Fiche vérifiée</p>
 	{/if}
 
 	{#if selected.description}<p class="mb-4 text-sm leading-relaxed">{selected.description}</p>{/if}
 
 	{#if !editing}
 		<dl class="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-			<dt class="text-slate-400">Eau</dt><dd>{water_(selected)}</dd>
-			<dt class="text-slate-400">Taille adulte</dt><dd>{selected.maxLengthCm ? `${selected.maxLengthCm} cm` : '—'}</dd>
-			<dt class="text-slate-400">Durée de vie</dt><dd>{selected.lifespanYears ? `${selected.lifespanYears} ans` : '—'}</dd>
-			<dt class="text-slate-400">Température</dt><dd>{range(selected.tempMin, selected.tempMax, ' °C')}</dd>
-			<dt class="text-slate-400">pH</dt><dd>{range(selected.phMin, selected.phMax)}</dd>
-			<dt class="text-slate-400">Volume min.</dt><dd>{selected.minTankL ? `${selected.minTankL} L` : '—'}</dd>
-			<dt class="text-slate-400">Tempérament</dt><dd>{selected.temperament ?? '—'}</dd>
-			<dt class="text-slate-400">Régime</dt><dd>{selected.diet ?? '—'}{selected.estimated.includes('diet') ? ' (estimé)' : ''}</dd>
-			<dt class="text-slate-400">Zone du bac</dt><dd>{selected.zone ?? '—'}{selected.estimated.includes('zone') ? ' (estimé)' : ''}</dd>
-			<dt class="text-slate-400">Groupe min.</dt><dd>{selected.groupMin ?? '—'}</dd>
-			<dt class="text-slate-400">Compatible récif</dt><dd>{yesNo(selected.reefSafe)}</dd>
+			<dt class="text-muted">Eau</dt><dd>{water_(selected)}</dd>
+			<dt class="text-muted">Taille adulte</dt><dd>{selected.maxLengthCm ? `${selected.maxLengthCm} cm` : '—'}</dd>
+			<dt class="text-muted">Durée de vie</dt><dd>{selected.lifespanYears ? `${selected.lifespanYears} ans` : '—'}</dd>
+			<dt class="text-muted">Température</dt><dd>{range(selected.tempMin, selected.tempMax, ' °C')}</dd>
+			<dt class="text-muted">pH</dt><dd>{range(selected.phMin, selected.phMax)}</dd>
+			<dt class="text-muted">Volume min.</dt><dd>{selected.minTankL ? `${selected.minTankL} L` : '—'}</dd>
+			<dt class="text-muted">Tempérament</dt><dd>{selected.temperament ?? '—'}</dd>
+			<dt class="text-muted">Régime</dt><dd>{selected.diet ?? '—'}{selected.estimated.includes('diet') ? ' (estimé)' : ''}</dd>
+			<dt class="text-muted">Zone du bac</dt><dd>{selected.zone ?? '—'}{selected.estimated.includes('zone') ? ' (estimé)' : ''}</dd>
+			<dt class="text-muted">Groupe min.</dt><dd>{selected.groupMin ?? '—'}</dd>
+			<dt class="text-muted">Compatible récif</dt><dd>{yesNo(selected.reefSafe)}</dd>
 		</dl>
-		{#if selected.notes}<p class="mb-4 whitespace-pre-wrap text-sm text-slate-300">{selected.notes}</p>{/if}
-		<button class="w-full rounded-lg border border-cyan-800 px-4 py-2 text-sm" onclick={() => (editing = true)}>Modifier la fiche</button>
+		{#if selected.notes}<p class="mb-4 whitespace-pre-wrap text-sm text-muted">{selected.notes}</p>{/if}
+		<button class="w-full rounded-lg border-2 border-edge px-4 py-2 text-sm" onclick={() => (editing = true)}>Modifier la fiche</button>
 	{:else}
 		{#key selected.id}<SpeciesForm species={selected} onsaved={open} oncancel={() => (editing = false)} />{/key}
 	{/if}
 	{#if selected.source === 'maison'}
-		<button class="mt-4 text-sm text-red-300 underline" onclick={() => selected && remove(selected)}>Supprimer cette espèce</button>
+		<button class="mt-4 text-sm text-bad underline" onclick={() => selected && remove(selected)}>Supprimer cette espèce</button>
 	{/if}
 {:else}
 	<h1 class="mb-2 text-2xl font-semibold">Espèces</h1>
-	<p class="mb-4 text-xs text-slate-500">
+	<p class="mb-4 text-xs text-muted">
 		Encyclopédie : noms français et latin, description, fiche d'élevage. Les fiches du noyau sont rédigées par Claude
 		de mémoire et marquées « à vérifier ».
 	</p>
-	<input bind:value={query} oninput={later} type="search" placeholder="Nom français, anglais ou latin" class="mb-2 w-full rounded-lg border border-cyan-900 bg-slate-950 px-3 py-2 text-base" aria-label="Rechercher" />
+	<input bind:value={query} oninput={later} type="search" placeholder="Nom français, anglais ou latin" class="mb-2 w-full rounded-lg border-2 border-edge bg-surface px-3 py-2 text-base" aria-label="Rechercher" />
 	<div class="mb-2 grid grid-cols-2 gap-2">
-		<select bind:value={kind} onchange={search} class="rounded-lg border border-cyan-900 bg-slate-950 px-2 py-2 text-sm" aria-label="Type">
+		<select bind:value={kind} onchange={search} class="rounded-lg border-2 border-edge bg-surface px-2 py-2 text-sm" aria-label="Type">
 			<option value="">Tous types</option>
 			{#each Object.entries(KIND_LABELS) as [value, label] (value)}<option {value}>{label}</option>{/each}
 		</select>
-		<select bind:value={water} onchange={search} class="rounded-lg border border-cyan-900 bg-slate-950 px-2 py-2 text-sm" aria-label="Eau">
+		<select bind:value={water} onchange={search} class="rounded-lg border-2 border-edge bg-surface px-2 py-2 text-sm" aria-label="Eau">
 			<option value="">Toutes eaux</option>
 			<option value="douce">Eau douce</option>
 			<option value="mer">Eau de mer</option>
 		</select>
 	</div>
-	<label class="mb-4 flex items-center gap-2 text-xs text-slate-400">
-		<input type="checkbox" bind:checked={all} onchange={search} class="accent-cyan-500" />
+	<label class="mb-4 flex items-center gap-2 text-xs text-muted">
+		<input type="checkbox" bind:checked={all} onchange={search} class="accent-primary" />
 		Inclure la base brute (~8 000 espèces hors noyau, souvent sans fiche)
 	</label>
 
 	<ul class="mb-4 flex flex-col gap-2">
 		{#each results as s (s.id)}
 			<li>
-				<button class="flex w-full items-center gap-3 rounded-lg bg-slate-900 p-2 text-left active:bg-slate-800" onclick={() => open(s.id)}>
+				<button class="flex w-full items-center gap-3 card p-2 text-left active:bg-surface2" onclick={() => open(s.id)}>
 					{#if s.hasPhoto}
 						<img src="/api/species/{s.id}/photo" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded object-cover" />
 					{:else}
-						<span class="h-14 w-14 shrink-0 rounded bg-slate-800"></span>
+						<span class="h-14 w-14 shrink-0 rounded bg-surface2"></span>
 					{/if}
 					<span class="min-w-0">
 						<span class="block truncate text-sm">{speciesName(s)}</span>
-						<span class="block truncate text-xs italic text-slate-400">{s.scientificName}</span>
-						<span class="block truncate text-xs text-slate-500">{KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}{s.curated ? '' : ' · base brute'}</span>
+						<span class="block truncate text-xs italic text-muted">{s.scientificName}</span>
+						<span class="block truncate text-xs text-muted">{KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm} cm` : ''}{s.curated ? '' : ' · base brute'}</span>
 					</span>
 				</button>
 			</li>
 		{:else}
-			{#if !loading}<li class="text-sm text-slate-400">Aucun résultat.</li>{/if}
+			{#if !loading}<li class="text-sm text-muted">Aucun résultat.</li>{/if}
 		{/each}
 	</ul>
-	{#if results.length >= 40}<p class="mb-4 text-xs text-slate-500">40 premiers résultats : précise la recherche.</p>{/if}
+	{#if results.length >= 40}<p class="mb-4 text-xs text-muted">40 premiers résultats : précise la recherche.</p>{/if}
 
-	<button class="w-full rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium active:bg-cyan-800" onclick={() => (adding = true)}>
+	<button class="w-full rounded-lg btn-primary px-4 py-2 text-sm font-medium" onclick={() => (adding = true)}>
 		Ajouter une espèce à la main
 	</button>
-	<p class="mt-8 text-xs text-slate-600">
+	<p class="mt-8 text-xs text-muted">
 		Données de base : FishBase (fishbase.org) et SeaLifeBase (sealifebase.org), CC-BY-NC 4.0. Photos : Wikimedia Commons,
 		auteurs et licences indiqués sous chaque image.
 	</p>

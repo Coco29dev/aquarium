@@ -16,16 +16,16 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			injectRegister: false,
 			manifest: {
-				name: 'Aquarium',
-				short_name: 'Aquarium',
+				name: 'Bulle',
+				short_name: 'Bulle',
 				description: 'Suivi personnel de mes aquariums',
 				lang: 'fr',
 				start_url: '/',
 				scope: '/',
 				display: 'standalone',
 				orientation: 'portrait',
-				theme_color: '#0e7490',
-				background_color: '#0b1f2a',
+				theme_color: '#e8eeff',
+				background_color: '#e8eeff',
 				icons: [
 					{ src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
 					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
@@ -38,7 +38,7 @@ export default defineConfig({
 				]
 			},
 			injectManifest: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webmanifest}']
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webmanifest,woff2}']
 			},
 			kit: {
 				adapterFallback: undefined

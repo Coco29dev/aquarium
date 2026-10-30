@@ -73,46 +73,46 @@
 		}
 	}
 
-	const field = 'w-full rounded-lg border border-cyan-900 bg-slate-950 px-3 py-2 text-sm';
+	const field = 'w-full rounded-lg border-2 border-edge bg-surface px-3 py-2 text-sm';
 	const date = (d: string) => new Date(d).toLocaleDateString('fr-FR');
 </script>
 
 <svelte:head><title>Journal · {aquarium?.name ?? 'Aquarium'}</title></svelte:head>
 
-<a href="/aquariums/{id}" class="text-sm text-cyan-300 underline">← {aquarium?.name ?? 'Aquarium'}</a>
+<a href="/aquariums/{id}" class="text-sm text-primary underline">← {aquarium?.name ?? 'Aquarium'}</a>
 <h1 class="mb-6 mt-2 text-2xl font-semibold">Journal</h1>
-{#if message}<p class="mb-4 rounded-lg bg-red-950 p-3 text-sm text-red-200" role="alert">{message}</p>{/if}
+{#if message}<p class="mb-4 rounded-lg bg-bad-soft p-3 text-sm text-bad" role="alert">{message}</p>{/if}
 
 <section class="mb-8">
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Photos</h2>
-	<label class="mb-3 block rounded-lg bg-cyan-700 px-4 py-3 text-center font-medium active:bg-cyan-800 {uploading ? 'opacity-40' : ''}">
+	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Photos</h2>
+	<label class="mb-3 block rounded-lg btn-primary px-4 py-3 text-center font-medium {uploading ? 'opacity-40' : ''}">
 		{uploading ? 'Envoi…' : 'Ajouter des photos'}
 		<input type="file" accept="image/*" multiple class="sr-only" disabled={uploading} onchange={upload} />
 	</label>
 	<ul class="grid grid-cols-3 gap-2">
 		{#each photos as photo (photo.id)}
 			<li>
-				<button class="block aspect-square w-full overflow-hidden rounded-lg bg-slate-900" onclick={() => (viewing = photo)}>
+				<button class="block aspect-square w-full overflow-hidden card" onclick={() => (viewing = photo)}>
 					<img src="/api/photos/{photo.id}" alt={photo.caption ?? `Photo du ${date(photo.takenOn)}`} loading="lazy" class="h-full w-full object-cover" />
 				</button>
 			</li>
 		{/each}
 	</ul>
-	{#if photos.length === 0}<p class="text-sm text-slate-400">Aucune photo.</p>{/if}
+	{#if photos.length === 0}<p class="text-sm text-muted">Aucune photo.</p>{/if}
 </section>
 
 <section>
-	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Notes</h2>
+	<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Notes</h2>
 	<form onsubmit={addNote} class="mb-4 flex flex-col gap-2">
 		<textarea name="body" required rows="3" maxlength="4000" placeholder="Observation, comportement, incident…" class={field}></textarea>
-		<button class="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium active:bg-cyan-800">Ajouter la note</button>
+		<button class="rounded-lg btn-primary px-4 py-2 text-sm font-medium">Ajouter la note</button>
 	</form>
 	<ul class="flex flex-col gap-2">
 		{#each notes as note (note.id)}
-			<li class="rounded-lg bg-slate-900 p-3">
-				<div class="flex justify-between text-xs text-slate-400">
+			<li class="card p-3">
+				<div class="flex justify-between text-xs text-muted">
 					<span>{date(note.notedOn)}</span>
-					<button class="text-red-300 underline" onclick={() => confirm('Supprimer cette note ?') && deleteResource('notes', note.id).then(load)}>Supprimer</button>
+					<button class="text-bad underline" onclick={() => confirm('Supprimer cette note ?') && deleteResource('notes', note.id).then(load)}>Supprimer</button>
 				</div>
 				<p class="mt-1 whitespace-pre-wrap text-sm">{note.body}</p>
 			</li>
@@ -125,8 +125,8 @@
 		<div class="flex items-center justify-between p-4 text-sm">
 			<span>{date(viewing.takenOn)}</span>
 			<span class="flex gap-5">
-				<button class="text-red-300 underline" onclick={() => viewing && removePhoto(viewing)}>Supprimer</button>
-				<button class="text-cyan-300 underline" onclick={() => (viewing = null)}>Fermer</button>
+				<button class="text-bad underline" onclick={() => viewing && removePhoto(viewing)}>Supprimer</button>
+				<button class="text-primary underline" onclick={() => (viewing = null)}>Fermer</button>
 			</span>
 		</div>
 		<img src="/api/photos/{viewing.id}" alt={viewing.caption ?? 'Photo'} class="min-h-0 flex-1 object-contain" />

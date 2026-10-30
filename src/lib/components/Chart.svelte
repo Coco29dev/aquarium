@@ -12,6 +12,15 @@
 
 	let container: HTMLDivElement;
 	let width = $state(320);
+	// Incrémenté quand l'iPhone passe du clair au sombre : redessine le graphe avec les bonnes couleurs.
+	let scheme = $state(0);
+
+	$effect(() => {
+		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		const onChange = () => scheme++;
+		mq.addEventListener('change', onChange);
+		return () => mq.removeEventListener('change', onChange);
+	});
 
 	$effect(() => {
 		const data = points;
@@ -19,6 +28,13 @@
 		const hi = max;
 		const w = width;
 		const digits = decimals;
+		void scheme;
+		const css = getComputedStyle(document.documentElement);
+		const color = (name: string) => css.getPropertyValue(name).trim();
+		const primary = color('--primary');
+		const accent = color('--accent');
+		const muted = color('--muted');
+		const grid = color('--line');
 		let plot: uPlot | undefined;
 		let cancelled = false;
 
@@ -28,9 +44,9 @@
 			const series: uPlot.Series[] = [
 				{},
 				{
-					stroke: '#22d3ee',
-					width: 2,
-					points: { size: 6, fill: '#22d3ee' },
+					stroke: primary,
+					width: 2.5,
+					points: { size: 7, fill: primary },
 					value: (_u, v) => (v == null ? '' : v.toFixed(digits))
 				}
 			];
@@ -38,7 +54,7 @@
 			// Plage acceptable : deux lignes en pointillés.
 			for (const bound of [lo, hi]) {
 				if (bound == null) continue;
-				series.push({ stroke: '#f59e0b', width: 1, dash: [6, 4], points: { show: false }, label: 'limite' });
+				series.push({ stroke: accent, width: 1, dash: [6, 4], points: { show: false }, label: 'limite' });
 				columns.push(xs.map(() => bound));
 			}
 			plot = new uPlot(
@@ -49,8 +65,8 @@
 					legend: { show: false },
 					scales: { x: { time: true } },
 					axes: [
-						{ stroke: '#94a3b8', grid: { stroke: '#1e293b' }, ticks: { show: false } },
-						{ stroke: '#94a3b8', grid: { stroke: '#1e293b' }, ticks: { show: false }, size: 44 }
+						{ stroke: muted, grid: { stroke: grid }, ticks: { show: false } },
+						{ stroke: muted, grid: { stroke: grid }, ticks: { show: false }, size: 44 }
 					],
 					series
 				},
@@ -69,5 +85,5 @@
 <div bind:this={container} bind:clientWidth={width} class="w-full"></div>
 
 {#if points.length === 0}
-	<p class="text-xs text-slate-500">Pas encore de mesure.</p>
+	<p class="text-xs text-muted">Pas encore de mesure.</p>
 {/if}

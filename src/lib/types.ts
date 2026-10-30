@@ -53,6 +53,8 @@ export interface Snapshot {
 	parameters: Parameter[];
 	measurements: Measurement[];
 	tasks: Task[];
+	/** Absent d'un ancien cache local. */
+	consumables?: ConsumableRow[];
 }
 
 /** Opérations saisies hors ligne, renvoyées à l'ouverture suivante. */
@@ -66,3 +68,56 @@ export type SyncOp =
 			measuredAt: string;
 	  }
 	| { type: 'completion'; clientId: string; taskId: number; doneAt: string; note?: string };
+
+export type SpeciesKind = 'poisson' | 'corail' | 'invertebre' | 'plante' | 'autre';
+export type Temperament = 'paisible' | 'semi-agressif' | 'agressif';
+export type Diet = 'carnivore' | 'omnivore' | 'herbivore' | 'filtreur' | 'autre';
+export type Zone = 'haut' | 'milieu' | 'bas' | 'tous';
+
+export const KIND_LABELS: Record<SpeciesKind, string> = {
+	poisson: 'Poisson',
+	corail: 'Corail / anémone',
+	invertebre: 'Invertébré',
+	plante: 'Plante',
+	autre: 'Autre'
+};
+
+export interface Species {
+	id: number;
+	source: 'fishbase' | 'sealifebase' | 'maison';
+	scientificName: string;
+	nameFr: string | null;
+	nameEn: string | null;
+	kind: SpeciesKind;
+	fresh: boolean;
+	brackish: boolean;
+	salt: boolean;
+	maxLengthCm: number | null;
+	lifespanYears: number | null;
+	tempMin: number | null;
+	tempMax: number | null;
+	phMin: number | null;
+	phMax: number | null;
+	minTankL: number | null;
+	temperament: Temperament | null;
+	diet: Diet | null;
+	zone: Zone | null;
+	groupMin: number | null;
+	reefSafe: boolean | null;
+	bioloadG: number | null;
+	notes: string | null;
+	/** Champs déduits de FishBase, à confirmer. */
+	estimated: string[];
+}
+
+export interface ConsumableRow {
+	id: number;
+	equipmentId: number;
+	aquariumId: number;
+	name: string;
+	installedOn: string | null;
+	replaceEveryDays: number | null;
+	unitPrice: number | null;
+	/** Dates (installation → remplacement) des remplacements passés. */
+	history: { installedOn: string; replacedOn: string }[];
+}

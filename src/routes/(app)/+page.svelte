@@ -4,11 +4,19 @@
 	import { cyclingForAquarium } from '$lib/domain/cycling';
 	import { daysBetween, dayInParis } from '$lib/domain/dates';
 	import { dueTasks } from '$lib/domain/tasks';
+	import { consumableLife } from '$lib/domain/consumables';
 
 	const view = $derived(store.view);
 	const today = dayInParis();
 	const due = $derived(view ? dueTasks(view.tasks) : []);
 	const alerts = $derived(view ? collectAlerts(view.parameters, view.measurements) : []);
+
+	const consumablesDue = $derived(
+		(view?.consumables ?? [])
+			.map((c) => ({ c, life: consumableLife(c, c.history, today) }))
+			.filter((x) => x.life.status === 'en_retard' || x.life.status === 'bientot')
+			.sort((a, b) => (a.life.daysLeft ?? 0) - (b.life.daysLeft ?? 0))
+	);
 
 	const nameOf = (id: number) => view?.aquariums.find((a) => a.id === id)?.name ?? '';
 
@@ -63,6 +71,24 @@
 			</ul>
 		{/if}
 	</section>
+
+	{#if consumablesDue.length}
+		<section class="mb-8">
+			<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Consommables</h2>
+			<ul class="flex flex-col gap-2">
+				{#each consumablesDue as { c, life } (c.id)}
+					<li class="rounded-lg bg-slate-900 p-3 text-sm">
+						<a href="/aquariums/{c.aquariumId}/inventaire" class="block">
+							<p>{c.name}</p>
+							<p class="text-xs {life.status === 'en_retard' ? 'text-red-300' : 'text-amber-300'}">
+								{nameOf(c.aquariumId)} · {life.daysLeft! < 0 ? `à remplacer, en retard de ${-life.daysLeft!} j` : `à remplacer dans ${life.daysLeft} j`}
+							</p>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<section class="mb-8">
 		<h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Alertes</h2>

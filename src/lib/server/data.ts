@@ -5,7 +5,7 @@ import { deleteObject } from './storage';
 import { PARAMETER_TEMPLATES } from '$lib/templates';
 import { dayInParis } from '$lib/domain/dates';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Aquarium, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
+import type { Aquarium, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
 
 const SNAPSHOT_DAYS = 120;
 
@@ -16,7 +16,7 @@ const taskSql = `id, aquarium_id AS "aquariumId", title, kind, every_days AS "ev
 	next_due AS "nextDue", active`;
 
 export async function loadSnapshot(): Promise<Snapshot> {
-	const [aquariums, parameters, measurements, tasks] = await Promise.all([
+	const [aquariums, parameters, measurements, tasks, consumables, replacements] = await Promise.all([
 		db().query<Aquarium>(`SELECT ${aquariumSql} FROM aquariums ORDER BY id`),
 		db().query<Parameter>(`SELECT ${parameterSql} FROM parameter_defs ORDER BY aquarium_id, position, id`),
 		db().query<Measurement>(
@@ -27,14 +27,30 @@ export async function loadSnapshot(): Promise<Snapshot> {
 			 ORDER BY measured_at`,
 			[String(SNAPSHOT_DAYS)]
 		),
-		db().query<Task>(`SELECT ${taskSql} FROM recurring_tasks ORDER BY aquarium_id, id`)
+		db().query<Task>(`SELECT ${taskSql} FROM recurring_tasks ORDER BY aquarium_id, id`),
+		db().query<Omit<ConsumableRow, 'history'>>(
+			`SELECT c.id, c.equipment_id AS "equipmentId", e.aquarium_id AS "aquariumId", c.name,
+			        c.installed_on AS "installedOn", c.replace_every_days AS "replaceEveryDays", c.unit_price AS "unitPrice"
+			 FROM consumables c JOIN equipment e ON e.id = c.equipment_id ORDER BY c.id`
+		),
+		db().query<{ consumableId: number; installedOn: string; replacedOn: string }>(
+			`SELECT consumable_id AS "consumableId", installed_on AS "installedOn", replaced_on AS "replacedOn"
+			 FROM consumable_replacements ORDER BY replaced_on DESC`
+		)
 	]);
+	const history = new Map<number, { installedOn: string; replacedOn: string }[]>();
+	for (const r of replacements.rows) {
+		const list = history.get(r.consumableId) ?? [];
+		list.push({ installedOn: r.installedOn, replacedOn: r.replacedOn });
+		history.set(r.consumableId, list);
+	}
 	return {
 		generatedAt: new Date().toISOString(),
 		aquariums: aquariums.rows,
 		parameters: parameters.rows,
 		measurements: measurements.rows,
-		tasks: tasks.rows
+		tasks: tasks.rows,
+		consumables: consumables.rows.map((c) => ({ ...c, history: history.get(c.id) ?? [] }))
 	};
 }
 

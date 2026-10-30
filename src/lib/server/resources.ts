@@ -36,6 +36,7 @@ export const RESOURCES: Record<string, Resource> = {
 			kind: { column: 'kind', type: 'enum', required: true, values: ['faune', 'flore'] },
 			species: text('species', true),
 			quantity: { column: 'quantity', type: 'int' },
+			speciesId: { column: 'species_id', type: 'int' },
 			arrivedOn: date('arrived_on'),
 			leftOn: date('left_on'),
 			notes: text('notes', false, 1000)
@@ -62,6 +63,7 @@ export const RESOURCES: Record<string, Resource> = {
 			name: text('name', true),
 			installedOn: date('installed_on'),
 			replaceEveryDays: { column: 'replace_every_days', type: 'int' },
+			unitPrice: { column: 'unit_price', type: 'number' },
 			notes: text('notes', false, 1000)
 		}
 	},

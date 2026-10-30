@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
-	import { createResource, deleteResource, listResource, toNumber, toText, updateResource } from '$lib/client/api';
+	import { api, createResource, deleteResource, listResource, toNumber, toText, updateResource } from '$lib/client/api';
+	import { consumableLife } from '$lib/domain/consumables';
+	import { speciesName } from '$lib/domain/species';
+	import type { Species } from '$lib/types';
 	import { addDays, dayInParis, daysBetween } from '$lib/domain/dates';
 
-	interface Inhabitant { id: number; kind: 'faune' | 'flore'; species: string; quantity: number; arrivedOn: string | null; leftOn: string | null; notes: string | null }
+	interface Inhabitant { id: number; kind: 'faune' | 'flore'; species: string; speciesId: number | null; quantity: number; arrivedOn: string | null; leftOn: string | null; notes: string | null }
 	interface Equipment { id: number; name: string; category: string | null; purchasedOn: string | null; price: number | null; warrantyUntil: string | null; notes: string | null }
-	interface Consumable { id: number; scopeId: number; name: string; installedOn: string | null; replaceEveryDays: number | null }
+	interface Consumable { id: number; scopeId: number; name: string; installedOn: string | null; replaceEveryDays: number | null; unitPrice: number | null }
 
 	const id = $derived(Number(page.params.id));
 	const aquarium = $derived(store.view?.aquariums.find((a) => a.id === id));
@@ -18,6 +22,14 @@
 	let consumables = $state<Consumable[]>([]);
 	let message = $state('');
 	let loading = $state(true);
+	let speciesText = $state('');
+	let pickedSpecies = $state<Species | null>(null);
+	let linking = $state<number | null>(null);
+
+	function pick(species: Species) {
+		pickedSpecies = species;
+		speciesText = speciesName(species);
+	}
 
 	async function load() {
 		try {
@@ -55,14 +67,17 @@
 		};
 	}
 
-	const addInhabitant = submit((f) =>
-		createResource('inhabitants', id, {
-			kind: f.get('kind'),
-			species: f.get('species'),
+	const addInhabitant = submit(async (f) => {
+		await createResource('inhabitants', id, {
+			kind: pickedSpecies?.kind === 'plante' ? 'flore' : f.get('kind'),
+			species: speciesText,
+			speciesId: pickedSpecies?.id ?? null,
 			quantity: toNumber(f.get('quantity')) ?? 1,
 			arrivedOn: toText(f.get('arrivedOn')) ?? today
-		})
-	);
+		});
+		speciesText = '';
+		pickedSpecies = null;
+	});
 	const addEquipment = submit((f) =>
 		createResource('equipment', id, {
 			name: f.get('name'),
@@ -77,6 +92,7 @@
 			createResource('consumables', equipmentId, {
 				name: f.get('name'),
 				replaceEveryDays: toNumber(f.get('every')),
+				unitPrice: toNumber(f.get('price')),
 				installedOn: today
 			})
 		);
@@ -89,15 +105,6 @@
 		const left = daysBetween(today, until);
 		if (left < 0) return { label: 'garantie expirée', cls: 'text-slate-500' };
 		return { label: `garantie encore ${left} j`, cls: left < 60 ? 'text-amber-300' : 'text-emerald-300' };
-	}
-
-	function replaceOn(c: Consumable): { label: string; cls: string } | null {
-		if (!c.installedOn || !c.replaceEveryDays) return null;
-		const due = addDays(c.installedOn, c.replaceEveryDays);
-		const left = daysBetween(today, due);
-		return left < 0
-			? { label: `à remplacer (retard ${-left} j)`, cls: 'text-red-300' }
-			: { label: `à remplacer dans ${left} j`, cls: left < 14 ? 'text-amber-300' : 'text-slate-400' };
 	}
 
 	const field = 'w-full rounded-lg border border-cyan-900 bg-slate-950 px-3 py-2 text-sm';
@@ -123,17 +130,24 @@
 					<p class="text-xs text-slate-400">depuis le {i.arrivedOn ? new Date(i.arrivedOn).toLocaleDateString('fr-FR') : '?'}</p>
 				</div>
 				<div class="flex flex-col items-end gap-1">
+					{#if i.speciesId == null}<button class={link} onclick={() => (linking = linking === i.id ? null : i.id)}>Relier à une fiche</button>{/if}
 					<button class={link} onclick={() => act(() => updateResource('inhabitants', i.id, { leftOn: today }))}>Parti / mort</button>
 					<button class={danger} onclick={() => confirm(`Supprimer « ${i.species} » ?`) && act(() => deleteResource('inhabitants', i.id))}>Supprimer</button>
 				</div>
 			</li>
+			{#if linking === i.id}
+				<li class="rounded-lg bg-slate-900 p-3">
+					<SpeciesPicker onpick={(sp) => { linking = null; void act(() => updateResource('inhabitants', i.id, { speciesId: sp.id })); }} />
+				</li>
+			{/if}
 		{:else}
 			{#if !loading}<li class="text-sm text-slate-400">Aucun habitant.</li>{/if}
 		{/each}
 	</ul>
 	<form onsubmit={addInhabitant} class="mt-3 grid grid-cols-6 gap-2 rounded-lg border border-dashed border-cyan-900 p-3">
+		<div class="col-span-6"><SpeciesPicker onpick={pick} placeholder="Chercher dans la base d'espèces (optionnel)" /></div>
 		<select name="kind" class="{field} col-span-2"><option value="faune">Faune</option><option value="flore">Flore</option></select>
-		<input name="species" required placeholder="Espèce" class="{field} col-span-3" />
+		<input bind:value={speciesText} required placeholder="Espèce" class="{field} col-span-3" />
 		<input name="quantity" inputmode="numeric" placeholder="Qté" class="{field} col-span-1" />
 		<label class="col-span-3 text-xs text-slate-400">Arrivée<input name="arrivedOn" type="date" class={field} /></label>
 		<button class="{btn} col-span-3 self-end">Ajouter</button>
@@ -168,20 +182,30 @@
 				</div>
 				<ul class="mt-2 flex flex-col gap-1 border-t border-slate-800 pt-2">
 					{#each consumables.filter((c) => c.scopeId === e.id) as c (c.id)}
-						{@const r = replaceOn(c)}
-						<li class="flex items-center justify-between gap-2 text-sm">
-							<span class="min-w-0 truncate">{c.name}{#if r}<span class="ml-2 text-xs {r.cls}">{r.label}</span>{/if}</span>
+						{@const life = consumableLife(c, store.view?.consumables?.find((x) => x.id === c.id)?.history ?? [], today)}
+						<li class="text-sm">
+						<div class="flex items-center justify-between gap-2">
+							<span class="min-w-0 truncate">{c.name}{#if life.status !== 'inconnu'}<span class="ml-2 text-xs {life.status === 'en_retard' ? 'text-red-300' : life.status === 'bientot' ? 'text-amber-300' : 'text-slate-400'}">{life.daysLeft! < 0 ? `en retard de ${-life.daysLeft!} j` : `dans ${life.daysLeft} j`}</span>{/if}</span>
 							<span class="flex shrink-0 gap-3">
-								<button class={link} onclick={() => act(() => updateResource('consumables', c.id, { installedOn: today }))}>Remplacé</button>
+								<button class={link} onclick={() => act(async () => { await api('POST', `/api/consumables/${c.id}/replace`); await store.sync(); })}>Remplacé</button>
 								<button class={danger} onclick={() => act(() => deleteResource('consumables', c.id))}>×</button>
 							</span>
+						</div>
+						{#if life.observedDays || life.costPerMonth != null}
+							<p class="text-xs text-slate-500">
+								{#if life.observedDays}Durée réelle : {life.observedDays} j{#if life.plannedDays} (prévu {life.plannedDays} j){/if}.{/if}
+								{#if life.costPerMonth != null}Coût : {life.costPerMonth.toLocaleString('fr-FR')} €/mois.{/if}
+							</p>
+						{/if}
+						{#if life.suggestion}<p class="text-xs text-amber-300">{life.suggestion}</p>{/if}
 						</li>
 					{/each}
 				</ul>
 				<form onsubmit={addConsumable(e.id)} class="mt-2 grid grid-cols-6 gap-2">
 					<input name="name" required placeholder="Consommable (ex. charbon)" class="{field} col-span-3" />
 					<input name="every" inputmode="numeric" placeholder="Tous les (j)" class="{field} col-span-2" />
-					<button class="{btn} col-span-1 px-0">+</button>
+					<input name="price" inputmode="decimal" placeholder="Prix €" class="{field} col-span-2" />
+					<button class="{btn} col-span-4">Ajouter</button>
 				</form>
 			</li>
 		{:else}

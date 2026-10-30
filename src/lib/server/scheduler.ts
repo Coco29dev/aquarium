@@ -6,6 +6,7 @@ import { sendToAll } from './push';
 import { collectAlerts } from '$lib/domain/drift';
 import { dayInParis, TIMEZONE } from '$lib/domain/dates';
 import { dueTasks } from '$lib/domain/tasks';
+import { consumableLife } from '$lib/domain/consumables';
 
 let started = false;
 
@@ -19,12 +20,18 @@ export async function sendDailyReminder(now = new Date()): Promise<boolean> {
 	const due = dueTasks(snapshot.tasks, now);
 	const alerts = collectAlerts(snapshot.parameters, snapshot.measurements, now.getTime());
 
+	const lapsed = (snapshot.consumables ?? []).filter((c) => {
+		const life = consumableLife(c, c.history, today);
+		return life.daysLeft != null && life.daysLeft <= 0;
+	});
+
 	const parts: string[] = [];
 	if (due.length) parts.push(`${due.length} tâche${due.length > 1 ? 's' : ''} à faire`);
 	if (alerts.length) parts.push(`${alerts.length} alerte${alerts.length > 1 ? 's' : ''}`);
+	if (lapsed.length) parts.push(`${lapsed.length} consommable${lapsed.length > 1 ? 's' : ''} à remplacer`);
 	if (!parts.length) return false;
 
-	const first = due[0]?.title ?? alerts[0]?.message;
+	const first = due[0]?.title ?? alerts[0]?.message ?? lapsed[0]?.name;
 	await sendToAll({ title: 'Aquarium', body: `${parts.join(', ')} · ${first}`, url: '/' });
 	await db().query(
 		`INSERT INTO app_state (key, value) VALUES ('last_reminder_day', $1)

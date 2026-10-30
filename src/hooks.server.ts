@@ -1,10 +1,12 @@
 import { json, redirect, type Handle, type ServerInit } from '@sveltejs/kit';
 import { migrate } from '$lib/server/db';
+import { seedSpecies } from '$lib/server/species';
 import { startScheduler } from '$lib/server/scheduler';
 import { SESSION_COOKIE, verifySessionToken } from '$lib/server/session';
 
 export const init: ServerInit = async () => {
 	await migrate();
+	await seedSpecies();
 	startScheduler();
 };
 

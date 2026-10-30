@@ -14,7 +14,8 @@
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import SwipeRow from '$lib/ios/SwipeRow.svelte';
 	import StepButtons from '$lib/ios/StepButtons.svelte';
-	import type { Measurement } from '$lib/types';
+	import { EVENT_META, chartMarkers } from '$lib/domain/events';
+	import type { EventKind, Measurement } from '$lib/types';
 
 	const id = $derived(Number(page.params.id));
 	const pid = $derived(Number(page.params.pid));
@@ -61,16 +62,27 @@
 		};
 	});
 
-	// Repères des changements d'eau : réalisations des tâches « eau » du bac.
-	const markers = $derived.by(() => {
-		const waterTasks = new Set((view?.tasks ?? []).filter((t) => t.aquariumId === id && t.kind === 'eau').map((t) => t.id));
-		return (view?.completions ?? [])
-			.filter((c) => waterTasks.has(c.taskId))
-			.map((c) => {
-				const t = new Date(c.doneAt).getTime();
-				return { t, label: `Changement d’eau le ${new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` };
-			});
-	});
+	// Repères du journal d'événements sur le graphe : changements d'eau par défaut, autres types au choix.
+	const MARKER_KINDS: EventKind[] = ['changement_eau', 'appoint', 'dosage', 'eclairage', 'co2', 'maintenance', 'habitant_ajout', 'habitant_depart', 'etape'];
+	let markerKinds = $state<EventKind[]>(['changement_eau']);
+	let choosingMarkers = $state(false);
+	const markers = $derived(
+		chartMarkers(view?.events ?? [], {
+			kinds: markerKinds,
+			aquariumId: id,
+			from: Date.now() - days * DAY_MS
+		}).map(({ t, label }) => ({ t, label }))
+	);
+	const markerSummary = $derived(
+		markerKinds.length === 0
+			? 'Aucun'
+			: markerKinds.length === 1
+				? EVENT_META[markerKinds[0]].label
+				: `${markerKinds.length} types`
+	);
+	function toggleKind(k: EventKind) {
+		markerKinds = markerKinds.includes(k) ? markerKinds.filter((x) => x !== k) : [...markerKinds, k];
+	}
 
 	// Modification d'une mesure déjà envoyée.
 	let editing = $state<Measurement | null>(null);
@@ -199,7 +211,7 @@
 	{#if markers.length}
 		<p class="footnote mb-5 flex items-center gap-1.5 px-1 text-label2">
 			<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M5 0.5S1 4.9 1 7.7a4 4 0 0 0 8 0C9 4.9 5 .5 5 .5z" fill="var(--cyan)" /></svg>
-			Les pointillés bleus marquent les changements d’eau.
+			Les pointillés marquent les événements du journal ({markerSummary.toLowerCase()}).
 		</p>
 	{:else}
 		<div class="mb-5"></div>
@@ -216,6 +228,7 @@
 		{#if compareParam}
 			<Row title="Arrêter la comparaison" action chevron={false} onclick={() => (compareId = null)} />
 		{/if}
+		<Row icon="calendar" iconColor="var(--cyan)" title="Repères" value={markerSummary} onclick={() => (choosingMarkers = true)} chevron />
 	</Section>
 
 	<Section header="Dernière mesure">
@@ -274,6 +287,18 @@
 		{/if}
 	</Section>
 	<p class="footnote -mt-6 mb-8 px-4 text-label2">Touche une mesure pour la corriger, ou fais-la glisser vers la gauche pour la supprimer.</p>
+
+	<Sheet open={choosingMarkers} title="Repères" detent="medium" cancelLabel="Fermer" onclose={() => (choosingMarkers = false)}>
+		<Section footer="Les repères viennent du journal d’événements du bac. Glisse le doigt sur le graphe pour lire leur détail.">
+			{#each MARKER_KINDS as k (k)}
+				<Row icon={EVENT_META[k].icon} iconColor={EVENT_META[k].color} title={EVENT_META[k].label} onclick={() => toggleKind(k)}>
+					{#snippet trailing()}
+						{#if markerKinds.includes(k)}<span class="text-tint"><Icon name="check" size={20} weight={2.6} /></span>{/if}
+					{/snippet}
+				</Row>
+			{/each}
+		</Section>
+	</Sheet>
 
 	<Sheet open={choosing} title="Comparer avec" detent="medium" cancelLabel="Fermer" onclose={() => (choosing = false)}>
 		<Section footer="La seconde courbe a sa propre échelle, à gauche du graphe.">

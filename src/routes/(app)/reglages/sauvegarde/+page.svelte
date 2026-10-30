@@ -120,3 +120,11 @@
 		</li>
 	{/each}
 </Section>
+
+<Section
+	header="Restaurer"
+	footer="Remplace les données de l’appli par celles d’une sauvegarde. Tu vois d’abord ce qu’elle contient, et une sauvegarde de sécurité est faite avant."
+>
+	<Row href="/reglages/sauvegarde/restaurer?source=fichier" icon="download" iconColor="var(--blue)" title="Restaurer depuis un fichier…" />
+	<Row href="/reglages/sauvegarde/restaurer?source=serveur" icon="undo" iconColor="var(--orange)" title="Restaurer depuis le serveur…" />
+</Section>

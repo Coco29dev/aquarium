@@ -1,15 +1,29 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
+	import { ui } from '$lib/client/ui.svelte';
+	import { listResource } from '$lib/client/api';
 	import { analyzeParameter, driftThreshold, slopePerDay } from '$lib/domain/drift';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
-	import { tankHealth } from '$lib/tank';
+	import { cyclingForAquarium } from '$lib/domain/cycling';
+	import { journeySteps, type JourneyStep } from '$lib/domain/journey';
+	import { tankStability } from '$lib/domain/stability';
+	import { daysSinceEvent } from '$lib/domain/events';
+	import { stageOf, tankHealth } from '$lib/tank';
 	import { SHORT_WATER, TANK_TONE, fmt, relativeDay, tankAge } from '$lib/ui';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import TankTabs from '$lib/ios/TankTabs.svelte';
 	import Spark from '$lib/ios/Spark.svelte';
-	import type { Parameter } from '$lib/types';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
+	import Sheet from '$lib/ios/Sheet.svelte';
+	import JourneyCard from '$lib/ios/JourneyCard.svelte';
+	import FeedButton from '$lib/ios/FeedButton.svelte';
+	import EventSheet from '$lib/ios/EventSheet.svelte';
+	import type { Parameter, ProjectItem } from '$lib/types';
 
 	const id = $derived(Number(page.params.id));
 	const view = $derived(store.view);
@@ -18,6 +32,108 @@
 	const parameters = $derived((view?.parameters ?? []).filter((p) => p.aquariumId === id));
 	const measurements = $derived((view?.measurements ?? []).filter((m) => m.aquariumId === id));
 	const today = dayInParis();
+
+	const stage = $derived(aquarium ? stageOf(aquarium) : 'actif');
+
+	// Un bac en projet n'a pas de suivi : on ouvre directement son écran de projet.
+	$effect(() => {
+		if (aquarium && stage === 'projet') void goto(`/aquariums/${id}/projet`, { replaceState: true });
+	});
+
+	// --- Parcours du bac (étapes selon qu'il est en projet, en cyclage ou actif) ---
+	let inhabitantsCount = $state(0);
+	let projectItems = $state<ProjectItem[]>([]);
+	onMount(async () => {
+		try {
+			const [inhabitants, items] = await Promise.all([
+				listResource<{ leftOn: string | null }>('inhabitants', id),
+				listResource<ProjectItem>('project_items', id)
+			]);
+			inhabitantsCount = inhabitants.filter((i) => !i.leftOn).length;
+			projectItems = items;
+		} catch {
+			// Hors ligne : le parcours se déduit alors des seules données du cache.
+		}
+	});
+	const journey = $derived(
+		aquarium
+			? journeySteps({
+					aquarium,
+					parameters,
+					measurements,
+					tasks: (view?.tasks ?? []).filter((t) => t.aquariumId === id),
+					events: (view?.events ?? []).filter((e) => e.aquariumId === id),
+					inhabitantsCount,
+					projectItems,
+					cycling: cyclingForAquarium(parameters, measurements),
+					today
+				})
+			: []
+	);
+	const showJourney = $derived(stage !== 'actif' || journey.some((s) => s.status === 'current'));
+
+	async function setStage(next: 'cyclage' | 'actif') {
+		if (!aquarium) return;
+		const ok = await ui.confirm(
+			next === 'cyclage'
+				? { title: 'Lancer la mise en eau ?', message: 'Le bac passe en cyclage : les tests tous les 2 jours et le coach de cyclage démarrent aujourd’hui.', confirmLabel: 'Mettre en eau' }
+				: { title: 'Passer en bac actif ?', message: 'Le cyclage est terminé : le bac passe à sa routine d’entretien.', confirmLabel: 'Passer en actif' }
+		);
+		if (!ok) return;
+		try {
+			await store.setStage(id, next);
+			ui.show(next === 'cyclage' ? 'Bac mis en eau' : 'Bac actif', undefined, 'check');
+		} catch (e) {
+			ui.show((e as Error).message);
+		}
+	}
+	function onJourneyAction(step: JourneyStep) {
+		const href = step.action?.href;
+		if (!href) return;
+		if (href === '?etape=mise-en-eau') void setStage('cyclage');
+		else if (href === '?etape=actif') void setStage('actif');
+		else void goto(href.startsWith('?') ? `/aquariums/${id}${href}` : href);
+	}
+
+	// Un lien ?etape=… (depuis une notification ou l'accueil guidé) déclenche la même confirmation.
+	let handledEtape = false;
+	$effect(() => {
+		const etape = page.url.searchParams.get('etape');
+		if (!etape || handledEtape || !aquarium) return;
+		handledEtape = true;
+		void goto(`/aquariums/${id}`, { replaceState: true, noScroll: true });
+		if (etape === 'mise-en-eau' && stage === 'projet') void setStage('cyclage');
+		else if (etape === 'actif' && stage === 'cyclage') void setStage('actif');
+	});
+
+	// --- Stabilité sur 30 jours ---
+	const stability = $derived(tankStability(parameters, measurements));
+	let showStability = $state(false);
+	const stabilityLabel = (score: number) => (score >= 85 ? 'Très stable' : score >= 70 ? 'Stable' : score >= 50 ? 'Variable' : 'Instable');
+	const stabilityTone = (score: number) => (score >= 70 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)');
+	const RING = 2 * Math.PI * 15;
+	const nameOf = (parameterId: number) => parameters.find((p) => p.id === parameterId)?.name ?? '';
+
+	// --- Changement d'eau ---
+	const waterDays = $derived(daysSinceEvent(view?.events ?? [], id, 'changement_eau'));
+	const lastWater = $derived(
+		[...(view?.events ?? [])]
+			.filter((e) => e.aquariumId === id && e.kind === 'changement_eau' && (e.payload?.percent != null || e.payload?.litres != null))
+			.sort((a, b) => b.at.localeCompare(a.at))[0] ?? null
+	);
+	let waterSheet = $state(false);
+	const waterPrefill = $derived(
+		lastWater
+			? Object.fromEntries(Object.entries(lastWater.payload).filter(([k]) => ['percent', 'litres', 'source', 'conditioner'].includes(k)))
+			: undefined
+	);
+	const waterDetail = $derived(
+		lastWater
+			? [lastWater.payload.percent != null ? `${fmt(lastWater.payload.percent as number, 0)} %` : null, lastWater.payload.litres != null ? `${fmt(lastWater.payload.litres as number, 0)} L` : null]
+					.filter(Boolean)
+					.join(' · ')
+			: ''
+	);
 
 	type Trend = 'up' | 'down' | 'flat' | null;
 
@@ -138,6 +254,10 @@
 		</NavBar>
 	{/if}
 
+	{#if showJourney}
+		<div class="mt-3"><JourneyCard {aquarium} steps={journey} compact={stage === 'actif'} onaction={onJourneyAction} /></div>
+	{/if}
+
 	<!-- État du bac -->
 	<div class="mb-6 mt-3">
 		{#if health.coach}
@@ -185,9 +305,41 @@
 		{/if}
 	</div>
 
-	<a href="/mesurer?bac={id}" class="btn-filled mb-8 w-full">
-		<Icon name="plus" size={20} weight={2.6} />Saisir des mesures
-	</a>
+	<div class="mb-8 flex items-center gap-2.5">
+		<a href="/mesurer?bac={id}" class="btn-filled min-w-0 flex-1">
+			<Icon name="plus" size={20} weight={2.6} />Saisir des mesures
+		</a>
+		<FeedButton aquariumId={id} compact />
+	</div>
+
+	<!-- Entretien et stabilité -->
+	<Section header="Entretien">
+		<Row
+			icon="drop"
+			iconColor="var(--cyan)"
+			title="Changement d’eau"
+			subtitle={waterDays == null ? 'Aucun changement noté' : `${waterDays === 0 ? 'Aujourd’hui' : waterDays === 1 ? 'Hier' : `Il y a ${waterDays} jours`}${waterDetail ? ` · ${waterDetail}` : ''}`}
+		>
+			{#snippet trailing()}
+				<button type="button" class="subhead rounded-full bg-tint/15 px-3.5 py-1.5 font-semibold text-tint active:opacity-60" onclick={() => (waterSheet = true)}>
+					Fait
+				</button>
+			{/snippet}
+		</Row>
+		{#if stability.score != null}
+			{@const sc = stability.score}
+			<Row onclick={() => (showStability = true)} chevron>
+				{#snippet leading()}
+					<svg width="30" height="30" viewBox="0 0 36 36" class="shrink-0 -rotate-90" aria-hidden="true">
+						<circle cx="18" cy="18" r="15" fill="none" stroke="var(--fill)" stroke-width="5" />
+						<circle cx="18" cy="18" r="15" fill="none" stroke={stabilityTone(sc)} stroke-width="5" stroke-linecap="round" stroke-dasharray="{(RING * sc) / 100} {RING}" />
+					</svg>
+				{/snippet}
+				<p class="body">Stabilité · <span class="rounded-num font-semibold" style="color: {stabilityTone(sc)}">{sc} %</span></p>
+				<p class="subhead text-label2">{stabilityLabel(sc)} sur 30 jours</p>
+			</Row>
+		{/if}
+	</Section>
 
 	<!-- Paramètres, façon cartes Santé -->
 	<section class="mb-8">
@@ -233,4 +385,31 @@
 			</div>
 		{/if}
 	</section>
+
+	<Section>
+		<Row href="/aquariums/{id}/journal" icon="book" iconColor="var(--brown)" title="Journal" subtitle="Événements, notes et photos du bac" />
+		<Row href="/aquariums/{id}/aide" icon="info" iconColor="var(--orange)" title="Demander de l’aide" subtitle="Un résumé du bac à coller sur un forum" />
+	</Section>
+
+	<EventSheet
+		open={waterSheet}
+		aquariumId={id}
+		volumeL={aquarium.volumeL}
+		waterType={aquarium.waterType}
+		kind="changement_eau"
+		prefill={waterPrefill}
+		onclose={() => (waterSheet = false)}
+	/>
+
+	<Sheet open={showStability} title="Stabilité" detent="medium" cancelLabel="Fermer" onclose={() => (showStability = false)}>
+		<Section footer="Calculée sur 30 jours, à partir de la variabilité des mesures par rapport à leur plage et de la part de valeurs hors plage. Il faut au moins 3 mesures et une plage définie.">
+			{#each [...stability.parameters].sort((a, b) => a.score - b.score) as s (s.parameterId)}
+				<Row title={nameOf(s.parameterId)} subtitle={s.reason}>
+					{#snippet trailing()}
+						<span class="rounded-num headline" style="color: {stabilityTone(s.score)}">{s.score} %</span>
+					{/snippet}
+				</Row>
+			{/each}
+		</Section>
+	</Sheet>
 {/if}

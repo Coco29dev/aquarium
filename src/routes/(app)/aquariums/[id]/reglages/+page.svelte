@@ -12,6 +12,7 @@
 	import Row from '$lib/ios/Row.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import FieldRow from '$lib/ios/FieldRow.svelte';
+	import Stepper from '$lib/ios/Stepper.svelte';
 	import type { Parameter } from '$lib/types';
 
 	const id = $derived(Number(page.params.id));
@@ -37,18 +38,21 @@
 	let name = $state('');
 	let volume = $state('');
 	let started = $state('');
+	/** Repas visés par jour : 0 = pas d'objectif. */
+	let feedPerDay = $state(0);
 	let loadedFor = $state<number | null>(null);
 	$effect(() => {
 		if (aquarium && loadedFor !== aquarium.id) {
 			name = aquarium.name;
 			volume = str(aquarium.volumeL);
 			started = aquarium.startedOn ?? '';
+			feedPerDay = aquarium.feedingsPerDay ?? 0;
 			loadedFor = aquarium.id;
 		}
 	});
 	const dirty = $derived(
 		aquarium != null &&
-			(name.trim() !== aquarium.name || num(volume) !== (aquarium.volumeL == null ? null : Number(aquarium.volumeL)) || (started || null) !== (aquarium.startedOn ?? null))
+			(name.trim() !== aquarium.name || num(volume) !== (aquarium.volumeL == null ? null : Number(aquarium.volumeL)) || (started || null) !== (aquarium.startedOn ?? null) || feedPerDay !== (aquarium.feedingsPerDay ?? 0))
 	);
 	async function saveAquarium() {
 		if (!name.trim()) return;
@@ -57,7 +61,8 @@
 				store.mutate('PATCH', `/api/aquariums/${id}`, {
 					name: name.trim(),
 					volumeL: num(volume),
-					startedOn: started || null
+					startedOn: started || null,
+					feedingsPerDay: feedPerDay > 0 ? feedPerDay : null
 				}),
 			'Bac enregistré'
 		);
@@ -84,6 +89,7 @@
 	let pMin = $state('');
 	let pMax = $state('');
 	let pDrift = $state('');
+	let pWait = $state('');
 
 	function openParam(p: Parameter | null) {
 		pName = p?.name ?? '';
@@ -91,6 +97,7 @@
 		pMin = str(p?.min);
 		pMax = str(p?.max);
 		pDrift = str(p?.driftPerWeek);
+		pWait = str(p?.testWaitSeconds);
 		sheet = { mode: p ? 'edit' : 'add', p };
 	}
 
@@ -109,7 +116,7 @@
 		}
 	});
 
-	const body = () => ({ name: pName.trim(), unit: pUnit.trim(), min: num(pMin), max: num(pMax), driftPerWeek: num(pDrift) });
+	const body = () => ({ name: pName.trim(), unit: pUnit.trim(), min: num(pMin), max: num(pMax), driftPerWeek: num(pDrift), testWaitSeconds: num(pWait) });
 
 	async function saveParam() {
 		if (!sheet || !pName.trim()) return;
@@ -220,12 +227,19 @@
 		</span>
 	</div>
 
-	<Section header="Bac" footer="Le type d’eau ne se change pas : il fixe les modèles de paramètres à la création.">
+	<Section header="Bac" footer="Le type d’eau ne se change pas : il fixe les modèles de paramètres à la création. Avec un objectif de repas par jour, le bouton « Nourri » demande confirmation quand il est atteint.">
 		<FieldRow id="name" label="Nom" bind:value={name} required />
 		<Row title="Type d’eau" value={WATER_TYPE_LABELS[aquarium.waterType]} />
 		<FieldRow id="volume" label="Volume" bind:value={volume} inputmode="decimal" placeholder="0" suffix="L" />
 		<FieldRow id="started" label="Mise en eau" type="date" bind:value={started} />
+		<Row title="Repas par jour" subtitle={feedPerDay > 0 ? undefined : 'Pas d’objectif'}>
+			{#snippet trailing()}
+				<span class="rounded-num body w-5 text-right text-label2">{feedPerDay > 0 ? feedPerDay : '–'}</span>
+				<Stepper bind:value={feedPerDay} min={0} max={10} label="Repas par jour" />
+			{/snippet}
+		</Row>
 	</Section>
+
 
 	<Section header="Photo de couverture" footer="Elle s’affiche en grand en haut de la fiche du bac. Choisis-la depuis une photo du journal.">
 		{#if cover != null}
@@ -315,6 +329,9 @@
 		</Section>
 		<Section header="Dérive" footer="Variation maximale tolérée sur 7 jours avant alerte. Vide : 25 % de la plage.">
 			<FieldRow id="p-drift" label="Sur 7 jours" placeholder="Auto" inputmode="decimal" bind:value={pDrift} suffix={pUnit || undefined} />
+		</Section>
+		<Section header="Test colorimétrique" footer="Temps d’attente du réactif, en secondes. Le pas à pas propose alors un minuteur pour ce paramètre. Vide : aucun minuteur.">
+			<FieldRow id="p-wait" label="Temps de réaction" placeholder="Aucun" inputmode="numeric" bind:value={pWait} suffix="s" />
 		</Section>
 		{#if sheet?.mode === 'edit'}
 			<Section>

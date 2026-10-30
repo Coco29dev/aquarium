@@ -79,6 +79,16 @@
 		{/snippet}
 	</Row>
 	<Row href="/reglages/sauvegarde" icon="sync" iconColor="var(--green)" title="Sauvegarde" value={backupValue} />
+	<Row href="/reglages/raccourcis" title="Raccourcis Siri">
+		{#snippet leading()}
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-purple text-white" aria-hidden="true">
+				<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+					<path d="M12 3.5l8 4.5-8 4.5L4 8z" fill="currentColor" fill-opacity="0.4" />
+					<path d="M4 12l8 4.5 8-4.5M4 16l8 4.5 8-4.5" stroke-linecap="round" />
+				</svg>
+			</span>
+		{/snippet}
+	</Row>
 </Section>
 
 <Section

@@ -221,6 +221,21 @@
 	</div>
 
 	<Section>
+		<!-- Le lien remplace l'entrée d'historique : à la fin du pas à pas, on revient d'où l'on venait. -->
+		<li>
+			<a href="/mesurer/pas-a-pas?bac={tank.id}" data-sveltekit-replacestate class="tappable flex items-center gap-3 pl-4">
+				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--indigo); --cut: var(--indigo)">
+					<Icon name="flask" size={19} filled weight={2} />
+				</span>
+				<div class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
+					<div class="min-w-0 flex-1 text-left">
+						<p class="body truncate">Pas à pas</p>
+						<p class="subhead truncate text-label2">Un test à la fois, avec minuteur</p>
+					</div>
+					<span class="-mr-1 shrink-0 text-label3"><Icon name="next" size={18} weight={2.4} /></span>
+				</div>
+			</a>
+		</li>
 		<Row icon="calendar" title="Date" onclick={() => (pickingDate = !pickingDate)} chevron={false}>
 			{#snippet trailing()}
 				<span class="body {whenLocal ? 'text-tint' : 'text-label2'}">{whenLabel}</span>

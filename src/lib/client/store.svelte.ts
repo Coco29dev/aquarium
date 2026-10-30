@@ -73,7 +73,8 @@ class AppStore {
 		}
 		this.syncing = true;
 		try {
-			const sent = [...this.pending];
+			// Par lots de 500 (limite du serveur) ; le reste part à la synchronisation suivante.
+			const sent = this.pending.slice(0, 500);
 			const response = await fetch('/api/sync', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -87,6 +88,7 @@ class AppStore {
 			const snapshot = (await response.json()) as Snapshot;
 			const seqs = new Set(sent.map((o) => o.seq));
 			this.pending = this.pending.filter((o) => !seqs.has(o.seq));
+			if (this.pending.length > 0) this.#again = true;
 			this.snapshot = snapshot;
 			this.error = '';
 			this.lastSync = snapshot.generatedAt;

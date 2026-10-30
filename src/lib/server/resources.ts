@@ -159,12 +159,18 @@ export async function createResource(name: string, scopeId: number | null, body:
 	const values = parse(r, body, true);
 	const columns = [r.scopeColumn, ...values.keys()];
 	const params = [scopeId, ...values.values()];
-	const { rows } = await db().query<{ id: number }>(
-		`INSERT INTO ${r.table} (${columns.join(', ')})
-		 VALUES (${params.map((_, i) => `$${i + 1}`).join(', ')}) RETURNING id`,
-		params
-	);
-	return rows[0].id;
+	try {
+		const { rows } = await db().query<{ id: number }>(
+			`INSERT INTO ${r.table} (${columns.join(', ')})
+			 VALUES (${params.map((_, i) => `$${i + 1}`).join(', ')}) RETURNING id`,
+			params
+		);
+		return rows[0].id;
+	} catch (e) {
+		// 23503 : clé étrangère (bac, matériel ou espèce inexistant) → 404 plutôt qu'une erreur 500.
+		if ((e as { code?: string }).code === '23503') error(404, 'Élément rattaché introuvable');
+		throw e;
+	}
 }
 
 export async function updateResource(name: string, id: number, body: Body): Promise<void> {

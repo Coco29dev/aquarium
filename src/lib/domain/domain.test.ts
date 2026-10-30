@@ -139,6 +139,16 @@ describe('cyclingCoach', () => {
 		expect(s.stage).toBe('pret');
 		expect(s.ready).toBe(true);
 	});
+	it('pas prêt si le cycle n’a jamais démarré (nitrates du robinet, tout à zéro)', () => {
+		const s = cyclingCoach({
+			nh3: [r(3, 0), r(0, 0)],
+			no2: [r(3, 0), r(0, 0)],
+			no3: [r(0, 15)]
+		});
+		expect(s.ready).toBe(false);
+		expect(s.stage).toBe('finalisation');
+		expect(s.advice).toContain('robinet');
+	});
 	it('pas prêt sans nitrates', () => {
 		const s = cyclingCoach({ nh3: [r(3, 0), r(0, 0)], no2: [r(3, 0), r(0, 0)], no3: [r(0, 0)] });
 		expect(s.ready).toBe(false);

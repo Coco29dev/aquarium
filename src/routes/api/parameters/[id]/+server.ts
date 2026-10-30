@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { deleteParameter, updateParameter } from '$lib/server/data';
-import { number, paramId, readBody, text } from '$lib/server/validate';
+import { number, paramId, range, readBody, text } from '$lib/server/validate';
 
 export const PATCH: RequestHandler = async ({ request, params }) => {
 	const body = await readBody(request);
+	range(number(body, 'min'), number(body, 'max'));
 	await updateParameter(paramId(params.id), {
 		name: text(body, 'name', false),
 		unit: 'unit' in body ? ((body.unit as string) ?? '') : undefined,

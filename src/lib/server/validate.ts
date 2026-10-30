@@ -54,3 +54,8 @@ export function paramId(value: string): number {
 	if (!Number.isInteger(id) || id <= 0) error(404, 'Introuvable');
 	return id;
 }
+
+/** Refuse une plage inversée quand les deux bornes sont fournies. */
+export function range(min: number | null | undefined, max: number | null | undefined): void {
+	if (min != null && max != null && min > max) error(400, 'Le minimum dépasse le maximum');
+}

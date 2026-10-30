@@ -284,38 +284,50 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseOps(value: unknown): SyncOp[] {
 	if (!Array.isArray(value) || value.length > 500) error(400, 'Opérations invalides');
-	return value.map((raw): SyncOp => {
-		const op = raw as Record<string, unknown>;
-		if (typeof op.clientId !== 'string' || !UUID.test(op.clientId)) error(400, 'clientId invalide');
-		const when = (v: unknown) => {
-			if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) error(400, 'Date invalide');
-			return new Date(v).toISOString();
+	// Une opération invalide ne doit pas bloquer les autres : le client renvoie sa file à chaque
+	// ouverture, un seul rejet global la coincerait pour toujours. On écarte donc l'opération fautive.
+	const ops: SyncOp[] = [];
+	for (const raw of value) {
+		try {
+			ops.push(parseOp(raw));
+		} catch (e) {
+			console.warn('[sync] opération ignorée :', (e as { body?: { message?: string } }).body?.message ?? e);
+		}
+	}
+	return ops;
+}
+
+function parseOp(raw: unknown): SyncOp {
+	const op = (raw ?? {}) as Record<string, unknown>;
+	if (typeof op.clientId !== 'string' || !UUID.test(op.clientId)) error(400, 'clientId invalide');
+	const when = (v: unknown) => {
+		if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) error(400, 'Date invalide');
+		return new Date(v).toISOString();
+	};
+	if (op.type === 'measurement') {
+		if (typeof op.value !== 'number' || !Number.isFinite(op.value)) error(400, 'Valeur invalide');
+		// Une date future dans la file d'envoi bloquerait la synchronisation à chaque ouverture :
+		// on la ramène à maintenant (le store refuse déjà ces dates à la saisie).
+		const measuredAt = when(op.measuredAt);
+		return {
+			type: 'measurement',
+			clientId: op.clientId,
+			aquariumId: Number(op.aquariumId),
+			parameterId: Number(op.parameterId),
+			value: op.value,
+			measuredAt: Date.parse(measuredAt) > Date.now() + 5 * 60 * 1000 ? new Date().toISOString() : measuredAt
 		};
-		if (op.type === 'measurement') {
-			if (typeof op.value !== 'number' || !Number.isFinite(op.value)) error(400, 'Valeur invalide');
-			// Une date future dans la file d'envoi bloquerait la synchronisation à chaque ouverture :
-			// on la ramène à maintenant (le store refuse déjà ces dates à la saisie).
-			const measuredAt = when(op.measuredAt);
-			return {
-				type: 'measurement',
-				clientId: op.clientId,
-				aquariumId: Number(op.aquariumId),
-				parameterId: Number(op.parameterId),
-				value: op.value,
-				measuredAt: Date.parse(measuredAt) > Date.now() + 5 * 60 * 1000 ? new Date().toISOString() : measuredAt
-			};
-		}
-		if (op.type === 'completion') {
-			return {
-				type: 'completion',
-				clientId: op.clientId,
-				taskId: Number(op.taskId),
-				doneAt: when(op.doneAt),
-				note: typeof op.note === 'string' ? op.note.slice(0, 500) : undefined
-			};
-		}
-		error(400, "Type d'opération inconnu");
-	});
+	}
+	if (op.type === 'completion') {
+		return {
+			type: 'completion',
+			clientId: op.clientId,
+			taskId: Number(op.taskId),
+			doneAt: when(op.doneAt),
+			note: typeof op.note === 'string' ? op.note.slice(0, 500) : undefined
+		};
+	}
+	error(400, "Type d'opération inconnu");
 }
 
 /**

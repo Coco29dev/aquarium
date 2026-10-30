@@ -77,7 +77,11 @@ export function cyclingCoach(readings: { nh3: Reading[]; no2: Reading[]; no3: Re
 		);
 	};
 
-	if (confirmed(nh3) && confirmed(no2) && lastNo3 != null && lastNo3 > 0) {
+	// Zéro partout ne prouve rien tant qu'aucune source d'ammoniaque n'a nourri les bactéries :
+	// un bac neuf rempli d'eau du robinet (déjà riche en nitrates) afficherait « prêt » dès le premier jour.
+	const cycleSeen = [...nh3, ...no2].some((x) => x.v > ZERO);
+
+	if (confirmed(nh3) && confirmed(no2) && lastNo3 != null && lastNo3 > 0 && cycleSeen) {
 		return {
 			stage: 'pret',
 			ready: true,
@@ -92,6 +96,11 @@ export function cyclingCoach(readings: { nh3: Reading[]; no2: Reading[]; no3: Re
 		todo.push('refais une série ammoniaque + nitrites au moins 2 jours après la précédente');
 	}
 	if (lastNo3 == null || lastNo3 <= 0) todo.push('mesure les nitrates, ils doivent être présents');
+	if (!cycleSeen) {
+		todo.push(
+			'aucune trace d’ammoniaque ni de nitrites n’a été mesurée : sans source d’ammoniaque (produit dédié ou nourriture), le cyclage n’a pas démarré, et des nitrates peuvent venir de l’eau du robinet'
+		);
+	}
 	return {
 		stage: 'finalisation',
 		ready: false,

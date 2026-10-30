@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { store } from '$lib/client/store.svelte';
 	import { tankHealth } from '$lib/tank';
 	import { SHORT_WATER, TANK_ICON, TANK_TONE, fmt, tankAge } from '$lib/ui';
@@ -6,6 +7,8 @@
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
+	import { contextMenu } from '$lib/ios/contextMenu';
+	import type { Aquarium } from '$lib/types';
 
 	const view = $derived(store.view);
 	const aquariums = $derived(view?.aquariums ?? []);
@@ -21,6 +24,16 @@
 		['temp', 'ph', 'no3']
 			.map((k) => view?.parameters.find((p) => p.aquariumId === aquariumId && p.key === k))
 			.filter((p): p is NonNullable<typeof p> => Boolean(p));
+	// Appui long sur une carte : raccourcis vers les écrans du bac.
+	const tankMenu = (a: Aquarium) => ({
+		items: [
+			{ label: 'Ouvrir', icon: 'bacs' as const, onselect: () => goto(`/aquariums/${a.id}`) },
+			{ label: 'Saisir des mesures', icon: 'drop' as const, onselect: () => goto(`/mesurer?bac=${a.id}`) },
+			{ label: 'Tâches', icon: 'calendar' as const, onselect: () => goto(`/aquariums/${a.id}/taches`) },
+			{ label: 'Journal', icon: 'note' as const, onselect: () => goto(`/aquariums/${a.id}/journal`) },
+			{ label: 'Réglages', icon: 'gear' as const, onselect: () => goto(`/aquariums/${a.id}/reglages`) }
+		]
+	});
 	const shortName = (key: string | null, name: string) =>
 		key === 'temp' ? 'Temp.' : key === 'no3' ? 'Nitrates' : key === 'ph' ? 'pH' : name;
 </script>
@@ -49,7 +62,7 @@
 		{#each cards as { aquarium, health: h } (aquarium.id)}
 			{@const tone = TANK_TONE[aquarium.waterType]}
 			{@const age = tankAge(aquarium)}
-			<a href="/aquariums/{aquarium.id}" class="pressable block rounded-[22px] bg-bg2 p-4">
+			<a href="/aquariums/{aquarium.id}" class="pressable block rounded-[22px] bg-bg2 p-4" use:contextMenu={tankMenu(aquarium)}>
 				<div class="flex items-center gap-2" style="color: {tone}; --cut: var(--bg2)">
 					<Icon name={TANK_ICON[aquarium.waterType]} size={20} filled weight={1.6} />
 					<span class="headline min-w-0 flex-1 truncate">{aquarium.name}</span>

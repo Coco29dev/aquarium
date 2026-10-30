@@ -22,16 +22,31 @@
 	let startT = 0;
 	let dragging = $state(false);
 
+	let pressed = false;
+	let pointer = -1;
+	let zone: HTMLElement | null = null;
+
 	function down(e: PointerEvent) {
-		dragging = true;
+		// Un appui sur un bouton de la barre reste un clic : pas de glissement.
+		if ((e.target as Element).closest('button')) return;
+		pressed = true;
+		pointer = e.pointerId;
+		zone = e.currentTarget as HTMLElement;
 		startY = e.clientY;
 		startT = performance.now();
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
 	function move(e: PointerEvent) {
-		if (dragging) drag = Math.max(0, e.clientY - startY);
+		if (!pressed || e.pointerId !== pointer) return;
+		const dy = e.clientY - startY;
+		// On ne capture le doigt qu'une fois le glissement amorcé.
+		if (!dragging && dy > 6) {
+			dragging = true;
+			zone?.setPointerCapture(pointer);
+		}
+		if (dragging) drag = Math.max(0, dy);
 	}
 	function up() {
+		pressed = false;
 		if (!dragging) return;
 		dragging = false;
 		const speed = drag / Math.max(1, performance.now() - startT);

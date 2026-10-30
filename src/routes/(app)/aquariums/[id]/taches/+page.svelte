@@ -15,6 +15,10 @@
 	import FieldRow from '$lib/ios/FieldRow.svelte';
 	import Stepper from '$lib/ios/Stepper.svelte';
 	import Switch from '$lib/ios/Switch.svelte';
+	import SwipeRow from '$lib/ios/SwipeRow.svelte';
+	import TaskItem from '$lib/ios/TaskItem.svelte';
+	import PostponeSheet from '$lib/ios/PostponeSheet.svelte';
+	import { contextMenu } from '$lib/ios/contextMenu';
 	import type { Task } from '$lib/types';
 
 	const id = $derived(Number(page.params.id));
@@ -53,6 +57,23 @@
 			return false;
 		}
 	}
+
+	// --- Reporter, ignorer (tâches à venir : mêmes gestes que les tâches dues)
+	let postponing = $state<Task | null>(null);
+	async function skip(t: Task) {
+		const ok = await run(() => store.skipTask(t.id));
+		if (!ok) return;
+		const next = store.view?.tasks.find((x) => x.id === t.id)?.nextDue;
+		ui.show(next ? `Prochaine échéance : ${relativeDay(next, today)}` : 'Tâche ignorée cette fois', undefined, 'calendar');
+	}
+	const upcomingMenu = (t: Task) => ({
+		items: [
+			{ label: 'Faire maintenant', icon: 'check' as const, onselect: () => ui.check(t.id, t.title) },
+			{ label: 'Reporter…', icon: 'calendar' as const, onselect: () => (postponing = t) },
+			{ label: 'Ignorer cette fois', icon: 'undo' as const, onselect: () => skip(t) },
+			{ label: 'Modifier', icon: 'edit' as const, onselect: () => openEdit(t) }
+		]
+	});
 
 	// --- Nouvelle tâche
 	let adding = $state(false);
@@ -164,24 +185,11 @@
 		{:else}
 			<ul class="group task-list">
 				{#each due as task (task.id)}
-					{@const done = Boolean(ui.checking[task.id])}
 					{@const late = lateBy(task, today) > 0}
-					<li class="flex items-start gap-3 pl-4">
-						<button
-							class="mt-2.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {done ? 'border-tint bg-tint text-white' : 'border-label3'}"
-							onclick={() => (done ? ui.uncheck(task.id) : ui.check(task.id, task.title))}
-							aria-pressed={done}
-							aria-label="{done ? 'Annuler' : 'Marquer comme fait'} : {task.title}"
-						>
-							{#if done}<span class="grid" style="animation: pop-in 220ms both"><Icon name="check" size={14} weight={3.2} /></span>{/if}
-						</button>
-						<button class="row-body min-w-0 flex-1 py-2.5 pr-4 text-left" onclick={() => openEdit(task)}>
-							<p class="body {done ? 'text-label3' : ''}">{task.title}</p>
-							<p class="footnote {late && !done ? 'text-red' : 'text-label2'}">{dueLabel(task)} · {every(task.everyDays).toLowerCase()}</p>
-						</button>
-					</li>
+					<TaskItem {task} detail="{dueLabel(task)} · {every(task.everyDays).toLowerCase()}" {late} onpostpone={(t) => (postponing = t)} onedit={openEdit} />
 				{/each}
 			</ul>
+			<p class="footnote mt-2 px-4 text-label2">Glisse vers la droite pour cocher, vers la gauche pour reporter ou ignorer.</p>
 		{/if}
 	</Section>
 
@@ -189,7 +197,18 @@
 		<Section header="Prochainement">
 			{#each upcoming as t (t.id)}
 				{@const k = kindStyle(t.kind)}
-				<Row icon={k.icon} iconColor={k.color} title={t.title} subtitle={every(t.everyDays)} value={cap(relativeDay(t.nextDue, today))} onclick={() => openEdit(t)} chevron />
+				{@const done = Boolean(ui.checking[t.id])}
+				<SwipeRow
+					leading={[{ label: done ? 'Annuler' : 'Fait', icon: done ? 'undo' : 'check', color: done ? 'var(--gray)' : 'var(--green)', onaction: () => (done ? ui.uncheck(t.id) : ui.check(t.id, t.title)) }]}
+					trailing={[
+						{ label: 'Reporter', icon: 'calendar', color: 'var(--orange)', onaction: () => (postponing = t) },
+						{ label: 'Ignorer', icon: 'undo', color: 'var(--gray)', onaction: () => skip(t) }
+					]}
+				>
+					<div use:contextMenu={upcomingMenu(t)}>
+						<Row bare icon={k.icon} iconColor={k.color} title={t.title} subtitle={done ? 'Fait, envoi en cours' : every(t.everyDays)} value={cap(relativeDay(t.nextDue, today))} onclick={() => openEdit(t)} chevron />
+					</div>
+				</SwipeRow>
 			{/each}
 		</Section>
 	{/if}
@@ -263,8 +282,10 @@
 	</Sheet>
 {/if}
 
+<PostponeSheet bind:task={postponing} />
+
 <style>
-	.task-list > li + li .row-body {
+	.task-list > :global(li + li .row-body) {
 		box-shadow: inset 0 0.5px 0 var(--sep);
 	}
 </style>

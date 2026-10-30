@@ -32,7 +32,7 @@ export async function sendDailyReminder(now = new Date()): Promise<boolean> {
 	if (!parts.length) return false;
 
 	const first = due[0]?.title ?? alerts[0]?.message ?? lapsed[0]?.name;
-	await sendToAll({ title: 'Bulle', body: `${parts.join(', ')} · ${first}`, url: '/' });
+	await sendToAll({ title: 'Aquarium', body: `${parts.join(', ')} · ${first}`, url: '/' });
 	await db().query(
 		`INSERT INTO app_state (key, value) VALUES ('last_reminder_day', $1)
 		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,

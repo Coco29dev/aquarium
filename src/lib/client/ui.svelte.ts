@@ -3,23 +3,51 @@ import { store } from './store.svelte';
 interface Toast {
 	id: number;
 	message: string;
+	icon?: string;
 	undo?: () => void;
+}
+
+export interface ConfirmOptions {
+	title: string;
+	message?: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	destructive?: boolean;
+}
+
+interface PendingConfirm extends ConfirmOptions {
+	resolve: (ok: boolean) => void;
 }
 
 const UNDO_MS = 4500;
 
-/** État d'interface partagé : message éphémère avec « Annuler », tâches cochées en sursis. */
+/** État d'interface partagé : bannière avec « Annuler », alertes de confirmation, tâches cochées en sursis. */
 class Ui {
 	toast = $state<Toast | null>(null);
+	alert = $state<PendingConfirm | null>(null);
 	/** Tâches cochées dont l'envoi attend la fin du délai d'annulation. */
 	checking = $state<Record<number, true>>({});
 
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#pending = new Map<number, ReturnType<typeof setTimeout>>();
 
-	show(message: string, undo?: () => void) {
+	/** Alerte iOS à deux boutons ; se résout à true si l'utilisateur confirme. */
+	confirm(options: ConfirmOptions): Promise<boolean> {
+		this.alert?.resolve(false);
+		return new Promise((resolve) => {
+			this.alert = {
+				...options,
+				resolve: (ok) => {
+					this.alert = null;
+					resolve(ok);
+				}
+			};
+		});
+	}
+
+	show(message: string, undo?: () => void, icon?: string) {
 		clearTimeout(this.#timer);
-		this.toast = { id: Date.now(), message, undo };
+		this.toast = { id: Date.now(), message, undo, icon };
 		this.#timer = setTimeout(() => (this.toast = null), UNDO_MS);
 	}
 
@@ -36,7 +64,7 @@ class Ui {
 			taskId,
 			setTimeout(() => void this.#commit(taskId), UNDO_MS)
 		);
-		this.show(`« ${title} » fait`, () => this.uncheck(taskId));
+		this.show(title, () => this.uncheck(taskId), 'check');
 	}
 
 	uncheck(taskId: number) {

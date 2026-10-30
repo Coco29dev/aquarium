@@ -1,12 +1,20 @@
 import { daysBetween, dayInParis } from '$lib/domain/dates';
 import type { Aquarium, Completion, Task, WaterType } from '$lib/types';
 
-/** Couleur de feutre d'un bac (variable CSS), selon son type d'eau. */
+/** Couleur système d'un bac (variable CSS), selon son type d'eau. */
 export const TANK_TONE: Record<WaterType, string> = {
-	douce: 'var(--t-douce)',
-	plantee: 'var(--t-plantee)',
-	mer: 'var(--t-mer)',
-	recif: 'var(--t-recif)'
+	douce: 'var(--cyan)',
+	plantee: 'var(--green)',
+	mer: 'var(--indigo)',
+	recif: 'var(--orange)'
+};
+
+/** Icône associée au type d'eau. */
+export const TANK_ICON: Record<WaterType, 'drop' | 'leaf' | 'bacs' | 'coral'> = {
+	douce: 'drop',
+	plantee: 'leaf',
+	mer: 'bacs',
+	recif: 'coral'
 };
 
 export const SHORT_WATER: Record<WaterType, string> = {

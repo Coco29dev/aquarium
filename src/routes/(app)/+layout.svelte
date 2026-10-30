@@ -24,12 +24,14 @@
 	});
 
 	const ROOTS = ['/', '/aquariums', '/outils', '/reglages'];
+	/** Écrans présentés en feuille plein écran : pas de barre d'onglets, entrée par le bas. */
+	const isModal = (path: string) => path.startsWith('/mesurer') || path === '/aquariums/nouveau';
 	const depth = (path: string) => path.split('/').filter(Boolean).length;
 
 	/** Sens de l'animation, façon UINavigationController : empile, dépile, change d'onglet, modale. */
 	function direction(from: string, to: string, popstate: boolean, delta: number): string {
-		if (to.startsWith('/mesurer')) return 'modal';
-		if (from.startsWith('/mesurer')) return 'dismiss';
+		if (isModal(to)) return 'modal';
+		if (isModal(from)) return 'dismiss';
 		if (ROOTS.includes(from) && ROOTS.includes(to)) return 'tab';
 		if (popstate) return delta > 0 ? 'push' : 'pop';
 		if (depth(to) > depth(from)) return 'push';
@@ -79,7 +81,7 @@
 		if (href === '/outils') return ['/outils', '/especes', '/depenses'].some((p) => path.startsWith(p));
 		return path.startsWith(href);
 	}
-	const modal = $derived(page.url.pathname.startsWith('/mesurer'));
+	const modal = $derived(isModal(page.url.pathname));
 </script>
 
 <div class="mx-auto flex min-h-dvh max-w-md flex-col">

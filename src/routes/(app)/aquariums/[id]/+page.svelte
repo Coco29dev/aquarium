@@ -4,11 +4,11 @@
 	import { analyzeParameter, driftThreshold, slopePerDay } from '$lib/domain/drift';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
 	import { tankHealth } from '$lib/tank';
-	import { fmt, relativeDay } from '$lib/ui';
-	import Icon from '$lib/components/Icon.svelte';
-	import RangeBar from '$lib/components/RangeBar.svelte';
-	import Sparkline from '$lib/components/Sparkline.svelte';
-	import TankHeader from '$lib/components/TankHeader.svelte';
+	import { SHORT_WATER, TANK_TONE, fmt, relativeDay, tankAge } from '$lib/ui';
+	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import TankTabs from '$lib/ios/TankTabs.svelte';
+	import Spark from '$lib/ios/Spark.svelte';
 	import type { Parameter } from '$lib/types';
 
 	const id = $derived(Number(page.params.id));
@@ -17,18 +17,18 @@
 	const health = $derived(view && aquarium ? tankHealth(view, aquarium) : null);
 	const parameters = $derived((view?.parameters ?? []).filter((p) => p.aquariumId === id));
 	const measurements = $derived((view?.measurements ?? []).filter((m) => m.aquariumId === id));
+	const today = dayInParis();
 
 	type Trend = 'up' | 'down' | 'flat' | null;
 
-	// Tuile de paramètre : dernière valeur, tendance 7 j, état.
+	// Carte de paramètre : dernière valeur, tendance sur 7 jours, état.
 	const tiles = $derived(
 		parameters.map((p) => {
 			const list = measurements.filter((m) => m.parameterId === p.id);
 			const points = list.map((m) => ({ t: new Date(m.measuredAt).getTime(), v: m.value }));
 			const last = list.length ? list[list.length - 1] : null;
 			const alert = analyzeParameter(p, list);
-			const now = Date.now();
-			const recent = points.filter((pt) => pt.t >= now - 7 * DAY_MS);
+			const recent = points.filter((pt) => pt.t >= Date.now() - 7 * DAY_MS);
 			const slope = recent.length >= 2 ? slopePerDay(recent) : null;
 			let trend: Trend = null;
 			if (slope != null) {
@@ -42,114 +42,141 @@
 
 	const stageIndex = { demarrage: 0, pic_nitrites: 1, finalisation: 2, pret: 3, aucune_mesure: -1 } as const;
 	const stages = ['Ammoniac', 'Nitrites', 'Nitrates'];
-	const trendIcon = { up: 'up', down: 'down', flat: 'flat' } as const;
-	const trendLabel = { up: 'en hausse', down: 'en baisse', flat: 'stable' } as const;
+	const trendLabel = { up: 'En hausse', down: 'En baisse', flat: 'Stable' } as const;
 
-	const tone = (t: (typeof tiles)[number]) =>
-		t.alert?.level === 'hors_plage' ? 'bad' : t.alert?.level === 'derive' ? 'warn' : null;
-	const unit = (p: Parameter) => p.unit;
+	/** Icône d'un paramètre selon sa clé. */
+	function iconOf(p: Parameter): IconName {
+		if (p.key === 'temp') return 'thermo';
+		if (p.key === 'salinity') return 'drop';
+		if (['nh3', 'no2', 'no3', 'po4'].includes(p.key ?? '')) return 'flask';
+		return 'chart';
+	}
+
+	/** « Aujourd'hui 09:37 », « Hier », « il y a 3 j ». */
+	function when(iso: string): string {
+		const day = relativeDay(dayInParis(iso), today);
+		if (day === "aujourd'hui") return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+		return day.charAt(0).toUpperCase() + day.slice(1);
+	}
+
+	const kicker = $derived(
+		aquarium
+			? [SHORT_WATER[aquarium.waterType], aquarium.volumeL ? `${fmt(aquarium.volumeL, 0)} L` : null, tankAge(aquarium) != null ? `jour ${tankAge(aquarium)}` : null]
+					.filter(Boolean)
+					.join(' · ')
+			: undefined
+	);
 </script>
 
-<svelte:head><title>{aquarium?.name ?? 'Bac'} · Bulle</title></svelte:head>
+<svelte:head><title>{aquarium?.name ?? 'Bac'} · Aquarium</title></svelte:head>
 
 {#if !aquarium || !health}
-	<p class="hand text-lg text-muted">Ce bac n’existe pas ou plus.</p>
+	<NavBar title="Bac" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />
+	<p class="subhead mt-10 text-center text-label2">Ce bac n’existe pas ou plus.</p>
 {:else}
-	<TankHeader {aquarium} tab="suivi" />
+	{@const tone = TANK_TONE[aquarium.waterType]}
+	<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }} {kicker}>
+		{#snippet trailing()}
+			<a href="/aquariums/{id}/reglages" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Réglages du bac">
+				<Icon name="ellipsis" size={22} />
+			</a>
+		{/snippet}
+		<TankTabs {aquarium} tab="suivi" />
+	</NavBar>
 
 	<!-- État du bac -->
-	{#if health.coach}
-		{@const at = stageIndex[health.coach.stage]}
-		<section class="card rise mb-5 overflow-hidden">
-			<div class="grid grid-cols-3 border-b-2 border-edge bg-surface2">
-				{#each stages as s, i (s)}
-					<div class="flex flex-col items-center gap-1 px-1 py-3 text-center {i < 2 ? 'border-r-2 border-edge' : ''}">
-						<span class="grid h-7 w-7 place-items-center rounded-full border-2 border-edge {i < at ? 'bg-ink text-on-ink' : i === at ? 'bg-sun text-[#16202e]' : 'bg-surface'}">
-							{#if i < at}<Icon name="check" size={15} />{:else}<span class="num text-xs">{i + 1}</span>{/if}
-						</span>
-						<span class="text-xs font-bold">{s}</span>
-					</div>
-				{/each}
+	<div class="mb-6 mt-3">
+		{#if health.coach}
+			{@const at = stageIndex[health.coach.stage]}
+			<div class="rounded-[22px] bg-bg2 p-4">
+				<div class="mb-3 flex items-center gap-1.5 text-indigo">
+					<Icon name="cycle" size={17} weight={2} />
+					<span class="subhead font-semibold">Cyclage en cours</span>
+				</div>
+				<div class="mb-3 grid grid-cols-3 gap-1.5">
+					{#each stages as s, i (s)}
+						<div>
+							<div class="mb-1 h-1.5 rounded-full {i < at ? 'bg-indigo' : i === at ? 'bg-indigo/40' : 'bg-fill'}"></div>
+							<p class="caption1 font-semibold {i <= at ? 'text-label' : 'text-label3'}">{s}</p>
+						</div>
+					{/each}
+				</div>
+				<p class="headline">{health.coach.title.replace('Cyclage : ', '').replace(/^./, (c) => c.toUpperCase())}</p>
+				<p class="subhead mt-0.5 text-label2">{health.coach.advice}</p>
 			</div>
-			<div class="p-4">
-				<p class="num mb-1 text-[11px] uppercase tracking-wider text-muted">Coach de cyclage</p>
-				<p class="display mb-1 text-xl first-letter:uppercase">{health.coach.title.replace('Cyclage : ', '')}</p>
-				<p class="hand text-lg leading-snug text-muted">{health.coach.advice}</p>
-			</div>
-		</section>
-	{:else if health.alerts.length}
-		<section class="rise mb-5 flex flex-col gap-2">
-			{#each health.alerts as alert (alert.parameterId)}
-				{@const bad = alert.level === 'hors_plage'}
-				<a
-					href="/aquariums/{id}/parametre/{alert.parameterId}"
-					class="press flex items-center gap-3 rounded-[0.875rem] border-2 px-4 py-3 {bad ? 'border-bad bg-bad-soft text-bad' : 'border-warn bg-warn-soft text-warn'}"
-				>
-					<Icon name="alert" size={20} />
-					<span class="min-w-0 flex-1 text-sm font-bold leading-snug">{alert.message}</span>
-					<Icon name="next" size={18} />
-				</a>
-			{/each}
-		</section>
-	{:else}
-		<p class="rise mb-5 flex items-center gap-2 text-sm font-bold text-ok">
-			<span class="h-2.5 w-2.5 rounded-full border border-edge bg-ok"></span>{health.label}
-			{#if health.lastMeasuredAt}
-				<span class="font-normal text-muted">· mesuré {relativeDay(dayInParis(health.lastMeasuredAt))}</span>
-			{/if}
-		</p>
-	{/if}
-
-	<a href="/mesurer?bac={id}" class="btn rise mb-8 w-full text-base" style="animation-delay: 40ms">
-		<Icon name="drop" size={20} />Saisir des mesures
-	</a>
-
-	<!-- Paramètres -->
-	<section class="rise" style="animation-delay: 80ms">
-		<div class="mb-3 flex items-center justify-between">
-			<h2 class="tape">Paramètres</h2>
-			<a href="/aquariums/{id}/reglages" class="text-sm font-bold text-muted underline decoration-2 underline-offset-4">Plages</a>
-		</div>
-		{#if parameters.length === 0}
-			<p class="hand text-lg text-muted">Aucun paramètre suivi. Ajoute-en dans les réglages du bac.</p>
-		{:else}
-			<ul class="grid grid-cols-2 gap-3">
-				{#each tiles as t (t.p.id)}
-					{@const state = tone(t)}
-					<li class="min-w-0">
-						<a
-							href="/aquariums/{id}/parametre/{t.p.id}"
-							class="card press flex h-full min-w-0 flex-col gap-2 p-3 {state === 'bad' ? 'bg-bad-soft' : state === 'warn' ? 'bg-warn-soft' : ''}"
-						>
-							<p class="flex items-center justify-between gap-1">
-								<span class="truncate text-xs font-bold {state === 'bad' ? 'text-bad' : state === 'warn' ? 'text-warn' : 'text-muted'}">{t.p.name}</span>
-								{#if t.trend}
-									<span class="shrink-0 text-muted" title={trendLabel[t.trend]}>
-										<Icon name={trendIcon[t.trend]} size={15} />
-										<span class="sr-only">{trendLabel[t.trend]}</span>
-									</span>
-								{/if}
-							</p>
-							<p class="flex items-baseline gap-1">
-								<span class="num text-[1.7rem] leading-none">{t.last ? fmt(t.last.value, t.p.decimals) : '—'}</span>
-								{#if unit(t.p)}<span class="num text-xs text-muted">{unit(t.p)}</span>{/if}
-							</p>
-							<RangeBar value={t.last?.value ?? null} min={t.p.min} max={t.p.max} />
-							<div class="mt-auto flex items-end justify-between gap-2">
-								<span class="text-[11px] text-muted">{t.last ? relativeDay(dayInParis(t.last.measuredAt)) : 'jamais mesuré'}</span>
-								<Sparkline
-									points={t.points}
-									min={t.p.min}
-									max={t.p.max}
-									width={64}
-									height={24}
-									tone={state === 'bad' ? 'var(--bad)' : state === 'warn' ? 'var(--warn)' : 'var(--ink)'}
-								/>
+		{:else if health.alerts.length}
+			<ul class="group">
+				{#each health.alerts as a (a.parameterId)}
+					{@const bad = a.level === 'hors_plage'}
+					<li class="[&+li]:shadow-[inset_0_0.5px_0_var(--sep)]">
+						<a href="/aquariums/{id}/parametre/{a.parameterId}" class="tappable flex items-center gap-3 px-4 py-3">
+							<span class={bad ? 'text-red' : 'text-orange'} style="--cut: var(--bg2)"><Icon name="alert" size={22} filled weight={1.8} /></span>
+							<div class="min-w-0 flex-1">
+								<p class="subhead font-semibold {bad ? 'text-red' : 'text-orange'}">{bad ? 'Hors plage' : 'Dérive'}</p>
+								<p class="body">{a.message}</p>
 							</div>
+							<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
 						</a>
 					</li>
 				{/each}
 			</ul>
+		{:else}
+			<div class="flex items-center gap-3 rounded-[22px] bg-bg2 px-4 py-3.5">
+				<span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green text-white"><Icon name="check" size={18} weight={2.8} /></span>
+				<div>
+					<p class="headline">{health.label}</p>
+					{#if health.lastMeasuredAt}<p class="footnote text-label2">Dernière mesure : {when(health.lastMeasuredAt).toLowerCase()}</p>{/if}
+				</div>
+			</div>
+		{/if}
+	</div>
+
+	<a href="/mesurer?bac={id}" class="btn-filled mb-8 w-full">
+		<Icon name="plus" size={20} weight={2.6} />Saisir des mesures
+	</a>
+
+	<!-- Paramètres, façon cartes Santé -->
+	<section class="mb-8">
+		<div class="mb-2 flex items-baseline justify-between px-1">
+			<h2 class="title3 font-bold">Paramètres</h2>
+			<a href="/aquariums/{id}/reglages" class="btn-plain subhead">Plages</a>
+		</div>
+		{#if tiles.length === 0}
+			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3.5 text-label2">Aucun paramètre suivi. Ajoute-en dans les réglages du bac.</p>
+		{:else}
+			<div class="flex flex-col gap-2.5">
+				{#each tiles as t (t.p.id)}
+					{@const state = t.alert?.level === 'hors_plage' ? 'bad' : t.alert?.level === 'derive' ? 'warn' : 'ok'}
+					{@const color = state === 'bad' ? 'var(--red)' : state === 'warn' ? 'var(--orange)' : tone}
+					<a href="/aquariums/{id}/parametre/{t.p.id}" class="pressable block rounded-[22px] bg-bg2 p-4">
+						<div class="flex items-center gap-1.5" style="color: {color}; --cut: var(--bg2)">
+							<Icon name={iconOf(t.p)} size={17} filled weight={1.8} />
+							<span class="subhead min-w-0 flex-1 truncate font-semibold">{t.p.name}</span>
+							{#if t.last}<span class="footnote shrink-0 text-label2">{when(t.last.measuredAt)}</span>{/if}
+							<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
+						</div>
+						<div class="mt-2 flex items-end gap-3">
+							<div class="min-w-0 flex-1">
+								{#if t.last}
+									<p class="rounded-num truncate">
+										<span class="text-[30px] font-semibold leading-9">{fmt(t.last.value, t.p.decimals)}</span>
+										{#if t.p.unit}<span class="subhead font-semibold text-label2"> {t.p.unit}</span>{/if}
+									</p>
+									<p class="footnote text-label2">
+										{#if state === 'bad'}<span class="font-semibold text-red">Hors plage</span>
+										{:else if state === 'warn'}<span class="font-semibold text-orange">Dérive</span>
+										{:else if t.trend}{trendLabel[t.trend]}{/if}
+										{#if t.p.min != null && t.p.max != null}<span> · plage {fmt(t.p.min, t.p.decimals)}–{fmt(t.p.max, t.p.decimals)}</span>{/if}
+									</p>
+								{:else}
+									<p class="body text-label3">Pas encore de mesure</p>
+								{/if}
+							</div>
+							<Spark points={t.points} min={t.p.min} max={t.p.max} {color} />
+						</div>
+					</a>
+				{/each}
+			</div>
 		{/if}
 	</section>
 {/if}

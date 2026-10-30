@@ -3,10 +3,12 @@
 	import { store } from '$lib/client/store.svelte';
 	import { WATER_TYPE_LABELS, type WaterType } from '$lib/types';
 	import { PARAMETER_TEMPLATES } from '$lib/templates';
-	import { TANK_TONE, fmt } from '$lib/ui';
+	import { TANK_ICON, TANK_TONE, fmt } from '$lib/ui';
 	import { dayInParis } from '$lib/domain/dates';
 	import Icon from '$lib/components/Icon.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import NavBar from '$lib/ios/NavBar.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Row from '$lib/ios/Row.svelte';
 
 	let name = $state('');
 	let waterType = $state<WaterType>('douce');
@@ -23,22 +25,21 @@
 	];
 
 	const template = $derived(PARAMETER_TEMPLATES[waterType]);
-	const range = (min: number | null, max: number | null, decimals: number) =>
-		min == null && max == null ? '' : `${min == null ? '…' : fmt(min, decimals)} – ${max == null ? '…' : fmt(max, decimals)}`;
+	const ready = $derived(name.trim() !== '' && !busy);
 
-	async function submit(event: SubmitEvent) {
-		event.preventDefault();
+	async function submit() {
+		if (!ready) return;
 		busy = true;
 		message = '';
 		try {
 			const response = await store.mutate('POST', '/api/aquariums', {
-				name,
+				name: name.trim(),
 				waterType,
 				volumeL: volumeL === '' ? null : Number(volumeL.replace(',', '.')),
 				startedOn: startedOn || null
 			});
 			const { id } = await response.json();
-			await goto(`/aquariums/${id}`);
+			await goto(`/aquariums/${id}`, { replaceState: true });
 		} catch (error) {
 			message = (error as Error).message;
 		} finally {
@@ -47,74 +48,97 @@
 	}
 </script>
 
-<svelte:head><title>Nouveau bac · Bulle</title></svelte:head>
+<svelte:head><title>Nouveau bac · Aquarium</title></svelte:head>
 
-<div class="rise">
-	<PageHeader title="Nouveau bac" back="/aquariums" backLabel="Bacs" />
-</div>
+<NavBar title="Nouveau bac" large={false}>
+	{#snippet leading()}
+		<a href="/aquariums" data-nav="pop" class="btn-plain pl-2">Annuler</a>
+	{/snippet}
+	{#snippet trailing()}
+		<button class="btn-plain pr-1 font-semibold" disabled={!ready} onclick={submit}>{busy ? 'Ajout…' : 'Ajouter'}</button>
+	{/snippet}
+</NavBar>
 
-<form onsubmit={submit} class="flex flex-col gap-7">
-	<section class="rise flex flex-col gap-2" style="animation-delay: 40ms">
-		<label for="tank-name" class="tape w-fit">Son nom</label>
-		<input id="tank-name" bind:value={name} required maxlength="100" placeholder="Salon, Nano du bureau…" class="field mt-1 text-lg font-bold" />
-	</section>
+<form
+	class="mt-4"
+	onsubmit={(e) => {
+		e.preventDefault();
+		void submit();
+	}}
+>
+	<div class="mb-6 flex flex-col items-center">
+		<span
+			class="grid h-[72px] w-[72px] place-items-center rounded-[20px] text-white shadow-sm transition-colors duration-300"
+			style="background: {TANK_TONE[waterType]}; --cut: {TANK_TONE[waterType]}"
+		>
+			<Icon name={TANK_ICON[waterType]} size={40} filled weight={1.6} />
+		</span>
+	</div>
 
-	<fieldset class="rise flex flex-col gap-3" style="animation-delay: 80ms">
-		<legend class="tape mb-3">Type d’eau</legend>
-		<div class="grid grid-cols-2 gap-3">
-			{#each types as t (t.value)}
-				{@const on = waterType === t.value}
-				<label
-					class="press relative flex cursor-pointer flex-col gap-1 rounded-[0.875rem] border-2 border-edge p-3.5 {on ? 'shadow-[4px_4px_0_var(--shadow)]' : 'opacity-80'}"
-					style="background: {TANK_TONE[t.value]}"
-				>
-					<input type="radio" name="waterType" value={t.value} bind:group={waterType} class="sr-only" />
-					<span class="display text-lg leading-tight">{WATER_TYPE_LABELS[t.value]}</span>
-					<span class="text-xs">{t.hint}</span>
-					{#if on}
-						<span class="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border-2 border-edge bg-ink text-on-ink">
-							<Icon name="check" size={14} />
-						</span>
-					{/if}
-				</label>
-			{/each}
-		</div>
-	</fieldset>
+	{#if message}<p class="footnote mb-4 px-4 text-red" role="alert">{message}</p>{/if}
 
-	<section class="rise grid grid-cols-2 gap-3" style="animation-delay: 120ms">
-		<label class="flex flex-col gap-2">
-			<span class="tape w-fit">Volume</span>
-			<span class="relative mt-1">
-				<input bind:value={volumeL} inputmode="decimal" placeholder="240" class="field num pr-9" />
-				<span class="num pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">L</span>
-			</span>
-		</label>
-		<label class="flex flex-col gap-2">
-			<span class="tape w-fit">Mise en eau</span>
-			<input bind:value={startedOn} type="date" class="field mt-1" />
-		</label>
-	</section>
+	<Section>
+		<li class="flex min-h-11 items-center pl-4 pr-4">
+			<input
+				bind:value={name}
+				required
+				maxlength="60"
+				placeholder="Nom (ex. Salon)"
+				aria-label="Nom du bac"
+				class="body h-11 w-full bg-transparent outline-none placeholder:text-label3"
+			/>
+		</li>
+	</Section>
 
-	<section class="rise" style="animation-delay: 160ms">
-		<div class="card-flat overflow-hidden">
-			<p class="border-b-2 border-edge px-4 py-2.5 text-sm font-bold" style="background: {TANK_TONE[waterType]}">
-				Je prépare {template.length} paramètres à suivre
-			</p>
-			<ul class="divide-y divide-line">
-				{#each template as p (p.key)}
-					<li class="flex items-baseline justify-between gap-3 px-4 py-2 text-sm">
-						<span>{p.name}</span>
-						<span class="num shrink-0 text-xs text-muted">{range(p.min, p.max, p.decimals)} {p.unit}</span>
-					</li>
-				{/each}
-			</ul>
-		</div>
-		<p class="hand mt-2 text-base text-muted">Plages de départ raisonnables, tu pourras tout ajuster.</p>
-	</section>
+	<Section header="Type d’eau">
+		{#each types as t (t.value)}
+			<Row
+				icon={TANK_ICON[t.value]}
+				iconColor={TANK_TONE[t.value]}
+				title={WATER_TYPE_LABELS[t.value]}
+				subtitle={t.hint}
+				onclick={() => (waterType = t.value)}
+			>
+				{#snippet trailing()}
+					{#if waterType === t.value}<span class="text-tint"><Icon name="check" size={20} weight={2.6} /></span>{/if}
+				{/snippet}
+			</Row>
+		{/each}
+	</Section>
 
-	{#if message}<p class="rounded-lg border-2 border-bad bg-bad-soft px-3 py-2 text-sm font-bold text-bad" role="alert">{message}</p>{/if}
+	<Section footer="Le volume sert aux calculateurs (changement d’eau, dosages). La date de mise en eau sert au coach de cyclage.">
+		<li class="pl-4"><div class="row-body flex min-h-11 items-center gap-3 pr-4">
+			<label for="volume" class="body shrink-0">Volume</label>
+			<input
+				id="volume"
+				bind:value={volumeL}
+				inputmode="decimal"
+				placeholder="0"
+				class="body h-11 min-w-0 flex-1 bg-transparent text-right text-label2 outline-none placeholder:text-label3"
+			/>
+			<span class="body text-label2">L</span>
+		</div></li>
+		<li class="pl-4"><div class="row-body flex min-h-11 items-center gap-3 pr-4">
+			<label for="started" class="body flex-1">Mise en eau</label>
+			<input id="started" type="date" bind:value={startedOn} class="body rounded-lg bg-fill3 px-2.5 py-1 text-right outline-none" />
+		</div></li>
+	</Section>
 
-	<button disabled={busy || !name.trim()} class="btn w-full">
-		{busy ? 'Création…' : 'Créer le bac'}
-	</button>
+	<Section header="Paramètres suivis" footer="Ces plages sont un point de départ : tu pourras toutes les modifier dans les réglages du bac.">
+		{#each template as p (p.key)}
+			<Row title={p.name}>
+				{#snippet trailing()}
+					<span class="subhead shrink-0 text-label2">
+						{#if p.min != null || p.max != null}
+							{p.min == null ? '…' : fmt(p.min, p.decimals)} – {p.max == null ? '…' : fmt(p.max, p.decimals)}{p.unit ? ` ${p.unit}` : ''}
+						{:else}
+							–
+						{/if}
+					</span>
+				{/snippet}
+			</Row>
+		{/each}
+	</Section>
+
+	<button type="submit" class="btn-filled mb-6 w-full" disabled={!ready}>{busy ? 'Ajout…' : 'Ajouter le bac'}</button>
 </form>

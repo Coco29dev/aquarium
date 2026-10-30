@@ -7,4 +7,11 @@ declare global {
 	}
 }
 
+// Attribut « switch » de Safari (interrupteur iOS natif avec retour haptique).
+declare module 'svelte/elements' {
+	interface HTMLInputAttributes {
+		switch?: boolean | null;
+	}
+}
+
 export {};

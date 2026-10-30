@@ -21,12 +21,40 @@ interface PendingConfirm extends ConfirmOptions {
 
 const UNDO_MS = 4500;
 
+export type ThemePreference = 'auto' | 'light' | 'dark';
+
+function readTheme(): ThemePreference {
+	try {
+		const value = localStorage.getItem('theme');
+		return value === 'light' || value === 'dark' ? value : 'auto';
+	} catch {
+		return 'auto';
+	}
+}
+
 /** État d'interface partagé : bannière avec « Annuler », alertes de confirmation, tâches cochées en sursis. */
 class Ui {
 	toast = $state<Toast | null>(null);
 	alert = $state<PendingConfirm | null>(null);
 	/** Tâches cochées dont l'envoi attend la fin du délai d'annulation. */
 	checking = $state<Record<number, true>>({});
+	/** Apparence choisie (Réglages › Affichage) ; 'auto' suit l'iPhone. */
+	theme = $state<ThemePreference>(typeof window === 'undefined' ? 'auto' : readTheme());
+
+	setTheme(theme: ThemePreference) {
+		this.theme = theme;
+		try {
+			if (theme === 'auto') localStorage.removeItem('theme');
+			else localStorage.setItem('theme', theme);
+		} catch {
+			// Stockage indisponible : le choix vaut pour cette session seulement.
+		}
+		const dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+		const root = document.documentElement;
+		root.dataset.theme = theme;
+		root.dataset.scheme = dark ? 'dark' : 'light';
+		document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#000000' : '#f2f2f7');
+	}
 
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#pending = new Map<number, ReturnType<typeof setTimeout>>();

@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Variante dark: de Tailwind alignée sur le thème choisi dans l'appli. */
+@custom-variant dark (&:where([data-scheme='dark'], [data-scheme='dark'] *));
+
 /*
  * Charte « Aquarium » : une appli qui pourrait sortir d'iOS.
  * Police système (SF Pro, SF Pro Rounded pour les chiffres), couleurs système d'iOS,
@@ -46,8 +49,12 @@
 	--dim: rgb(0 0 0 / 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
+/*
+ * Thème : le script de app.html résout la préférence (Automatique, Clair, Sombre) en
+ * data-scheme="light" | "dark" sur <html> avant l'affichage, et suit le réglage de l'iPhone en
+ * Automatique. Les jetons sombres n'existent donc qu'une fois.
+ */
+:root[data-scheme='dark'] {
 		color-scheme: dark;
 		--bg: #000000;
 		--bg2: #1c1c1e;
@@ -79,7 +86,6 @@
 		--glass-edge: rgb(255 255 255 / 0.14);
 		--glass-shadow: 0 8px 28px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
 		--dim: rgb(0 0 0 / 0.5);
-	}
 }
 
 @theme inline {

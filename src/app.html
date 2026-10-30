@@ -3,8 +3,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-		<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
-		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#f2f2f7" />
+		<script>
+			// Thème choisi dans l'appli (Automatique, Clair, Sombre), appliqué avant le premier affichage.
+			// data-theme garde la préférence, data-scheme le résultat ; ui.svelte.ts reprend la même logique.
+			(function () {
+				var root = document.documentElement;
+				var media = matchMedia('(prefers-color-scheme: dark)');
+				function apply() {
+					var pref = 'auto';
+					try {
+						pref = localStorage.getItem('theme') || 'auto';
+					} catch (e) {}
+					var scheme = pref === 'auto' ? (media.matches ? 'dark' : 'light') : pref;
+					root.dataset.theme = pref;
+					root.dataset.scheme = scheme;
+					var meta = document.querySelector('meta[name="theme-color"]');
+					if (meta) meta.setAttribute('content', scheme === 'dark' ? '#000000' : '#f2f2f7');
+				}
+				apply();
+				window.__applyTheme = apply;
+				media.addEventListener('change', apply);
+			})();
+		</script>
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-title" content="Aquarium" />

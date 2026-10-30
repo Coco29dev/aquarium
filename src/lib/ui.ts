@@ -72,3 +72,11 @@ export function tankAge(aquarium: Pick<Aquarium, 'startedOn'>, today = dayInPari
 export function shortDate(value: string | Date): string {
 	return new Date(value).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
 }
+
+/**
+ * Vrai pour une mesure encore dans la file d'envoi (saisie hors ligne ou pas encore synchronisée) :
+ * elle a un identifiant client mais pas encore d'identifiant serveur. Les écrans la grisent.
+ */
+export function isPendingMeasurement(m: { clientId?: string | null; id?: number | null }): boolean {
+	return Boolean(m.clientId) && m.id == null;
+}

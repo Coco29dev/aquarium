@@ -23,6 +23,8 @@
 		trailing?: Snippet;
 		children?: Snippet;
 		disabled?: boolean;
+		/** Sans <li> englobant : pour placer la ligne dans un SwipeRow (qui fournit le <li>). */
+		bare?: boolean;
 	}
 	let {
 		title,
@@ -38,7 +40,8 @@
 		leading,
 		trailing,
 		children,
-		disabled = false
+		disabled = false,
+		bare = false
 	}: Props = $props();
 
 	const showChevron = $derived(chevron ?? Boolean(href));
@@ -72,7 +75,7 @@
 	</div>
 {/snippet}
 
-<li>
+{#snippet body()}
 	{#if href && !disabled}
 		<a {href} class="tappable flex items-center gap-3 pl-4">{@render inner()}</a>
 	{:else if onclick}
@@ -80,4 +83,10 @@
 	{:else}
 		<div class="flex items-center gap-3 pl-4">{@render inner()}</div>
 	{/if}
-</li>
+{/snippet}
+
+{#if bare}
+	{@render body()}
+{:else}
+	<li>{@render body()}</li>
+{/if}

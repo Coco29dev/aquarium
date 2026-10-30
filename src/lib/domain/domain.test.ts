@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeParameter, driftThreshold, slopePerDay } from './drift';
+import { analyzeParameter, driftThreshold, isReassuring, slopePerDay } from './drift';
 import { cyclingCoach } from './cycling';
 import { addDays, dayInParis, daysBetween } from './dates';
 import { dueTasks, nextDueAfter } from './tasks';
@@ -85,6 +85,24 @@ describe('analyzeParameter', () => {
 			{ value: 7.0, measuredAt: daysAgo(0) }
 		];
 		expect(analyzeParameter(ph, tight, NOW)).toBeNull();
+	});
+	it('ne signale pas une baisse rapide des nitrites pendant le cyclage', () => {
+		const no2: Parameter = { ...ph, key: 'no2', name: 'Nitrites', min: 0, max: 0.1, driftPerWeek: null, decimals: 2 };
+		const alert = analyzeParameter(
+			no2,
+			[
+				{ value: 0.8, measuredAt: daysAgo(6) },
+				{ value: 0.3, measuredAt: daysAgo(3) },
+				{ value: 0.05, measuredAt: daysAgo(0) }
+			],
+			NOW
+		);
+		expect(alert).toBeNull();
+	});
+	it('ne signale pas un retour rapide vers le milieu de la plage', () => {
+		expect(isReassuring(ph, 7.0, 0.6)).toBe(true);
+		expect(isReassuring(ph, 7.0, -0.6)).toBe(false);
+		expect(isReassuring(ph, 6.2, 0.6)).toBe(false);
 	});
 	it('utilise 25 % de la plage quand aucun seuil n’est défini', () => {
 		expect(driftThreshold({ driftPerWeek: null, min: 6, max: 8 })).toBeCloseTo(0.5);

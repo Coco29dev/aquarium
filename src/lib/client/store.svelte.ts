@@ -1,6 +1,6 @@
 import { localDb, type OutboxItem } from './db';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Measurement, Snapshot, SyncOp, Task } from '$lib/types';
+import type { Completion, Measurement, Snapshot, SyncOp, Task } from '$lib/types';
 
 const SNAPSHOT_KEY = 'snapshot';
 
@@ -18,6 +18,7 @@ class AppStore {
 		if (!base) return null;
 		const measurements: Measurement[] = [...base.measurements];
 		let tasks: Task[] = base.tasks;
+		const completions: Completion[] = [...(base.completions ?? [])];
 		for (const op of this.pending) {
 			if (op.type === 'measurement') {
 				measurements.push({
@@ -28,6 +29,7 @@ class AppStore {
 					clientId: op.clientId
 				});
 			} else {
+				completions.push({ taskId: op.taskId, doneAt: op.doneAt, note: op.note });
 				tasks = tasks.map((t) => {
 					if (t.id !== op.taskId) return t;
 					const next = nextDueAfter(op.doneAt, t.everyDays);
@@ -36,7 +38,8 @@ class AppStore {
 			}
 		}
 		measurements.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
-		return { ...base, measurements, tasks };
+		completions.sort((a, b) => a.doneAt.localeCompare(b.doneAt));
+		return { ...base, measurements, tasks, completions };
 	});
 
 	#started = false;

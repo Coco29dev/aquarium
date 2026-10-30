@@ -5,7 +5,7 @@ import { deleteObject } from './storage';
 import { PARAMETER_TEMPLATES } from '$lib/templates';
 import { dayInParis } from '$lib/domain/dates';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Aquarium, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
+import type { Aquarium, Completion, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
 
 const SNAPSHOT_DAYS = 120;
 
@@ -16,7 +16,7 @@ const taskSql = `id, aquarium_id AS "aquariumId", title, kind, every_days AS "ev
 	next_due AS "nextDue", active`;
 
 export async function loadSnapshot(): Promise<Snapshot> {
-	const [aquariums, parameters, measurements, tasks, consumables, replacements] = await Promise.all([
+	const [aquariums, parameters, measurements, tasks, consumables, replacements, completions] = await Promise.all([
 		db().query<Aquarium>(`SELECT ${aquariumSql} FROM aquariums ORDER BY id`),
 		db().query<Parameter>(`SELECT ${parameterSql} FROM parameter_defs ORDER BY aquarium_id, position, id`),
 		db().query<Measurement>(
@@ -36,6 +36,14 @@ export async function loadSnapshot(): Promise<Snapshot> {
 		db().query<{ consumableId: number; installedOn: string; replacedOn: string }>(
 			`SELECT consumable_id AS "consumableId", installed_on AS "installedOn", replaced_on AS "replacedOn"
 			 FROM consumable_replacements ORDER BY replaced_on DESC`
+		),
+		db().query<Completion>(
+			`SELECT task_id AS "taskId", note,
+			        to_char(done_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "doneAt"
+			 FROM task_completions
+			 WHERE done_at >= now() - ($1 || ' days')::interval
+			 ORDER BY done_at`,
+			[String(SNAPSHOT_DAYS)]
 		)
 	]);
 	const history = new Map<number, { installedOn: string; replacedOn: string }[]>();
@@ -50,7 +58,8 @@ export async function loadSnapshot(): Promise<Snapshot> {
 		parameters: parameters.rows,
 		measurements: measurements.rows,
 		tasks: tasks.rows,
-		consumables: consumables.rows.map((c) => ({ ...c, history: history.get(c.id) ?? [] }))
+		consumables: consumables.rows.map((c) => ({ ...c, history: history.get(c.id) ?? [] })),
+		completions: completions.rows
 	};
 }
 

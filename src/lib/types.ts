@@ -55,6 +55,14 @@ export interface Snapshot {
 	tasks: Task[];
 	/** Absent d'un ancien cache local. */
 	consumables?: ConsumableRow[];
+	/** Réalisations de tâches récentes (absent d'un ancien cache local). */
+	completions?: Completion[];
+}
+
+export interface Completion {
+	taskId: number;
+	doneAt: string; // ISO
+	note?: string | null;
 }
 
 /** Opérations saisies hors ligne, renvoyées à l'ouverture suivante. */

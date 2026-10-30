@@ -47,6 +47,23 @@ export function driftThreshold(p: Pick<Parameter, 'driftPerWeek' | 'min' | 'max'
 	return null;
 }
 
+/**
+ * Une variation rapide n'inquiète pas quand elle va dans le bon sens :
+ * - paramètre « le moins possible » (plancher nul ou absent, ex. ammoniac, nitrites) qui baisse ;
+ * - valeur dans la plage qui revient vers le milieu de la plage.
+ */
+export function isReassuring(
+	p: Pick<Parameter, 'min' | 'max'>,
+	latest: number,
+	change7d: number
+): boolean {
+	if (change7d < 0 && (p.min == null || p.min <= 0)) return true;
+	if (p.min == null || p.max == null) return false;
+	if (latest < p.min || latest > p.max) return false;
+	const center = (p.min + p.max) / 2;
+	return Math.sign(change7d) === Math.sign(center - latest);
+}
+
 export function analyzeParameter(
 	parameter: Parameter,
 	measurements: Pick<Measurement, 'value' | 'measuredAt'>[],
@@ -87,6 +104,7 @@ export function analyzeParameter(
 
 	const change7d = slope * WINDOW_DAYS;
 	if (Math.abs(change7d) < threshold) return null;
+	if (isReassuring(parameter, latest.v, change7d)) return null;
 
 	const direction = change7d > 0 ? 'monte' : 'baisse';
 	return {

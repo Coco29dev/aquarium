@@ -1,99 +1,155 @@
 @import 'tailwindcss';
 
+/*
+ * Charte « Carnet de bac » : soft brutalisme aquatique.
+ * Un carnet d'aquariophile : papier quadrillé à points, encre, étiquettes de ruban adhésif,
+ * annotations à la main, aplats de couleur par bac comme des feutres. Contours francs,
+ * ombres dures décalées, angles adoucis.
+ * Clair par défaut ; sombre « Ardoise douce » quand l'iPhone est en mode sombre.
+ */
+
 /* Polices hébergées (sous-ensemble latin, suffisant pour le français) pour le mode hors ligne. */
 @font-face {
-	font-family: 'Fredoka Variable';
+	font-family: 'Archivo';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 300 700;
-	src: url('../../node_modules/@fontsource-variable/fredoka/files/fredoka-latin-wght-normal.woff2') format('woff2-variations');
+	font-weight: 100 900;
+	font-stretch: 62% 125%;
+	src: url('../../node_modules/@fontsource-variable/archivo/files/archivo-latin-standard-normal.woff2') format('woff2-variations');
 }
 @font-face {
-	font-family: 'Figtree Variable';
+	font-family: 'Atkinson Hyperlegible';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 300 900;
-	src: url('../../node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2-variations');
+	font-weight: 400;
+	src: url('../../node_modules/@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Atkinson Hyperlegible';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 700;
+	src: url('../../node_modules/@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'IBM Plex Mono';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 500;
+	src: url('../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Kalam';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400;
+	src: url('../../node_modules/@fontsource/kalam/files/kalam-latin-400-normal.woff2') format('woff2');
 }
 
-/* Charte « Chirurgien » : bleu roi et jaune soleil, contours épais et ombres dures.
-   Clair par défaut ; sombre « Ardoise douce » quand l'iPhone est en mode sombre. */
 :root {
 	color-scheme: light;
-	--bg: #e8eeff;
-	--surface: #ffffff;
-	--surface2: #d3dfff;
-	--ink: #0f1b4d;
-	--muted: #4a5c94;
-	--line: #c5d3f5;
-	--edge: #0f1b4d;
-	--shadow: #0f1b4d;
-	--primary: #2f5bff;
-	--on-primary: #ffffff;
-	--accent: #e0a000;
-	--ok: #0e8a5b;
-	--warn: #9a6400;
-	--bad: #d42e48;
+	--paper: #e9eeea;
+	--paper-dot: rgb(22 32 46 / 0.11);
+	--surface: #fafbf8;
+	--surface2: #dde5e0;
+	--ink: #16202e;
+	--muted: #56616d;
+	--line: #c3cec9;
+	--edge: #16202e;
+	--shadow: #16202e;
+	--on-ink: #fafbf8;
+	--link: #2547d0;
+	--sun: #ffd866;
+	--ok: #1e7f47;
+	--warn: #a85f00;
+	--bad: #cf2338;
+	/* Une couleur de feutre par type de bac. */
+	--t-douce: #a8d8f5;
+	--t-plantee: #bfe6a8;
+	--t-mer: #93dcd4;
+	--t-recif: #ffb8aa;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
 		color-scheme: dark;
-		--bg: #131a22;
+		--paper: #131a22;
+		--paper-dot: rgb(233 239 246 / 0.07);
 		--surface: #1c252f;
 		--surface2: #26323f;
 		--ink: #e9eff6;
 		--muted: #98a7b8;
 		--line: #2e3b49;
 		--edge: #6f8199;
-		--shadow: #0a0f14;
-		--primary: #5c8dff;
-		--on-primary: #07142e;
-		--accent: #ffc93c;
+		--shadow: #06090d;
+		--on-ink: #131a22;
+		--link: #9db8ff;
+		--sun: #e8c255;
 		--ok: #3dd598;
 		--warn: #ffc54d;
 		--bad: #ff6b81;
+		--t-douce: #2b5671;
+		--t-plantee: #355d36;
+		--t-mer: #225f59;
+		--t-recif: #72403a;
 	}
 }
 
 @theme inline {
-	--color-bg: var(--bg);
+	--color-paper: var(--paper);
 	--color-surface: var(--surface);
 	--color-surface2: var(--surface2);
 	--color-ink: var(--ink);
 	--color-muted: var(--muted);
 	--color-line: var(--line);
 	--color-edge: var(--edge);
-	--color-primary: var(--primary);
-	--color-on-primary: var(--on-primary);
-	--color-accent: var(--accent);
+	--color-on-ink: var(--on-ink);
+	--color-link: var(--link);
+	--color-sun: var(--sun);
 	--color-ok: var(--ok);
 	--color-warn: var(--warn);
 	--color-bad: var(--bad);
-	--color-ok-soft: color-mix(in srgb, var(--ok) 16%, var(--surface));
-	--color-warn-soft: color-mix(in srgb, var(--warn) 17%, var(--surface));
-	--color-bad-soft: color-mix(in srgb, var(--bad) 15%, var(--surface));
-	--font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
-	--font-display: 'Fredoka Variable', 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
-	--radius-lg: 1.1rem;
+	--color-ok-soft: color-mix(in srgb, var(--ok) 15%, var(--surface));
+	--color-warn-soft: color-mix(in srgb, var(--warn) 16%, var(--surface));
+	--color-bad-soft: color-mix(in srgb, var(--bad) 14%, var(--surface));
+	--color-t-douce: var(--t-douce);
+	--color-t-plantee: var(--t-plantee);
+	--color-t-mer: var(--t-mer);
+	--color-t-recif: var(--t-recif);
+	/* Alias conservés pour les anciennes classes. */
+	--color-bg: var(--paper);
+	--color-primary: var(--link);
+	--color-on-primary: var(--surface);
+	--color-accent: var(--sun);
+	--font-sans: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'Archivo', 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+	--font-hand: 'Kalam', 'Atkinson Hyperlegible', cursive;
+	--radius-lg: 0.875rem;
 }
 
 html,
 body {
-	background: var(--bg);
+	background-color: var(--paper);
 	color: var(--ink);
 	font-family: var(--font-sans);
+	-webkit-tap-highlight-color: transparent;
 }
 
 body {
+	/* Papier pointé de carnet. */
+	background-image: radial-gradient(var(--paper-dot) 1.1px, transparent 1.4px);
+	background-size: 18px 18px;
+	background-attachment: fixed;
 	padding-top: env(safe-area-inset-top);
 	padding-bottom: env(safe-area-inset-bottom);
 }
 
 h1,
-h2 {
+h2,
+h3 {
 	font-family: var(--font-display);
-	font-weight: 600;
+	text-wrap: balance;
 }
 
 input,
@@ -102,23 +158,230 @@ textarea {
 	color: var(--ink);
 }
 
-/* Carte : fond, contour épais et ombre dure. */
+:focus-visible {
+	outline: 2.5px solid var(--link);
+	outline-offset: 2px;
+}
+
+::selection {
+	background: var(--sun);
+	color: #16202e;
+}
+
+/* --- Briques de la charte ------------------------------------------------ */
+
+/* Titre de page : Archivo large et noir, serré. */
+@utility display {
+	font-family: var(--font-display);
+	font-weight: 850;
+	font-stretch: 118%;
+	letter-spacing: -0.035em;
+	line-height: 0.95;
+}
+
+/* Annotation manuscrite (conseils, états vides, petits mots). */
+@utility hand {
+	font-family: var(--font-hand);
+	font-weight: 400;
+	letter-spacing: 0;
+}
+
+/* Valeurs mesurées : chiffres alignés. */
+@utility num {
+	font-family: var(--font-mono);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+}
+
+/* Étiquette de ruban adhésif pour les titres de section. */
+@utility tape {
+	display: inline-block;
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	padding: 0.15rem 0.55rem;
+	background: var(--sun);
+	color: #16202e;
+	border: 1.5px solid var(--edge);
+	transform: rotate(-1.2deg);
+}
+
+/* Carte : papier clair, contour d'encre, ombre dure décalée. */
 @utility card {
 	border-radius: var(--radius-lg);
 	background: var(--surface);
-	border: 2.5px solid var(--edge);
-	box-shadow: 3px 3px 0 var(--shadow);
+	border: 2px solid var(--edge);
+	box-shadow: 4px 4px 0 var(--shadow);
 }
 
-/* Bouton principal : bleu roi, texte clair (sombre en mode sombre), s'enfonce au toucher. */
-@utility btn-primary {
-	background: var(--primary);
-	color: var(--on-primary);
-	border: 2.5px solid var(--edge);
-	box-shadow: 3px 3px 0 var(--shadow);
-	font-weight: 700;
+/* Même carte sans ombre (listes denses, éléments imbriqués). */
+@utility card-flat {
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	border: 2px solid var(--edge);
+}
+
+/* Élément qui s'enfonce au toucher, comme un bouton imprimé. */
+@utility press {
+	transition:
+		transform 90ms ease-out,
+		box-shadow 90ms ease-out;
 	&:active {
-		transform: translate(2px, 2px);
+		transform: translate(3px, 3px);
 		box-shadow: 1px 1px 0 var(--shadow);
 	}
+}
+
+/* Bouton principal : encre pleine, ombre jaune soleil. */
+@utility btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-height: 3rem;
+	padding: 0 1.25rem;
+	border-radius: 0.75rem;
+	background: var(--ink);
+	color: var(--on-ink);
+	border: 2px solid var(--edge);
+	box-shadow: 3px 3px 0 var(--sun);
+	font-weight: 700;
+	transition:
+		transform 90ms ease-out,
+		box-shadow 90ms ease-out;
+	&:active:not(:disabled) {
+		transform: translate(3px, 3px);
+		box-shadow: 0 0 0 var(--sun);
+	}
+	&:disabled {
+		opacity: 0.4;
+	}
+}
+
+/* Bouton secondaire : papier, contour et ombre d'encre. */
+@utility btn-ghost {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-height: 3rem;
+	padding: 0 1.25rem;
+	border-radius: 0.75rem;
+	background: var(--surface);
+	color: var(--ink);
+	border: 2px solid var(--edge);
+	box-shadow: 3px 3px 0 var(--shadow);
+	font-weight: 700;
+	transition:
+		transform 90ms ease-out,
+		box-shadow 90ms ease-out;
+	&:active:not(:disabled) {
+		transform: translate(3px, 3px);
+		box-shadow: 0 0 0 var(--shadow);
+	}
+	&:disabled {
+		opacity: 0.4;
+	}
+}
+
+/* Ancien nom du bouton principal, gardé pour les pages pas encore refaites. */
+@utility btn-primary {
+	background: var(--ink);
+	color: var(--on-ink);
+	border: 2px solid var(--edge);
+	box-shadow: 3px 3px 0 var(--sun);
+	font-weight: 700;
+	&:active {
+		transform: translate(3px, 3px);
+		box-shadow: 0 0 0 var(--sun);
+	}
+}
+
+/* Champ de saisie. */
+@utility field {
+	width: 100%;
+	border-radius: 0.75rem;
+	border: 2px solid var(--edge);
+	background: var(--surface);
+	padding: 0.65rem 0.85rem;
+	font-size: 1rem;
+	&::placeholder {
+		color: var(--muted);
+	}
+}
+
+/* Pastille d'état. */
+@utility chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	border-radius: 999px;
+	border: 1.5px solid currentColor;
+	padding: 0.1rem 0.55rem;
+	font-size: 0.75rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+/* Apparition d'un écran : glisse légèrement vers le haut. */
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+}
+@keyframes stamp {
+	0% {
+		opacity: 0;
+		transform: scale(1.8) rotate(-14deg);
+	}
+	60% {
+		opacity: 1;
+		transform: scale(0.92) rotate(-8deg);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1) rotate(-8deg);
+	}
+}
+@keyframes bubble {
+	0% {
+		transform: translateY(0) scale(0.6);
+		opacity: 0;
+	}
+	15% {
+		opacity: 0.8;
+	}
+	100% {
+		transform: translateY(-120px) scale(1.1);
+		opacity: 0;
+	}
+}
+
+@utility rise {
+	animation: rise 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 1ms !important;
+	}
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}
+
+/* Transition entre écrans (iOS 18+) : fondu court, la barre d'onglets reste en place. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 180ms;
 }

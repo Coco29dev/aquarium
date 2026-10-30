@@ -3,6 +3,8 @@ declare global {
 	namespace App {
 		interface Locals {
 			authenticated: boolean;
+			/** Requête authentifiée par un jeton de raccourci (routes /api/shortcuts/* seulement). */
+			shortcut?: boolean;
 		}
 	}
 }

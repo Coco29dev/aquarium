@@ -5,7 +5,7 @@ import { onInhabitantCreated, onInhabitantUpdated, parseDepartureCause, readInha
 // CRUD déclaratif pour l'inventaire, les dépenses et les notes. Les noms de tables et de colonnes
 // viennent uniquement de cette configuration (jamais de la requête) : pas d'injection SQL possible.
 
-type FieldType = 'text' | 'int' | 'number' | 'date' | 'enum';
+type FieldType = 'text' | 'int' | 'number' | 'date' | 'enum' | 'bool';
 
 interface Field {
 	column: string;
@@ -80,6 +80,20 @@ export const RESOURCES: Record<string, Resource> = {
 			spentOn: date('spent_on')
 		}
 	},
+	project_items: {
+		table: 'project_items',
+		scopeColumn: 'aquarium_id',
+		orderBy: 'position, id',
+		fields: {
+			kind: { column: 'kind', type: 'enum', required: true, values: ['equipement', 'espece', 'budget', 'etape'] },
+			label: text('label', true),
+			done: { column: 'done', type: 'bool' },
+			amount: { column: 'amount', type: 'number' },
+			speciesId: { column: 'species_id', type: 'int' },
+			notes: text('notes', false, 1000),
+			position: { column: 'position', type: 'int' }
+		}
+	},
 	notes: {
 		table: 'notes',
 		scopeColumn: 'aquarium_id',
@@ -137,6 +151,10 @@ function parse(resource: Resource, body: Body, creating: boolean): Map<string, u
 				break;
 			case 'date':
 				if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) error(400, `Date invalide : ${key}`);
+				out.set(field.column, raw);
+				break;
+			case 'bool':
+				if (typeof raw !== 'boolean') error(400, `Champ invalide : ${key}`);
 				out.set(field.column, raw);
 				break;
 		}

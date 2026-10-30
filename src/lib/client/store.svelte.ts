@@ -3,7 +3,23 @@ import { nextDueAfter } from '$lib/domain/tasks';
 import { addDays, dayInParis } from '$lib/domain/dates';
 import { skipDue } from '$lib/domain/notifications';
 import { validateEventPayload } from '$lib/domain/events';
-import type { AquariumEvent, BackupStatus, Completion, EventKind, Measurement, NotificationSettings, Snapshot, SyncOp, Task } from '$lib/types';
+import type {
+	AquariumEvent,
+	AquariumStage,
+	BackupListItem,
+	BackupStatus,
+	Completion,
+	EventKind,
+	Feeding,
+	Measurement,
+	NotificationSettings,
+	RestorePreview,
+	RestoreResult,
+	ShortcutToken,
+	Snapshot,
+	SyncOp,
+	Task
+} from '$lib/types';
 
 const SNAPSHOT_KEY = 'snapshot';
 
@@ -23,6 +39,7 @@ class AppStore {
 		let tasks: Task[] = base.tasks;
 		const completions: Completion[] = [...(base.completions ?? [])];
 		const events: AquariumEvent[] = [...(base.events ?? [])];
+		const feedings: Feeding[] = [...(base.feedings ?? [])];
 		for (const op of this.pending) {
 			if (op.type === 'measurement') {
 				measurements.push({
@@ -32,6 +49,8 @@ class AppStore {
 					measuredAt: op.measuredAt,
 					clientId: op.clientId
 				});
+			} else if (op.type === 'feeding') {
+				feedings.push({ aquariumId: op.aquariumId, fedAt: op.fedAt, note: op.note ?? null, clientId: op.clientId });
 			} else if (op.type === 'event') {
 				events.push({
 					aquariumId: op.aquariumId,
@@ -67,7 +86,8 @@ class AppStore {
 		measurements.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
 		completions.sort((a, b) => a.doneAt.localeCompare(b.doneAt));
 		events.sort((a, b) => a.at.localeCompare(b.at));
-		return { ...base, measurements, tasks, completions, events };
+		feedings.sort((a, b) => a.fedAt.localeCompare(b.fedAt));
+		return { ...base, measurements, tasks, completions, events, feedings };
 	});
 
 	#started = false;
@@ -232,6 +252,14 @@ class AppStore {
 	}
 
 	/** Nouvel ordre des paramètres d'un bac (tous ses ids) ; la vue change tout de suite. */
+	/**
+	 * Change l'étape d'un bac : projet → cyclage (mise en eau), cyclage → actif, actif → cyclage (nouveau cyclage).
+	 * `startedOn` (YYYY-MM-DD) fixe la date de mise en eau ; réseau requis.
+	 */
+	async setStage(aquariumId: number, stage: AquariumStage, startedOn?: string) {
+		await this.mutate('POST', `/api/aquariums/${aquariumId}/stage`, { stage, startedOn });
+	}
+
 	async reorderParameters(aquariumId: number, ids: number[]) {
 		const previous = this.snapshot;
 		if (previous) {
@@ -285,6 +313,109 @@ class AppStore {
 	}
 
 	/** Modifications de configuration (aquariums, paramètres, tâches) : réseau requis. */
+	// --- Nourrissage -----------------------------------------------------------
+
+	/** Note un repas maintenant (file d'attente hors ligne ; apparaît tout de suite dans `view.feedings`). */
+	async addFeeding(aquariumId: number, note?: string): Promise<void> {
+		await this.#enqueue([
+			{
+				type: 'feeding',
+				clientId: crypto.randomUUID(),
+				aquariumId,
+				fedAt: new Date().toISOString(),
+				note: note?.trim() || undefined
+			}
+		]);
+	}
+
+	/** Supprime un repas déjà enregistré par le serveur (réseau requis). */
+	async deleteFeeding(id: number): Promise<void> {
+		await this.mutate('DELETE', `/api/feedings/${id}`);
+	}
+
+	// --- Appels JSON hors configuration (restauration, jetons, minuteurs) ---------
+
+	async #call<T>(method: 'GET' | 'POST' | 'DELETE', url: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+		if (!navigator.onLine) throw new Error('Connexion requise.');
+		const response = await fetch(url, {
+			method,
+			headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
+			body: body === undefined ? undefined : JSON.stringify(body)
+		});
+		const data = await response.json().catch(() => null);
+		if (!response.ok) throw new Error(data?.message ?? `Erreur ${response.status}`);
+		return data as T;
+	}
+
+	// --- Restauration ---------------------------------------------------------------
+
+	/** Résume un export JSON et le teste sans rien modifier (la base reste intacte). */
+	previewRestore(payload: unknown): Promise<RestorePreview> {
+		return this.#call<RestorePreview>('POST', '/api/restore?dry=1', payload);
+	}
+
+	/** Remplace toutes les données par celles de l'export. Une sauvegarde de sécurité est faite avant. */
+	async restore(payload: unknown): Promise<RestoreResult> {
+		const result = await this.#call<RestoreResult>('POST', '/api/restore', payload, { 'x-confirm': 'restaurer' });
+		await this.resetLocalCache();
+		return result;
+	}
+
+	listBackups(): Promise<BackupListItem[]> {
+		return this.#call<BackupListItem[]>('GET', '/api/settings/backup/list');
+	}
+
+	previewRestoreFromBackup(key: string): Promise<RestorePreview> {
+		return this.#call<RestorePreview>('POST', '/api/restore/from-backup', { key, dry: true });
+	}
+
+	async restoreFromBackup(key: string): Promise<RestoreResult> {
+		const result = await this.#call<RestoreResult>('POST', '/api/restore/from-backup', { key }, { 'x-confirm': 'restaurer' });
+		await this.resetLocalCache();
+		return result;
+	}
+
+	/** Vide le cache local (IndexedDB) et la file d'attente, puis repart de l'état du serveur. */
+	async resetLocalCache(): Promise<void> {
+		try {
+			await localDb.transaction('rw', localDb.kv, localDb.outbox, async () => {
+				await localDb.kv.clear();
+				await localDb.outbox.clear();
+			});
+		} catch {
+			// Cache indisponible : on repart quand même du serveur.
+		}
+		this.snapshot = null;
+		this.pending = [];
+		await this.sync();
+	}
+
+	// --- Raccourcis (Siri, bouton Action) --------------------------------------------
+
+	listShortcutTokens(): Promise<ShortcutToken[]> {
+		return this.#call<ShortcutToken[]>('GET', '/api/settings/shortcuts');
+	}
+
+	/** Le jeton n'est renvoyé qu'ici, une seule fois : à afficher et copier tout de suite. */
+	createShortcutToken(label: string): Promise<{ id: number; token: string }> {
+		return this.#call('POST', '/api/settings/shortcuts', { label });
+	}
+
+	async revokeShortcutToken(id: number): Promise<void> {
+		await this.#call('DELETE', `/api/settings/shortcuts/${id}`);
+	}
+
+	// --- Minuteurs push --------------------------------------------------------------
+
+	/** Lance un minuteur : une notification arrive à la fin, même app fermée. Perdu si le serveur redémarre. */
+	startTimer(seconds: number, label: string, url?: string): Promise<{ id: number; endsAt: string }> {
+		return this.#call('POST', '/api/timers', { seconds, label, url });
+	}
+
+	async cancelTimer(id: number): Promise<void> {
+		await this.#call('DELETE', `/api/timers/${id}`);
+	}
+
 	async mutate(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, body?: unknown): Promise<Response> {
 		if (!navigator.onLine) throw new Error('Connexion requise pour modifier la configuration.');
 		const response = await fetch(url, {

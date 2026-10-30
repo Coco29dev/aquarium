@@ -5,7 +5,7 @@ import type { OutboxItem } from './db';
 
 const snapshot = (): Snapshot => ({
 	generatedAt: '2026-10-30T10:00:00.000Z',
-	aquariums: [{ id: 1, name: 'Salon', waterType: 'plantee', volumeL: 240, startedOn: '2025-03-12', coverPhotoId: null }],
+	aquariums: [{ id: 1, name: 'Salon', waterType: 'plantee', volumeL: 240, startedOn: '2025-03-12', coverPhotoId: null, stage: 'actif' }],
 	parameters: [],
 	measurements: [],
 	tasks: [

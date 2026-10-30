@@ -5,7 +5,9 @@ import { deleteObject } from './storage';
 import { PARAMETER_TEMPLATES } from '$lib/templates';
 import { dayInParis } from '$lib/domain/dates';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Aquarium, Completion, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
+import { EVENT_KINDS, validateEventPayload } from '$lib/domain/events';
+import { recordEvent, snapshotEvents } from './events';
+import type { Aquarium, Completion, ConsumableRow, EventKind, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
 
 const SNAPSHOT_DAYS = 120;
 
@@ -17,7 +19,7 @@ const taskSql = `id, aquarium_id AS "aquariumId", title, kind, every_days AS "ev
 	next_due AS "nextDue", active`;
 
 export async function loadSnapshot(): Promise<Snapshot> {
-	const [aquariums, parameters, measurements, tasks, consumables, replacements, completions] = await Promise.all([
+	const [aquariums, parameters, measurements, tasks, consumables, replacements, completions, events] = await Promise.all([
 		db().query<Aquarium>(`SELECT ${aquariumSql} FROM aquariums ORDER BY id`),
 		db().query<Parameter>(`SELECT ${parameterSql} FROM parameter_defs ORDER BY aquarium_id, position, id`),
 		db().query<Measurement>(
@@ -45,7 +47,8 @@ export async function loadSnapshot(): Promise<Snapshot> {
 			 WHERE done_at >= now() - ($1 || ' days')::interval
 			 ORDER BY done_at`,
 			[String(SNAPSHOT_DAYS)]
-		)
+		),
+		snapshotEvents()
 	]);
 	const history = new Map<number, { installedOn: string; replacedOn: string }[]>();
 	for (const r of replacements.rows) {
@@ -60,7 +63,8 @@ export async function loadSnapshot(): Promise<Snapshot> {
 		measurements: measurements.rows,
 		tasks: tasks.rows,
 		consumables: consumables.rows.map((c) => ({ ...c, history: history.get(c.id) ?? [] })),
-		completions: completions.rows
+		completions: completions.rows,
+		events
 	};
 }
 
@@ -314,6 +318,23 @@ export function parseOps(value: unknown): SyncOp[] {
 				note: typeof op.note === 'string' ? op.note.slice(0, 500) : undefined
 			};
 		}
+		if (op.type === 'event') {
+			if (!EVENT_KINDS.includes(op.kind as never)) error(400, "Type d'événement inconnu");
+			const kind = op.kind as EventKind;
+			const problem = validateEventPayload(kind, op.payload);
+			if (problem) error(400, problem);
+			// Comme pour les mesures : une date future dans la file d'envoi est ramenée à maintenant.
+			const at = when(op.at);
+			return {
+				type: 'event',
+				clientId: op.clientId,
+				aquariumId: Number(op.aquariumId),
+				kind,
+				at: Date.parse(at) > Date.now() + 5 * 60 * 1000 ? new Date().toISOString() : at,
+				payload: op.payload as Record<string, unknown>,
+				note: typeof op.note === 'string' ? op.note.slice(0, 1000) : undefined
+			};
+		}
 		error(400, "Type d'opération inconnu");
 	});
 }
@@ -334,14 +355,41 @@ export async function applyOps(ops: SyncOp[]): Promise<void> {
 					 ON CONFLICT (client_id) DO NOTHING`,
 					[op.parameterId, op.value, op.measuredAt, op.clientId]
 				);
-			} else {
-				const inserted = await client.query(
+			} else if (op.type === 'event') {
+				await client.query(
+					`INSERT INTO events (aquarium_id, kind, at, payload, note, client_id)
+					 SELECT a.id, $2::text, $3::timestamptz, $4::jsonb, $5::text, $6::uuid FROM aquariums a WHERE a.id = $1
+					 ON CONFLICT (client_id) DO NOTHING`,
+					[op.aquariumId, op.kind, op.at, JSON.stringify(op.payload), op.note?.trim() || null, op.clientId]
+				);
+			} else if (op.type === 'completion') {
+				const inserted = await client.query<{ id: number }>(
 					`INSERT INTO task_completions (task_id, done_at, note, client_id)
 					 SELECT t.id, $2, $3, $4 FROM recurring_tasks t WHERE t.id = $1
-					 ON CONFLICT (client_id) DO NOTHING`,
+					 ON CONFLICT (client_id) DO NOTHING
+					 RETURNING id`,
 					[op.taskId, op.doneAt, op.note ?? null, op.clientId]
 				);
 				if (inserted.rowCount) {
+					// Une tâche de type « eau » cochée laisse un événement « changement d'eau » (détails à compléter).
+					const task = await client.query<{ aquarium_id: number; kind: string }>(
+						'SELECT aquarium_id, kind FROM recurring_tasks WHERE id = $1',
+						[op.taskId]
+					);
+					if (task.rows[0]?.kind === 'eau') {
+						await recordEvent(
+							{
+								aquariumId: task.rows[0].aquarium_id,
+								kind: 'changement_eau',
+								at: op.doneAt,
+								payload: {},
+								note: op.note,
+								source: 'tache',
+								sourceRef: inserted.rows[0].id
+							},
+							client
+						);
+					}
 					// Ne jamais reculer l'échéance si une réalisation plus ancienne arrive en retard.
 					await client.query(
 						`UPDATE recurring_tasks SET next_due = GREATEST(next_due, $2::date) WHERE id = $1`,
@@ -385,8 +433,11 @@ export async function exportAll() {
 		// Métadonnées seulement : les fichiers restent dans le stockage (voir /api/photos/<id>).
 		db().query(`SELECT id, aquarium_id, storage_key, content_type, bytes, caption, taken_on FROM photos ORDER BY id`)
 	]);
+	// Journal d'événements : lu à part pour ne pas toucher à la destructuration ci-dessus.
+	const events = await db().query(`SELECT * FROM events ORDER BY at, id`);
 	return {
 		exportedAt: new Date().toISOString(),
+		events: events.rows,
 		aquariums: aquariums.rows,
 		parameters: parameters.rows,
 		measurements: measurements.rows,

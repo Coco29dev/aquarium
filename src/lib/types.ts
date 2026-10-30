@@ -61,6 +61,34 @@ export interface Snapshot {
 	consumables?: ConsumableRow[];
 	/** Réalisations de tâches récentes (absent d'un ancien cache local). */
 	completions?: Completion[];
+	/** Journal d'événements des 180 derniers jours, 1000 au plus (absent d'un ancien cache local). */
+	events?: AquariumEvent[];
+}
+
+export type EventKind =
+	| 'changement_eau'
+	| 'appoint'
+	| 'dosage'
+	| 'eclairage'
+	| 'co2'
+	| 'maintenance'
+	| 'habitant_ajout'
+	| 'habitant_depart'
+	| 'etape'
+	| 'note';
+
+/** Un fait daté dans la vie d'un bac. Le schéma de `payload` dépend de `kind` : voir domain/events.ts. */
+export interface AquariumEvent {
+	id?: number;
+	aquariumId: number;
+	kind: EventKind;
+	at: string; // ISO
+	payload: Record<string, unknown>;
+	note?: string | null;
+	/** 'tache' : créé en cochant une tâche ; 'auto' : déduit d'une autre saisie ; 'manuel' : saisi tel quel. */
+	source?: 'manuel' | 'tache' | 'auto';
+	sourceRef?: number | null;
+	clientId?: string;
 }
 
 export interface Completion {
@@ -79,7 +107,16 @@ export type SyncOp =
 			value: number;
 			measuredAt: string;
 	  }
-	| { type: 'completion'; clientId: string; taskId: number; doneAt: string; note?: string };
+	| { type: 'completion'; clientId: string; taskId: number; doneAt: string; note?: string }
+	| {
+			type: 'event';
+			clientId: string;
+			aquariumId: number;
+			kind: EventKind;
+			at: string;
+			payload: Record<string, unknown>;
+			note?: string;
+	  };
 
 export type SpeciesKind = 'poisson' | 'corail' | 'invertebre' | 'plante' | 'autre';
 export type Temperament = 'paisible' | 'semi-agressif' | 'agressif';

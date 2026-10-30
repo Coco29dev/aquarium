@@ -2,7 +2,8 @@ import { localDb, type OutboxItem } from './db';
 import { nextDueAfter } from '$lib/domain/tasks';
 import { addDays, dayInParis } from '$lib/domain/dates';
 import { skipDue } from '$lib/domain/notifications';
-import type { BackupStatus, Completion, Measurement, NotificationSettings, Snapshot, SyncOp, Task } from '$lib/types';
+import { validateEventPayload } from '$lib/domain/events';
+import type { AquariumEvent, BackupStatus, Completion, EventKind, Measurement, NotificationSettings, Snapshot, SyncOp, Task } from '$lib/types';
 
 const SNAPSHOT_KEY = 'snapshot';
 
@@ -21,6 +22,7 @@ class AppStore {
 		const measurements: Measurement[] = [...base.measurements];
 		let tasks: Task[] = base.tasks;
 		const completions: Completion[] = [...(base.completions ?? [])];
+		const events: AquariumEvent[] = [...(base.events ?? [])];
 		for (const op of this.pending) {
 			if (op.type === 'measurement') {
 				measurements.push({
@@ -30,8 +32,31 @@ class AppStore {
 					measuredAt: op.measuredAt,
 					clientId: op.clientId
 				});
-			} else {
+			} else if (op.type === 'event') {
+				events.push({
+					aquariumId: op.aquariumId,
+					kind: op.kind,
+					at: op.at,
+					payload: op.payload,
+					note: op.note ?? null,
+					source: 'manuel',
+					clientId: op.clientId
+				});
+			} else if (op.type === 'completion') {
 				completions.push({ taskId: op.taskId, doneAt: op.doneAt, note: op.note });
+				// Cocher une tâche « eau » laisse tout de suite un changement d'eau dans le journal (comme le serveur le fera).
+				const done = base.tasks.find((t) => t.id === op.taskId);
+				if (done?.kind === 'eau') {
+					events.push({
+						aquariumId: done.aquariumId,
+						kind: 'changement_eau',
+						at: op.doneAt,
+						payload: {},
+						note: op.note ?? null,
+						source: 'tache',
+						clientId: op.clientId
+					});
+				}
 				tasks = tasks.map((t) => {
 					if (t.id !== op.taskId) return t;
 					const next = nextDueAfter(op.doneAt, t.everyDays);
@@ -41,7 +66,8 @@ class AppStore {
 		}
 		measurements.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
 		completions.sort((a, b) => a.doneAt.localeCompare(b.doneAt));
-		return { ...base, measurements, tasks, completions };
+		events.sort((a, b) => a.at.localeCompare(b.at));
+		return { ...base, measurements, tasks, completions, events };
 	});
 
 	#started = false;
@@ -142,6 +168,45 @@ class AppStore {
 		await this.#enqueue([
 			{ type: 'completion', clientId: crypto.randomUUID(), taskId, doneAt: new Date().toISOString(), note }
 		]);
+	}
+
+	/**
+	 * Ajoute un événement au journal d'un bac (changement d'eau, dosage, réglage…). Passe par la file
+	 * d'envoi : fonctionne hors ligne et apparaît tout de suite dans `view.events`. Lève une Error
+	 * en français si le détail est invalide ou la date dans le futur.
+	 */
+	async addEvent(
+		aquariumId: number,
+		kind: EventKind,
+		payload: Record<string, unknown> = {},
+		opts?: { note?: string; at?: string }
+	): Promise<void> {
+		const problem = validateEventPayload(kind, payload);
+		if (problem) throw new Error(problem);
+		const at = opts?.at ?? new Date().toISOString();
+		if (Number.isNaN(Date.parse(at))) throw new Error('Date invalide.');
+		if (Date.parse(at) > Date.now() + 5 * 60 * 1000) throw new Error("La date de l'événement est dans le futur.");
+		await this.#enqueue([
+			{
+				type: 'event',
+				clientId: crypto.randomUUID(),
+				aquariumId,
+				kind,
+				at: new Date(at).toISOString(),
+				payload,
+				note: opts?.note?.trim() || undefined
+			}
+		]);
+	}
+
+	/** Corrige un événement déjà envoyé (date, détails selon son type, note). Réseau requis. */
+	async updateEvent(id: number, patch: { at?: string; payload?: Record<string, unknown>; note?: string | null }) {
+		await this.mutate('PATCH', `/api/events/${id}`, patch);
+	}
+
+	/** Supprime un événement déjà envoyé. Réseau requis. */
+	async deleteEvent(id: number) {
+		await this.mutate('DELETE', `/api/events/${id}`);
 	}
 
 	/** Corrige une mesure déjà envoyée (valeur et/ou date ISO). Réseau requis. */

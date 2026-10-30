@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { db } from './db';
+import { onInhabitantCreated, onInhabitantUpdated, parseDepartureCause, readInhabitant } from './events';
 
 // CRUD déclaratif pour l'inventaire, les dépenses et les notes. Les noms de tables et de colonnes
 // viennent uniquement de cette configuration (jamais de la requête) : pas d'injection SQL possible.
@@ -164,16 +165,23 @@ export async function createResource(name: string, scopeId: number | null, body:
 		 VALUES (${params.map((_, i) => `$${i + 1}`).join(', ')}) RETURNING id`,
 		params
 	);
+	// Un habitant créé laisse un événement « arrivée » dans le journal du bac.
+	if (name === 'inhabitants') await onInhabitantCreated(rows[0].id, body);
 	return rows[0].id;
 }
 
 export async function updateResource(name: string, id: number, body: Body): Promise<void> {
 	const r = resourceOf(name);
 	const values = parse(r, body, false);
+	// La cause d'un départ (mort, don, vente…) est lue à côté du schéma de la ressource.
+	const cause = name === 'inhabitants' ? parseDepartureCause(body) : undefined;
 	if (values.size === 0) return;
+	const before = name === 'inhabitants' ? await readInhabitant(id) : null;
 	const sets = [...values.keys()].map((column, i) => `${column} = $${i + 2}`);
 	const { rowCount } = await db().query(`UPDATE ${r.table} SET ${sets.join(', ')} WHERE id = $1`, [id, ...values.values()]);
 	if (!rowCount) error(404, 'Introuvable');
+	// Un départ renseigné (ou annulé) met à jour le journal du bac.
+	if (name === 'inhabitants') await onInhabitantUpdated(id, before, body, cause);
 }
 
 export async function deleteResource(name: string, id: number): Promise<void> {

@@ -86,6 +86,15 @@
 		<a href="/encyclopedie/especes" class="btn-plain subhead mt-3 block px-1 font-semibold">Toutes les espèces →</a>
 	</section>
 
+	<!-- Idées de peuplement -->
+	<section class="mb-8" aria-label="Idées de peuplement">
+		<Tile href="/encyclopedie/idees" tone="var(--indigo)" variant="solid" mark="bacs" class="rise min-h-[8rem]">
+			<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Pas d’idée ?</p>
+			<p class="title2 mt-1">Idées de peuplement</p>
+			<p class="footnote mt-1 text-white/85">Du nano au très grand bac : des biotopes, les espèces et les quantités selon ton volume.</p>
+		</Tile>
+	</section>
+
 	<!-- Pour commencer : trois lectures en cartes hautes -->
 	<Carousel header="Pour commencer">
 		{#each resolve(START) as { theme, guide }, i (guide.slug)}

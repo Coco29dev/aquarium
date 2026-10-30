@@ -7,7 +7,7 @@ const WATER = new Set(['d', 'm', 'sd']);
 const TEMPER = new Set(['paisible', 'semi-agressif', 'agressif']);
 const DIET = new Set(['carnivore', 'omnivore', 'herbivore', 'filtreur', 'autre']);
 const ZONE = new Set(['haut', 'milieu', 'bas', 'tous']);
-const KEYS = new Set(['s', 'fr', 'en', 'k', 'w', 'L', 'v', 't', 'p', 'b', 'm', 'r', 'z', 'g', 'rf', 'd', 'o', 'n', 'c', 'lt', 'co2', 'was']);
+const KEYS = new Set(['s', 'fr', 'en', 'k', 'w', 'L', 'v', 't', 'p', 'b', 'bl', 'm', 'r', 'z', 'g', 'rf', 'd', 'o', 'n', 'c', 'lt', 'co2', 'was']);
 
 const seed = JSON.parse(await readFile('data/species.seed.json', 'utf8'));
 const sci = seed.columns.indexOf('sci');
@@ -54,6 +54,7 @@ for (const file of files) {
 		if (e.p && (e.p[0] < 3 || e.p[1] > 9.5)) bad('pH improbable');
 		if (e.L != null && !(e.L > 0 && e.L < 500)) bad('taille improbable');
 		if (e.b != null && !(e.b >= 5 && e.b <= 20000)) bad('volume improbable');
+		if (e.bl != null && !(e.bl > 0 && e.bl < 2000)) bad('masse improbable');
 		if (e.g != null && !(Number.isInteger(e.g) && e.g >= 1 && e.g <= 30)) bad('groupe improbable');
 		if (e.k !== 'poisson' && e.k !== 'invertebre' && e.m) bad('tempérament sur une plante/un corail');
 		const key = e.s?.toLowerCase();

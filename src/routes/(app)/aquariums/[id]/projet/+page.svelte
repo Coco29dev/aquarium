@@ -14,6 +14,10 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
 	import JourneyCard from '$lib/ios/JourneyCard.svelte';
+	import Carousel from '$lib/relief/Carousel.svelte';
+	import IdeaTile from '$lib/relief/IdeaTile.svelte';
+	import { IDEAS } from '$lib/content/ideas';
+	import { fitOf, ideasFor } from '$lib/domain/ideas';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Section from '$lib/ios/Section.svelte';
@@ -50,6 +54,9 @@
 	const total = $derived(equipment.reduce((sum, i) => sum + (i.amount ?? 0), 0));
 	const acquired = $derived(equipment.filter((i) => i.done).reduce((sum, i) => sum + (i.amount ?? 0), 0));
 	const target = $derived(budget?.amount ?? 0);
+
+	// Idées de peuplement adaptées au volume et au type d'eau du bac.
+	const ideas = $derived(aquarium ? ideasFor(IDEAS, aquarium.volumeL, aquarium.waterType).slice(0, 8) : []);
 
 	const euro = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`;
 	const nextPosition = () => items.reduce((max, i) => Math.max(max, i.position), 0) + 1;
@@ -316,6 +323,17 @@
 		</Section>
 	</div>
 
+	<!-- Idées de peuplement -->
+	{#if aquarium}
+		<Carousel header={aquarium.volumeL ? `Idées pour ${aquarium.volumeL} L` : 'Idées de peuplement'} more={{ href: `/encyclopedie/idees?bac=${id}`, label: 'Tout voir' }}>
+			{#each ideas as idea (idea.slug)}
+				<IdeaTile {idea} tall href="/encyclopedie/idees/{idea.slug}?bac={id}" fit={aquarium.volumeL ? fitOf(idea, aquarium.volumeL) : null} />
+			{:else}
+				<p class="subhead px-1 text-label2">Renseigne le volume du bac pour obtenir des idées adaptées.</p>
+			{/each}
+		</Carousel>
+	{/if}
+
 	<!-- Espèces souhaitées -->
 	<div id="sec-especes" class="scroll-mt-16">
 		<Section header="Espèces souhaitées" variant="title">
@@ -325,7 +343,10 @@
 						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--green); --cut: var(--green)">
 							<Icon name="fish" size={19} filled weight={2} />
 						</span>
-						<div class="row-body flex min-h-11 min-w-0 flex-1 items-center py-2.5 pr-4"><span class="body truncate">{item.label}</span></div>
+						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">
+							<span class="body truncate">{item.label}</span>
+							{#if item.notes}<span class="footnote truncate text-label2">{item.notes}</span>{/if}
+						</div>
 					</div>
 				</SwipeRow>
 			{/each}

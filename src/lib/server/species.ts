@@ -74,6 +74,8 @@ export async function searchSpecies(opts: {
 	kind?: string;
 	water?: string;
 	ids?: number[];
+	/** Noms latins exacts (insensible à la casse) : sert aux idées de peuplement. */
+	names?: string[];
 	limit?: number;
 	/** Inclut la base brute (espèces hors noyau). */
 	all?: boolean;
@@ -85,6 +87,7 @@ export async function searchSpecies(opts: {
 		where.push(sql.replace('?', `$${params.length}`));
 	};
 	if (opts.ids?.length) add('id = ANY(?::int[])', opts.ids);
+	if (opts.names?.length) add('lower(scientific_name) = ANY(?::text[])', opts.names.map((n) => n.toLowerCase()));
 	if (opts.q) {
 		// Recherche sans accents ni casse : « ecrevisse » trouve « Écrevisse ».
 		const plain = opts.q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[%_\\]/g, '\\$&');
@@ -95,7 +98,7 @@ export async function searchSpecies(opts: {
 		where.push(`(${fold('scientific_name')} ILIKE $${n} OR ${fold('name_fr')} ILIKE $${n} OR ${fold('name_en')} ILIKE $${n})`);
 	}
 	if (opts.kind) add('kind = ?', opts.kind);
-	if (!opts.all && !opts.ids?.length) where.push('curated');
+	if (!opts.all && !opts.ids?.length && !opts.names?.length) where.push('curated');
 	if (opts.water === 'douce') where.push('fresh');
 	if (opts.water === 'mer') where.push('salt');
 	const limit = Math.min(opts.limit ?? 40, 200);
@@ -239,6 +242,7 @@ interface CoreEntry {
 	t?: [number, number]; // température °C
 	p?: [number, number]; // pH
 	b?: number; // volume minimal (L)
+	bl?: number; // masse adulte (g) quand la formule longueur³ s'écarte trop (poissons fins, loches, anguilles)
 	m?: 'paisible' | 'semi-agressif' | 'agressif';
 	r?: 'carnivore' | 'omnivore' | 'herbivore' | 'filtreur' | 'autre';
 	z?: 'haut' | 'milieu' | 'bas' | 'tous';
@@ -309,6 +313,7 @@ export async function seedCore(): Promise<void> {
 			ph_min: e.p?.[0] ?? null,
 			ph_max: e.p?.[1] ?? null,
 			min_tank_l: e.b ?? null,
+			bioload_g: e.bl ?? null,
 			temperament: e.m ?? null,
 			diet: e.r ?? null,
 			zone: e.z ?? null,

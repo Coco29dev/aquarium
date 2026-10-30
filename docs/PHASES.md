@@ -201,3 +201,13 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - **Bacs, Encyclopédie, Atelier** : mêmes principes (carte héroïne et grille de tuiles, mosaïque d'espèces, carrousel de lectures, calculateurs en tuiles).
 - Le coach de cyclage ne s'invite plus dans un bac déclaré « actif » dont toutes les mesures sont à zéro.
 
+---
+
+## Idées de peuplement (30 octobre 2026)
+
+- **Catalogue** : 64 idées de biotopes du nano au très grand bac, en eau douce, mer et récif (`src/lib/content/ideas/`). Chaque idée donne une fourchette de volume (indicative, avec une marge), l'eau visée, le décor, les plantes et une liste d'espèces avec quantités et rôles.
+- **Calcul** (`src/lib/domain/ideas.ts`) : les quantités suivent le volume (bancs au prorata, vedettes beaucoup moins), respectent l'effectif de groupe de chaque fiche, puis sont réduites jusqu'à une charge biologique confortable (70 % de la capacité). Le calcul réutilise `bioload` et `checkCompatibility` du simulateur de peuplement. Un facteur `dense` permet les bacs volontairement entassés (mbuna, Tanganyika).
+- **Écrans** : `/encyclopedie/idees` (volume + type d'eau, classement par pertinence, catalogue par taille), `/encyclopedie/idees/[slug]` (curseur de volume, quantités, charge, compatibilité, ajout à la liste de souhaits d'un bac en projet). Un carrousel « Idées pour N L » apparaît sur l'écran d'un bac en projet, et la fiche d'une espèce indique les idées où elle figure.
+- **Données** : 13 fiches ajoutées (`data/core/13-…`), nouvelle clé `bl` (masse adulte en grammes) pour les espèces dont la formule longueur³ s'écarte trop (loches, anguilles, poissons-éléphants, hippocampes), 31 fiches complétées.
+- **Tests** : chaque espèce citée existe dans le noyau ; aucune idée n'a de conflit bloquant ni de surcharge, aux trois volumes de sa fourchette ; toutes les tailles de bac ont au moins quatre idées en eau douce.
+- **À savoir** : le modèle de charge est prudent pour les gros cichlidés (capacité 0,8 g/L en eau douce) ; les idées de grands cichlidés sont donc proposées à partir de volumes élevés. Contenu rédigé par Claude, non vérifié.

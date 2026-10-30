@@ -13,6 +13,8 @@
 	import { api } from '$lib/client/api';
 	import { ui } from '$lib/client/ui.svelte';
 	import { speciesName } from '$lib/domain/species';
+	import { IDEAS } from '$lib/content/ideas';
+	import { ideasWithSpecies } from '$lib/domain/ideas';
 	import { KIND_LABELS, type Species, type SpeciesKind } from '$lib/types';
 
 	let query = $state('');
@@ -27,6 +29,7 @@
 	let busy = $state(false);
 	let message = $state('');
 	let timer: ReturnType<typeof setTimeout>;
+	const where = (s: Species) => ideasWithSpecies(IDEAS, s.scientificName);
 
 	async function search() {
 		loading = true;
@@ -222,6 +225,14 @@
 		{#if s.notes}
 			<Section header="Notes d’élevage" variant="title">
 				<li class="body whitespace-pre-wrap px-4 py-3">{s.notes}</li>
+			</Section>
+		{/if}
+
+		{#if where(s).length}
+			<Section header="Où la trouver ?" variant="title" footer="Idées de peuplement qui réunissent cette espèce.">
+				{#each where(s) as idea (idea.slug)}
+					<Row href="/encyclopedie/idees/{idea.slug}" icon="bacs" iconColor="var(--indigo)" title={idea.title} subtitle="{idea.region} · {idea.volume[0]} à {idea.volume[1]} L" />
+				{/each}
 			</Section>
 		{/if}
 

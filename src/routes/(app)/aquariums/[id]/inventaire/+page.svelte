@@ -14,7 +14,8 @@
 	import { ui } from '$lib/client/ui.svelte';
 	import { api, createResource, deleteResource, listResource, toNumber, toText, updateResource } from '$lib/client/api';
 	import { consumableLife } from '$lib/domain/consumables';
-	import { speciesName } from '$lib/domain/species';
+	import { speciesName, type StockItem } from '$lib/domain/species';
+	import { compareWithTank, stockRanges } from '$lib/domain/ranges';
 	import { dayInParis, daysBetween } from '$lib/domain/dates';
 	import { fmt } from '$lib/ui';
 	import type { Species } from '$lib/types';
@@ -41,6 +42,7 @@
 				listResource<Consumable>('consumables')
 			]);
 			message = '';
+			await loadSpecies();
 		} catch (e) {
 			message = (e as Error).message;
 		} finally {
@@ -48,6 +50,18 @@
 		}
 	}
 	onMount(load);
+
+	// Fiches des espèces reliées : elles servent aux plages recommandées par le peuplement.
+	let speciesById = $state<Record<number, Species>>({});
+	async function loadSpecies() {
+		const ids = [...new Set(inhabitants.filter((i) => !i.leftOn).map((i) => i.speciesId).filter((x): x is number => x != null))];
+		try {
+			const list = ids.length ? await api<Species[]>('GET', `/api/species?ids=${ids.join(',')}`) : [];
+			speciesById = Object.fromEntries(list.map((sp) => [sp.id, sp]));
+		} catch {
+			// Les plages du peuplement sont un plus : sans fiches, on n'affiche simplement pas la carte.
+		}
+	}
 
 	/** Lance une action serveur, recharge, puis affiche la bannière. */
 	async function act(action: () => Promise<unknown>, done?: string): Promise<boolean> {
@@ -69,6 +83,34 @@
 	const animals = $derived(fauna.reduce((n, i) => n + i.quantity, 0));
 	const ownConsumables = $derived(consumables.filter((c) => equipment.some((e) => e.id === c.scopeId)));
 	const lifeOf = (c: Consumable) => consumableLife(c, store.view?.consumables?.find((x) => x.id === c.id)?.history ?? [], today);
+
+	// --- Plages recommandées par le peuplement -----------------------------------
+	const tankParameters = $derived((store.view?.parameters ?? []).filter((p) => p.aquariumId === id));
+	const stock = $derived<StockItem[]>(
+		active.flatMap((i) => (i.speciesId != null && speciesById[i.speciesId] ? [{ species: speciesById[i.speciesId], quantity: i.quantity }] : []))
+	);
+	const ranges = $derived(stockRanges(stock));
+	const comparisons = $derived(stock.length ? compareWithTank(ranges, tankParameters) : []);
+	const unitOf = (key: 'temp' | 'ph') => (key === 'temp' ? ' °C' : '');
+	const labelOf = (key: 'temp' | 'ph') => (key === 'temp' ? 'Température' : 'pH');
+	const span = (r: { min: number | null; max: number | null }, key: 'temp' | 'ph') =>
+		r.min != null && r.max != null ? `${fmt(r.min, 1)}–${fmt(r.max, 1)}${unitOf(key)}` : 'Aucune';
+
+	async function applyRange(c: (typeof comparisons)[number]) {
+		if (!c.suggested) return;
+		const ok = await ui.confirm({
+			title: `Appliquer la plage de ${labelOf(c.key).toLowerCase()} ?`,
+			message: `${labelOf(c.key)} : ${span(c.current, c.key)} devient ${span(c.suggested, c.key)}. Les alertes se baseront sur cette plage.`,
+			confirmLabel: 'Appliquer'
+		});
+		if (!ok) return;
+		try {
+			await store.mutate('PATCH', `/api/parameters/${c.parameterId}`, { min: c.suggested.min, max: c.suggested.max });
+			ui.show('Plage appliquée', undefined, 'check');
+		} catch (e) {
+			ui.show((e as Error).message);
+		}
+	}
 
 	// « Néon cardinal (Paracheirodon axelrodi) » → nom courant et nom latin séparés.
 	function splitName(text: string): { name: string; latin: string | null } {
@@ -259,6 +301,40 @@
 				subtitle="Charge biologique et compatibilités"
 			/>
 		</Section>
+
+		{#if comparisons.length || ranges.conflicts.length}
+			<Section
+				header="Plages recommandées par ton peuplement"
+				footer={comparisons.some((c) => c.level !== 'ok')
+					? 'Calculées à partir des fiches de tes espèces reliées : la plage que tous tes habitants supportent à la fois.'
+					: `Tes plages conviennent à ${stock.length} espèce${stock.length > 1 ? 's' : ''} reliée${stock.length > 1 ? 's' : ''} à une fiche.`}
+			>
+				{#each comparisons as c (c.parameterId)}
+					{@const tone = c.level === 'ok' ? 'var(--green)' : c.level === 'ajustable' ? 'var(--orange)' : 'var(--red)'}
+					<Row icon={c.level === 'ok' ? 'check' : 'alert'} iconColor={tone}>
+						<p class="body">{labelOf(c.key)}</p>
+						<p class="subhead text-label2">
+							{span(c.current, c.key)}{c.suggested ? ` → ${span(c.suggested, c.key)}` : ''}
+						</p>
+						{#if c.level !== 'ok'}<p class="footnote mt-0.5 text-label2">{c.message}</p>{/if}
+						{#snippet trailing()}
+							{#if c.suggested && c.level !== 'ok'}
+								<button type="button" class="subhead rounded-full bg-tint/15 px-3.5 py-1.5 font-semibold text-tint active:opacity-60" onclick={() => applyRange(c)}>Appliquer</button>
+							{/if}
+						{/snippet}
+					</Row>
+				{/each}
+				{#if ranges.conflicts.length}
+					{#each ranges.contributors.filter((x) => x.temp || x.ph) as who (who.speciesId)}
+						<Row
+							href="/especes?id={who.speciesId}"
+							title={who.name}
+							subtitle={[who.temp ? `${fmt(who.temp[0], 1)}–${fmt(who.temp[1], 1)} °C` : null, who.ph ? `pH ${fmt(who.ph[0], 1)}–${fmt(who.ph[1], 1)}` : null].filter(Boolean).join(' · ')}
+						/>
+					{/each}
+				{/if}
+			</Section>
+		{/if}
 
 		<Section header="Faune" footer={loading ? undefined : animals ? `${animals} ${animals > 1 ? 'animaux' : 'animal'} de ${fauna.length} espèce${fauna.length > 1 ? 's' : ''}.` : undefined}>
 			{#each fauna as i (i.id)}

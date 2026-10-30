@@ -4,21 +4,26 @@ import { db } from './db';
 import { deleteObject } from './storage';
 import { PARAMETER_TEMPLATES } from '$lib/templates';
 import { dayInParis } from '$lib/domain/dates';
+import type { NewAquariumInput } from './aquarium-input';
 import { nextDueAfter } from '$lib/domain/tasks';
-import type { Aquarium, Completion, ConsumableRow, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
+import { EVENT_KINDS, noonParisIso, validateEventPayload } from '$lib/domain/events';
+import { recordEvent, snapshotEvents } from './events';
+import { parseFeedingOp, recordFeedingOp, snapshotFeedings } from './feedings';
+import { exportExtras } from './export-extras';
+import type { Aquarium, AquariumStage, Completion, ConsumableRow, EventKind, Measurement, Parameter, Snapshot, SyncOp, Task, WaterType } from '$lib/types';
 
 // 400 jours : de quoi afficher un an de courbes et comparer avec la même période l'an passé.
 const SNAPSHOT_DAYS = 400;
 
 const aquariumSql = `id, name, water_type AS "waterType", volume_l AS "volumeL", started_on AS "startedOn",
-	cover_photo_id AS "coverPhotoId"`;
+	cover_photo_id AS "coverPhotoId", stage, feedings_per_day AS "feedingsPerDay"`;
 const parameterSql = `id, aquarium_id AS "aquariumId", key, name, unit, min_value AS "min", max_value AS "max",
-	drift_per_week AS "driftPerWeek", decimals, step, position`;
+	drift_per_week AS "driftPerWeek", decimals, step, position, test_wait_seconds AS "testWaitSeconds"`;
 const taskSql = `id, aquarium_id AS "aquariumId", title, kind, every_days AS "everyDays",
 	next_due AS "nextDue", active`;
 
 export async function loadSnapshot(): Promise<Snapshot> {
-	const [aquariums, parameters, measurements, tasks, consumables, replacements, completions] = await Promise.all([
+	const [aquariums, parameters, measurements, tasks, consumables, replacements, completions, events, feedings] = await Promise.all([
 		db().query<Aquarium>(`SELECT ${aquariumSql} FROM aquariums ORDER BY id`),
 		db().query<Parameter>(`SELECT ${parameterSql} FROM parameter_defs ORDER BY aquarium_id, position, id`),
 		db().query<Measurement>(
@@ -46,7 +51,9 @@ export async function loadSnapshot(): Promise<Snapshot> {
 			 WHERE done_at >= now() - ($1 || ' days')::interval
 			 ORDER BY done_at`,
 			[String(SNAPSHOT_DAYS)]
-		)
+		),
+		snapshotEvents(),
+		snapshotFeedings()
 	]);
 	const history = new Map<number, { installedOn: string; replacedOn: string }[]>();
 	for (const r of replacements.rows) {
@@ -61,7 +68,9 @@ export async function loadSnapshot(): Promise<Snapshot> {
 		measurements: measurements.rows,
 		tasks: tasks.rows,
 		consumables: consumables.rows.map((c) => ({ ...c, history: history.get(c.id) ?? [] })),
-		completions: completions.rows
+		completions: completions.rows,
+		events,
+		feedings
 	};
 }
 
@@ -72,22 +81,97 @@ export async function createAquarium(input: {
 	waterType: WaterType;
 	volumeL: number | null;
 	startedOn: string | null;
-}): Promise<number> {
+} & Partial<Omit<NewAquariumInput, 'name' | 'waterType' | 'volumeL' | 'startedOn'>>): Promise<number> {
+	const stage: AquariumStage = input.stage ?? 'actif';
 	const client = await db().connect();
 	try {
 		await client.query('BEGIN');
 		const { rows } = await client.query<{ id: number }>(
-			`INSERT INTO aquariums (name, water_type, volume_l, started_on) VALUES ($1, $2, $3, $4) RETURNING id`,
-			[input.name, input.waterType, input.volumeL, input.startedOn]
+			`INSERT INTO aquariums (name, water_type, volume_l, started_on, stage) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+			[input.name, input.waterType, input.volumeL, input.startedOn, stage]
 		);
 		const id = rows[0].id;
 		const templates = PARAMETER_TEMPLATES[input.waterType];
+		const parameterIds = new Map<string, number>();
 		for (const [position, p] of templates.entries()) {
-			await client.query(
+			const inserted = await client.query<{ id: number }>(
 				`INSERT INTO parameter_defs
-				 (aquarium_id, key, name, unit, min_value, max_value, drift_per_week, decimals, step, position)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-				[id, p.key, p.name, p.unit, p.min, p.max, p.driftPerWeek, p.decimals, p.step, position]
+				 (aquarium_id, key, name, unit, min_value, max_value, drift_per_week, decimals, step, position, test_wait_seconds)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+				[id, p.key, p.name, p.unit, p.min, p.max, p.driftPerWeek, p.decimals, p.step, position, p.testWaitSeconds ?? null]
+			);
+			if (p.key) parameterIds.set(p.key, inserted.rows[0].id);
+		}
+
+		// Un bac en projet n'est pas en eau : ni tâche, ni mesure, ni habitant (l'entrée est déjà filtrée).
+		if (stage !== 'projet') {
+			const tasks = [...(input.tasks ?? [])];
+			if (input.lastWaterChangeOn && !tasks.some((t) => t.kind === 'eau')) {
+				tasks.push({ title: "Changement d'eau", kind: 'eau', everyDays: 7 });
+			}
+			const today = dayInParis();
+			let waterTask: { id: number; everyDays: number } | null = null;
+			for (const t of tasks) {
+				const inserted = await client.query<{ id: number }>(
+					`INSERT INTO recurring_tasks (aquarium_id, title, kind, every_days, next_due)
+					 VALUES ($1, $2, $3, $4, COALESCE($5::date, $6::date)) RETURNING id`,
+					[id, t.title, t.kind, t.everyDays, t.nextDue ?? null, today]
+				);
+				if (t.kind === 'eau' && !waterTask) waterTask = { id: inserted.rows[0].id, everyDays: t.everyDays };
+			}
+
+			// Dernier changement d'eau connu : réalisation passée de la tâche « eau », échéance recalculée, événement lié.
+			if (input.lastWaterChangeOn && waterTask) {
+				const doneAt = noonParisIso(input.lastWaterChangeOn);
+				const done = await client.query<{ id: number }>(
+					`INSERT INTO task_completions (task_id, done_at) VALUES ($1, $2) RETURNING id`,
+					[waterTask.id, doneAt]
+				);
+				await client.query(`UPDATE recurring_tasks SET next_due = $2::date WHERE id = $1`, [
+					waterTask.id,
+					nextDueAfter(doneAt, waterTask.everyDays)
+				]);
+				await recordEvent(
+					{ aquariumId: id, kind: 'changement_eau', at: doneAt, payload: {}, source: 'tache', sourceRef: done.rows[0].id },
+					client
+				);
+			}
+
+			for (const m of input.measurements ?? []) {
+				const parameterId = parameterIds.get(m.parameterKey);
+				if (!parameterId) error(400, `Paramètre inconnu pour ce type d'eau : ${m.parameterKey}`);
+				await client.query(
+					`INSERT INTO measurements (aquarium_id, parameter_id, value, measured_at) VALUES ($1, $2, $3, COALESCE($4::timestamptz, now()))`,
+					[id, parameterId, m.value, m.measuredAt ?? null]
+				);
+			}
+
+			// Habitants : même logique que la ressource « inhabitants » (une arrivée laisse un événement).
+			for (const h of input.inhabitants ?? []) {
+				const inserted = await client.query<{ id: number }>(
+					`INSERT INTO inhabitants (aquarium_id, kind, species, quantity, species_id, arrived_on)
+					 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+					[id, h.kind, h.species, h.quantity, h.speciesId ?? null, h.arrivedOn ?? null]
+				);
+				await recordEvent(
+					{
+						aquariumId: id,
+						kind: 'habitant_ajout',
+						at: h.arrivedOn ? noonParisIso(h.arrivedOn) : new Date().toISOString(),
+						payload: { species: h.species, quantity: Math.max(1, h.quantity) },
+						source: 'auto',
+						sourceRef: inserted.rows[0].id
+					},
+					client
+				);
+			}
+		}
+
+		for (const [position, item] of (input.projectItems ?? []).entries()) {
+			await client.query(
+				`INSERT INTO project_items (aquarium_id, kind, label, done, amount, species_id, notes, position)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+				[id, item.kind, item.label, item.done, item.amount, item.speciesId, item.notes, position]
 			);
 		}
 		await client.query('COMMIT');
@@ -100,9 +184,63 @@ export async function createAquarium(input: {
 	}
 }
 
+const STAGE_TRANSITIONS: Record<AquariumStage, AquariumStage[]> = {
+	projet: ['cyclage'],
+	cyclage: ['actif'],
+	actif: ['cyclage']
+};
+
+const STAGE_EVENT_LABEL: Record<string, string> = {
+	'projet>cyclage': 'Mise en eau',
+	'cyclage>actif': 'Cyclage terminé',
+	'actif>cyclage': 'Cyclage relancé'
+};
+
+/**
+ * Change l'étape d'un bac : projet → cyclage (mise en eau, date par défaut aujourd'hui), cyclage → actif,
+ * actif → cyclage (nouveau cyclage ; la date de mise en eau ne change que si `startedOn` est fourni).
+ * Toute autre transition est refusée. Laisse un événement « étape » dans le journal du bac.
+ */
+export async function setAquariumStage(id: number, stage: AquariumStage, startedOn?: string | null): Promise<void> {
+	const client = await db().connect();
+	try {
+		await client.query('BEGIN');
+		const current = await client.query<{ stage: AquariumStage; started_on: string | null }>(
+			`SELECT stage, started_on::text AS started_on FROM aquariums WHERE id = $1 FOR UPDATE`,
+			[id]
+		);
+		if (!current.rows[0]) error(404, 'Aquarium introuvable');
+		const from = current.rows[0].stage;
+		if (from === stage) error(400, `Le bac est déjà « ${stage} »`);
+		if (!STAGE_TRANSITIONS[from].includes(stage)) error(400, `Passage impossible : ${from} → ${stage}`);
+		const today = dayInParis();
+		if (startedOn && startedOn > today) error(400, 'La date de mise en eau est dans le futur');
+		const nextStart =
+			startedOn ?? (from === 'projet' ? today : (current.rows[0].started_on ?? (stage === 'cyclage' ? today : null)));
+		await client.query(`UPDATE aquariums SET stage = $2, started_on = $3 WHERE id = $1`, [id, stage, nextStart]);
+		const at = startedOn && startedOn !== today ? noonParisIso(startedOn) : new Date().toISOString();
+		await recordEvent(
+			{ aquariumId: id, kind: 'etape', at, payload: { label: STAGE_EVENT_LABEL[`${from}>${stage}`] }, source: 'auto' },
+			client
+		);
+		await client.query('COMMIT');
+	} catch (e) {
+		await client.query('ROLLBACK');
+		throw e;
+	} finally {
+		client.release();
+	}
+}
+
 export async function updateAquarium(
 	id: number,
-	input: { name?: string; volumeL?: number | null; startedOn?: string | null; coverPhotoId?: number | null }
+	input: {
+		name?: string;
+		volumeL?: number | null;
+		startedOn?: string | null;
+		coverPhotoId?: number | null;
+		feedingsPerDay?: number | null;
+	}
 ): Promise<void> {
 	if (input.coverPhotoId != null) {
 		// La couverture doit être une photo de ce bac.
@@ -117,7 +255,8 @@ export async function updateAquarium(
 			name = COALESCE($2, name),
 			volume_l = CASE WHEN $3::boolean THEN $4 ELSE volume_l END,
 			started_on = CASE WHEN $5::boolean THEN $6 ELSE started_on END,
-			cover_photo_id = CASE WHEN $7::boolean THEN $8 ELSE cover_photo_id END
+			cover_photo_id = CASE WHEN $7::boolean THEN $8 ELSE cover_photo_id END,
+			feedings_per_day = CASE WHEN $9::boolean THEN $10 ELSE feedings_per_day END
 		 WHERE id = $1`,
 		[
 			id,
@@ -127,7 +266,9 @@ export async function updateAquarium(
 			input.startedOn !== undefined,
 			input.startedOn ?? null,
 			input.coverPhotoId !== undefined,
-			input.coverPhotoId ?? null
+			input.coverPhotoId ?? null,
+			input.feedingsPerDay !== undefined,
+			input.feedingsPerDay ?? null
 		]
 	);
 	if (!rowCount) error(404, 'Aquarium introuvable');
@@ -150,13 +291,14 @@ export interface ParameterInput {
 	driftPerWeek?: number | null;
 	decimals?: number | null;
 	step?: number | null;
+	testWaitSeconds?: number | null;
 }
 
 export async function addParameter(aquariumId: number, input: ParameterInput): Promise<number> {
 	const { rows } = await db().query<{ id: number }>(
 		`INSERT INTO parameter_defs
-		 (aquarium_id, name, unit, min_value, max_value, drift_per_week, decimals, step, position)
-		 VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 1), COALESCE($8, 0.1),
+		 (aquarium_id, name, unit, min_value, max_value, drift_per_week, decimals, step, test_wait_seconds, position)
+		 VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 1), COALESCE($8, 0.1), $9,
 		         (SELECT COALESCE(MAX(position) + 1, 0) FROM parameter_defs WHERE aquarium_id = $1))
 		 RETURNING id`,
 		[
@@ -167,7 +309,8 @@ export async function addParameter(aquariumId: number, input: ParameterInput): P
 			input.max ?? null,
 			input.driftPerWeek ?? null,
 			input.decimals ?? null,
-			input.step ?? null
+			input.step ?? null,
+			input.testWaitSeconds ?? null
 		]
 	);
 	return rows[0].id;
@@ -183,7 +326,8 @@ export async function updateParameter(id: number, input: ParameterInput): Promis
 			max_value = CASE WHEN $6::boolean THEN $7 ELSE max_value END,
 			drift_per_week = CASE WHEN $8::boolean THEN $9 ELSE drift_per_week END,
 			decimals = COALESCE($10, decimals),
-			step = COALESCE($11, step)
+			step = COALESCE($11, step),
+			test_wait_seconds = CASE WHEN $12::boolean THEN $13 ELSE test_wait_seconds END
 		 WHERE id = $1`,
 		[
 			id,
@@ -196,7 +340,9 @@ export async function updateParameter(id: number, input: ParameterInput): Promis
 			has('driftPerWeek'),
 			input.driftPerWeek ?? null,
 			input.decimals ?? null,
-			input.step ?? null
+			input.step ?? null,
+			has('testWaitSeconds'),
+			input.testWaitSeconds ?? null
 		]
 	);
 	if (!rowCount) error(404, 'Paramètre introuvable');
@@ -328,6 +474,24 @@ function parseOp(raw: unknown): SyncOp {
 			note: typeof op.note === 'string' ? op.note.slice(0, 500) : undefined
 		};
 	}
+	if (op.type === 'event') {
+		if (!EVENT_KINDS.includes(op.kind as never)) error(400, "Type d'événement inconnu");
+		const kind = op.kind as EventKind;
+		const problem = validateEventPayload(kind, op.payload);
+		if (problem) error(400, problem);
+		// Comme pour les mesures : une date future dans la file d'envoi est ramenée à maintenant.
+		const at = when(op.at);
+		return {
+			type: 'event',
+			clientId: op.clientId,
+			aquariumId: Number(op.aquariumId),
+			kind,
+			at: Date.parse(at) > Date.now() + 5 * 60 * 1000 ? new Date().toISOString() : at,
+			payload: op.payload as Record<string, unknown>,
+			note: typeof op.note === 'string' ? op.note.slice(0, 1000) : undefined
+		};
+	}
+	if (op.type === 'feeding') return parseFeedingOp(op, when);
 	error(400, "Type d'opération inconnu");
 }
 
@@ -347,14 +511,43 @@ export async function applyOps(ops: SyncOp[]): Promise<void> {
 					 ON CONFLICT (client_id) DO NOTHING`,
 					[op.parameterId, op.value, op.measuredAt, op.clientId]
 				);
-			} else {
-				const inserted = await client.query(
+			} else if (op.type === 'feeding') {
+				await recordFeedingOp(client, op);
+			} else if (op.type === 'event') {
+				await client.query(
+					`INSERT INTO events (aquarium_id, kind, at, payload, note, client_id)
+					 SELECT a.id, $2::text, $3::timestamptz, $4::jsonb, $5::text, $6::uuid FROM aquariums a WHERE a.id = $1
+					 ON CONFLICT (client_id) DO NOTHING`,
+					[op.aquariumId, op.kind, op.at, JSON.stringify(op.payload), op.note?.trim() || null, op.clientId]
+				);
+			} else if (op.type === 'completion') {
+				const inserted = await client.query<{ id: number }>(
 					`INSERT INTO task_completions (task_id, done_at, note, client_id)
 					 SELECT t.id, $2, $3, $4 FROM recurring_tasks t WHERE t.id = $1
-					 ON CONFLICT (client_id) DO NOTHING`,
+					 ON CONFLICT (client_id) DO NOTHING
+					 RETURNING id`,
 					[op.taskId, op.doneAt, op.note ?? null, op.clientId]
 				);
 				if (inserted.rowCount) {
+					// Une tâche de type « eau » cochée laisse un événement « changement d'eau » (détails à compléter).
+					const task = await client.query<{ aquarium_id: number; kind: string }>(
+						'SELECT aquarium_id, kind FROM recurring_tasks WHERE id = $1',
+						[op.taskId]
+					);
+					if (task.rows[0]?.kind === 'eau') {
+						await recordEvent(
+							{
+								aquariumId: task.rows[0].aquarium_id,
+								kind: 'changement_eau',
+								at: op.doneAt,
+								payload: {},
+								note: op.note,
+								source: 'tache',
+								sourceRef: inserted.rows[0].id
+							},
+							client
+						);
+					}
 					// Ne jamais reculer l'échéance si une réalisation plus ancienne arrive en retard.
 					await client.query(
 						`UPDATE recurring_tasks SET next_due = GREATEST(next_due, $2::date) WHERE id = $1`,
@@ -402,8 +595,14 @@ export async function exportAll() {
 		db().query(`SELECT * FROM species WHERE source = 'maison' ORDER BY id`),
 		db().query(`SELECT key, value FROM app_state WHERE key = 'notification_settings'`)
 	]);
+	// Journal d'événements : lu à part pour ne pas toucher à la destructuration ci-dessus.
+	const events = await db().query(`SELECT * FROM events ORDER BY at, id`);
+	// Tables ajoutées pour une restauration fidèle (remplacements, nourrissages, projet) et réglages.
+	const extras = await exportExtras();
 	return {
 		exportedAt: new Date().toISOString(),
+		...extras,
+		events: events.rows,
 		aquariums: aquariums.rows,
 		parameters: parameters.rows,
 		measurements: measurements.rows,

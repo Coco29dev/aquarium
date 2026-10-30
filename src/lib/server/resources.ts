@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { db } from './db';
+import { onInhabitantCreated, onInhabitantUpdated, parseDepartureCause, readInhabitant } from './events';
 
 // CRUD déclaratif pour l'inventaire, les dépenses et les notes. Les noms de tables et de colonnes
 // viennent uniquement de cette configuration (jamais de la requête) : pas d'injection SQL possible.
 
-type FieldType = 'text' | 'int' | 'number' | 'date' | 'enum';
+type FieldType = 'text' | 'int' | 'number' | 'date' | 'enum' | 'bool';
 
 interface Field {
 	column: string;
@@ -79,6 +80,20 @@ export const RESOURCES: Record<string, Resource> = {
 			spentOn: date('spent_on')
 		}
 	},
+	project_items: {
+		table: 'project_items',
+		scopeColumn: 'aquarium_id',
+		orderBy: 'position, id',
+		fields: {
+			kind: { column: 'kind', type: 'enum', required: true, values: ['equipement', 'espece', 'budget', 'etape'] },
+			label: text('label', true),
+			done: { column: 'done', type: 'bool' },
+			amount: { column: 'amount', type: 'number' },
+			speciesId: { column: 'species_id', type: 'int' },
+			notes: text('notes', false, 1000),
+			position: { column: 'position', type: 'int' }
+		}
+	},
 	notes: {
 		table: 'notes',
 		scopeColumn: 'aquarium_id',
@@ -138,6 +153,10 @@ function parse(resource: Resource, body: Body, creating: boolean): Map<string, u
 				if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) error(400, `Date invalide : ${key}`);
 				out.set(field.column, raw);
 				break;
+			case 'bool':
+				if (typeof raw !== 'boolean') error(400, `Champ invalide : ${key}`);
+				out.set(field.column, raw);
+				break;
 		}
 	}
 	const arrived = out.get('arrived_on');
@@ -170,6 +189,8 @@ export async function createResource(name: string, scopeId: number | null, body:
 			 VALUES (${params.map((_, i) => `$${i + 1}`).join(', ')}) RETURNING id`,
 			params
 		);
+		// Un habitant créé laisse un événement « arrivée » dans le journal du bac.
+		if (name === 'inhabitants') await onInhabitantCreated(rows[0].id, body);
 		return rows[0].id;
 	} catch (e) {
 		// 23503 : clé étrangère (bac, matériel ou espèce inexistant) → 404 plutôt qu'une erreur 500.
@@ -181,10 +202,15 @@ export async function createResource(name: string, scopeId: number | null, body:
 export async function updateResource(name: string, id: number, body: Body): Promise<void> {
 	const r = resourceOf(name);
 	const values = parse(r, body, false);
+	// La cause d'un départ (mort, don, vente…) est lue à côté du schéma de la ressource.
+	const cause = name === 'inhabitants' ? parseDepartureCause(body) : undefined;
 	if (values.size === 0) return;
+	const before = name === 'inhabitants' ? await readInhabitant(id) : null;
 	const sets = [...values.keys()].map((column, i) => `${column} = $${i + 2}`);
 	const { rowCount } = await db().query(`UPDATE ${r.table} SET ${sets.join(', ')} WHERE id = $1`, [id, ...values.values()]);
 	if (!rowCount) error(404, 'Introuvable');
+	// Un départ renseigné (ou annulé) met à jour le journal du bac.
+	if (name === 'inhabitants') await onInhabitantUpdated(id, before, body, cause);
 }
 
 export async function deleteResource(name: string, id: number): Promise<void> {

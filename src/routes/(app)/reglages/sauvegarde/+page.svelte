@@ -43,47 +43,6 @@
 		}
 	}
 
-	let restoring = $state(false);
-	let fileInput = $state<HTMLInputElement>();
-
-	/** Remplace toutes les données par celles d'un export JSON (compressé avant l'envoi : limite de taille du serveur). */
-	async function restore(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const file = input.files?.[0];
-		input.value = '';
-		if (!file) return;
-		const ok = await ui.confirm({
-			title: 'Restaurer cet export ?',
-			message: `« ${file.name} » remplacera tous les bacs, mesures, tâches, vivants, matériel, dépenses et notes actuels. Une sauvegarde de l’état actuel est faite juste avant.`,
-			confirmLabel: 'Restaurer',
-			destructive: true
-		});
-		if (!ok) return;
-		restoring = true;
-		try {
-			if (!navigator.onLine) throw new Error('Connexion requise.');
-			const body = file.stream().pipeThrough(new CompressionStream('gzip'));
-			const response = await fetch('/api/settings/backup/restore', {
-				method: 'POST',
-				headers: { 'content-type': 'application/gzip' },
-				body,
-				// @ts-expect-error requis pour envoyer un flux ; absent des types DOM
-				duplex: 'half'
-			});
-			if (!response.ok) {
-				const detail = await response.json().catch(() => null);
-				throw new Error(detail?.message ?? `Erreur ${response.status}`);
-			}
-			ui.show('Export restauré', undefined, 'check');
-			await store.sync();
-			status = await store.fetchBackup();
-		} catch (e) {
-			ui.show((e as Error).message);
-		} finally {
-			restoring = false;
-		}
-	}
-
 	const size = (bytes: number | null) =>
 		bytes == null ? '—' : bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
 	const when = (iso: string | null) =>
@@ -110,7 +69,7 @@
 	</span>
 	{#if status}
 		<p class="title3">{status.lastBackupAt ? `Sauvegardé ${backupAge(status.lastBackupAt)}` : 'Aucune sauvegarde pour l’instant'}</p>
-		<p class="subhead mt-1 text-label2">Sauvegarde automatique chaque semaine</p>
+		<p class="subhead mt-1 text-label2">Sauvegarde automatique chaque dimanche</p>
 	{:else if loadError}
 		<p class="subhead text-label2">{loadError}</p>
 		<button class="btn-plain mt-2" onclick={load}>Réessayer</button>
@@ -135,7 +94,7 @@
 		<Row title="Copies conservées" value="8 dernières" />
 	</Section>
 
-	<Section footer="Copie complète de tes bacs, mesures, tâches, vivants, matériel, dépenses, notes et fiches d’espèces maison.">
+	<Section footer="Copie complète de tes bacs, mesures, tâches, vivants, matériel, dépenses et notes.">
 		<li>
 			<button class="tappable flex w-full items-center justify-center gap-2 px-4 py-2.5" onclick={runNow} disabled={running}>
 				{#if running}<Spinner spinning size={20} />{/if}
@@ -144,16 +103,6 @@
 		</li>
 	</Section>
 {/if}
-
-<Section header="Restaurer" footer="Choisis un export JSON de l’appli. Les fichiers photo restent sur le serveur ; seules leurs fiches sont rétablies.">
-	<li>
-		<button class="tappable flex w-full items-center justify-center gap-2 px-4 py-2.5" onclick={() => fileInput?.click()} disabled={restoring}>
-			{#if restoring}<Spinner spinning size={20} />{/if}
-			<span class="body {restoring ? 'text-label2' : 'text-red'}">{restoring ? 'Restauration en cours…' : 'Restaurer un export JSON'}</span>
-		</button>
-		<input bind:this={fileInput} type="file" accept="application/json,.json" class="hidden" onchange={restore} />
-	</li>
-</Section>
 
 <Section header="Exporter" footer="Le serveur garde tout ; l’export est ta copie personnelle, à ouvrir dans Fichiers ou Numbers.">
 	{#each exports as x (x.href)}
@@ -170,4 +119,12 @@
 			</a>
 		</li>
 	{/each}
+</Section>
+
+<Section
+	header="Restaurer"
+	footer="Remplace les données de l’appli par celles d’une sauvegarde. Tu vois d’abord ce qu’elle contient, et une sauvegarde de sécurité est faite avant."
+>
+	<Row href="/reglages/sauvegarde/restaurer?source=fichier" icon="download" iconColor="var(--blue)" title="Restaurer depuis un fichier…" />
+	<Row href="/reglages/sauvegarde/restaurer?source=serveur" icon="undo" iconColor="var(--orange)" title="Restaurer depuis le serveur…" />
 </Section>

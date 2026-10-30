@@ -9,7 +9,9 @@ import { collectTankAlerts } from '$lib/domain/drift';
 import { dayInParis, daysBetween, TIMEZONE } from '$lib/domain/dates';
 import { dueTasks } from '$lib/domain/tasks';
 import { consumableLife } from '$lib/domain/consumables';
-import { backupDue, freshAlerts, MAX_SUMMARY_ATTEMPTS, parisMinutes, summaryDue } from '$lib/domain/notifications';
+import { backupDue, freshAlerts, MAX_SUMMARY_ATTEMPTS, parisMinutes, parisWeekday, summaryDue, weeklyDue } from '$lib/domain/notifications';
+import { weeklyReport } from '$lib/domain/weekly';
+import { activeTanks } from '$lib/tank';
 
 let started = false;
 
@@ -26,14 +28,17 @@ export async function sendDailyReminder(now = new Date()): Promise<boolean> {
 
 	const snapshot = await loadSnapshot();
 	const chosen = settings.aquariumIds ? new Set(settings.aquariumIds) : null;
-	const inScope = (aquariumId: number) => !chosen || chosen.has(aquariumId);
+	// Les bacs en projet ne sont pas en eau : ni tâche, ni alerte, ni rappel.
+	const inWater = new Set(activeTanks(snapshot).map((a) => a.id));
+	const inScope = (aquariumId: number) => inWater.has(aquariumId) && (!chosen || chosen.has(aquariumId));
 	const due = dueTasks(snapshot.tasks.filter((t) => inScope(t.aquariumId)), now);
 	const allAlerts = collectTankAlerts(
 		{
 			parameters: snapshot.parameters.filter((p) => inScope(p.aquariumId)),
 			measurements: snapshot.measurements.filter((m) => inScope(m.aquariumId)),
 			tasks: snapshot.tasks,
-			completions: snapshot.completions
+			completions: snapshot.completions,
+			events: snapshot.events
 		},
 		now.getTime()
 	);
@@ -82,6 +87,51 @@ export async function sendDailyReminder(now = new Date()): Promise<boolean> {
 	return parts.length > 0;
 }
 
+/**
+ * Bilan de la semaine : le dimanche à l'heure réglée (Europe/Paris), jamais pendant les heures de silence,
+ * une seule fois par semaine (la clé `last_weekly_report` garde le dimanche déjà traité).
+ * Le corps du push est une phrase calculée par weeklyReport ; il ouvre l'écran /bilan. Repli ntfy comme le récapitulatif.
+ */
+export async function sendWeeklyReport(now = new Date()): Promise<boolean> {
+	const settings = await getNotificationSettings();
+	const today = dayInParis(now);
+	const last = await db().query<{ value: string }>(`SELECT value FROM app_state WHERE key = 'last_weekly_report'`);
+	if (!weeklyDue(settings, parisWeekday(now), parisMinutes(now), last.rows[0]?.value === today)) return false;
+
+	const snapshot = await loadSnapshot();
+	// Seuls les bacs choisis comptent ; les bacs en projet sont ignorés par weeklyReport.
+	const chosen = settings.aquariumIds ? new Set(settings.aquariumIds) : null;
+	const inScope = <T extends { aquariumId: number }>(list: T[]) => (chosen ? list.filter((x) => chosen.has(x.aquariumId)) : list);
+	const report = weeklyReport(
+		{
+			aquariums: snapshot.aquariums.filter((a) => !chosen || chosen.has(a.id)),
+			parameters: inScope(snapshot.parameters),
+			measurements: inScope(snapshot.measurements),
+			tasks: inScope(snapshot.tasks),
+			completions: snapshot.completions,
+			events: snapshot.events ? inScope(snapshot.events) : undefined,
+			feedings: snapshot.feedings ? inScope(snapshot.feedings) : undefined
+		},
+		now.getTime()
+	);
+
+	let delivered = false;
+	try {
+		const results = await sendToAll({ title: 'Bilan de la semaine', body: report.summary, url: '/bilan' });
+		delivered = results.some((r) => r.ok);
+	} catch (error) {
+		console.error('[bilan] push impossible', error);
+	}
+	const topic = settings.ntfyTopic ?? env.NTFY_TOPIC;
+	if (!delivered && topic) await sendNtfy(topic, `Bilan de la semaine : ${report.summary}`);
+	await db().query(
+		`INSERT INTO app_state (key, value) VALUES ('last_weekly_report', $1)
+		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		[today]
+	);
+	return true;
+}
+
 /** Repli quand le push iOS ne passe plus : notification ntfy.sh (appli ntfy sur l'iPhone). */
 async function sendNtfy(topic: string, body: string): Promise<boolean> {
 	try {
@@ -117,8 +167,9 @@ export function startScheduler(): void {
 		() => {
 			sendDailyReminder().catch((error) => console.error('[rappels]', error));
 			void backupIfDue().catch((error) => console.error('[sauvegarde]', error));
+			sendWeeklyReport().catch((error) => console.error('[bilan]', error));
 		},
 		{ timezone: TIMEZONE }
 	);
-	console.log(`[rappels] planificateur actif (récapitulatif quotidien, sauvegarde hebdomadaire, ${TIMEZONE})`);
+	console.log(`[rappels] planificateur actif (récapitulatif quotidien, bilan du dimanche, sauvegarde hebdomadaire, ${TIMEZONE})`);
 }

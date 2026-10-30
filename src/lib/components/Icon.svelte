@@ -39,6 +39,8 @@
 		flask: '<path class="f" d="M9.5 3.5h5M10.3 3.5v5.3L5 18.2a1.6 1.6 0 0 0 1.4 2.3h11.2a1.6 1.6 0 0 0 1.4-2.3l-5.3-9.4V3.5"/><path class="c" d="M7.5 14h9"/>',
 		person: '<circle class="f" cx="12" cy="8" r="3.8"/><path class="f" d="M4.5 20.5c.8-4 3.8-6 7.5-6s6.7 2 7.5 6z"/>',
 		lock: '<rect class="f" x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+		sun: '<circle class="f" cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
+		bubbles: '<circle class="f" cx="9" cy="14" r="5"/><circle cx="17" cy="7" r="2.6"/><circle cx="18.5" cy="17" r="1.6"/>',
 		cycle: '<path d="M12 4a8 8 0 1 1-7.4 5"/><path d="M4 4.5v4.8h4.8"/><circle class="f" cx="12" cy="12" r="2.5"/>'
 	} as const;
 

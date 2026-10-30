@@ -15,6 +15,32 @@ export interface Aquarium {
 	startedOn: string | null; // YYYY-MM-DD
 	/** Photo de couverture (voir /api/photos/<id>), ou null. */
 	coverPhotoId: number | null;
+	/** Nombre de repas par jour visé pour ce bac, ou null (pas de consigne). Absent d'un ancien cache : null. */
+	feedingsPerDay?: number | null;
+	/** Étape de vie : en projet, en cyclage ou actif. Absent d'un ancien cache : traiter comme 'actif'. */
+	stage: AquariumStage;
+}
+
+export type AquariumStage = 'projet' | 'cyclage' | 'actif';
+
+export const STAGE_LABELS: Record<AquariumStage, string> = {
+	projet: 'En projet',
+	cyclage: 'En cyclage',
+	actif: 'Actif'
+};
+
+/** Élément de la liste de projet d'un bac pas encore en eau. */
+export interface ProjectItem {
+	id: number;
+	/** Identifiant du bac (nom de la colonne de rattachement de la ressource générique). */
+	scopeId?: number;
+	kind: 'equipement' | 'espece' | 'budget' | 'etape';
+	label: string;
+	done: boolean;
+	amount: number | null;
+	speciesId: number | null;
+	notes: string | null;
+	position: number;
 }
 
 export interface Parameter {
@@ -29,6 +55,8 @@ export interface Parameter {
 	decimals: number;
 	step: number;
 	position: number;
+	/** Attente du réactif d'un test, en secondes (minuteur du pas à pas), ou null. */
+	testWaitSeconds?: number | null;
 }
 
 export interface Measurement {
@@ -61,6 +89,44 @@ export interface Snapshot {
 	consumables?: ConsumableRow[];
 	/** Réalisations de tâches récentes (absent d'un ancien cache local). */
 	completions?: Completion[];
+	/** Journal d'événements des 180 derniers jours, 1000 au plus (absent d'un ancien cache local). */
+	events?: AquariumEvent[];
+	/** Nourrissages des 14 derniers jours (absent d'un ancien cache local). */
+	feedings?: Feeding[];
+}
+
+export interface Feeding {
+	id?: number;
+	aquariumId: number;
+	fedAt: string; // ISO
+	note?: string | null;
+	clientId?: string;
+}
+
+export type EventKind =
+	| 'changement_eau'
+	| 'appoint'
+	| 'dosage'
+	| 'eclairage'
+	| 'co2'
+	| 'maintenance'
+	| 'habitant_ajout'
+	| 'habitant_depart'
+	| 'etape'
+	| 'note';
+
+/** Un fait daté dans la vie d'un bac. Le schéma de `payload` dépend de `kind` : voir domain/events.ts. */
+export interface AquariumEvent {
+	id?: number;
+	aquariumId: number;
+	kind: EventKind;
+	at: string; // ISO
+	payload: Record<string, unknown>;
+	note?: string | null;
+	/** 'tache' : créé en cochant une tâche ; 'auto' : déduit d'une autre saisie ; 'manuel' : saisi tel quel. */
+	source?: 'manuel' | 'tache' | 'auto';
+	sourceRef?: number | null;
+	clientId?: string;
 }
 
 export interface Completion {
@@ -71,6 +137,7 @@ export interface Completion {
 
 /** Opérations saisies hors ligne, renvoyées à l'ouverture suivante. */
 export type SyncOp =
+	| { type: 'feeding'; clientId: string; aquariumId: number; fedAt: string; note?: string }
 	| {
 			type: 'measurement';
 			clientId: string;
@@ -79,7 +146,16 @@ export type SyncOp =
 			value: number;
 			measuredAt: string;
 	  }
-	| { type: 'completion'; clientId: string; taskId: number; doneAt: string; note?: string };
+	| { type: 'completion'; clientId: string; taskId: number; doneAt: string; note?: string }
+	| {
+			type: 'event';
+			clientId: string;
+			aquariumId: number;
+			kind: EventKind;
+			at: string;
+			payload: Record<string, unknown>;
+			note?: string;
+	  };
 
 export type SpeciesKind = 'poisson' | 'corail' | 'invertebre' | 'plante' | 'autre';
 export type Temperament = 'paisible' | 'semi-agressif' | 'agressif';
@@ -154,6 +230,10 @@ export interface NotificationSettings {
 	aquariumIds: number[] | null;
 	/** Sujet ntfy.sh de repli, ou null. */
 	ntfyTopic: string | null;
+	/** Bilan du dimanche : activé ? (défaut oui) */
+	weeklyReport: boolean;
+	/** Heure d'envoi du bilan le dimanche, 'HH:MM' (Europe/Paris). */
+	weeklyTime: string;
 }
 
 /** État de la sauvegarde hebdomadaire. */
@@ -163,4 +243,38 @@ export interface BackupStatus {
 	bytes: number | null;
 	/** Stockage objet (bucket) configuré ; sinon la sauvegarde va sur le disque local du service. */
 	configured: boolean;
+}
+
+// --- Restauration, sauvegardes, raccourcis --------------------------------------
+
+export interface RestorePreview {
+	valid: boolean;
+	exportedAt: string | null;
+	/** Lignes par table dans le fichier (clé d'export). */
+	counts: Record<string, number>;
+	/** Lignes actuellement en base, mêmes clés. */
+	current: Record<string, number>;
+	warnings: string[];
+	errors: string[];
+}
+
+export interface RestoreResult {
+	ok: true;
+	counts: Record<string, number>;
+	/** Clé de la sauvegarde de sécurité faite juste avant la restauration. */
+	safetyBackup: string;
+}
+
+export interface BackupListItem {
+	key: string;
+	at: string | null;
+	bytes: number | null;
+	kind: 'hebdo' | 'avant-restauration';
+}
+
+export interface ShortcutToken {
+	id: number;
+	label: string;
+	createdAt: string;
+	lastUsedAt: string | null;
 }

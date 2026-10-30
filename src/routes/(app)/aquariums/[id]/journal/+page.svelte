@@ -6,12 +6,16 @@
 	import { api, createResource, deleteResource, listResource, toText } from '$lib/client/api';
 	import { shrinkImage } from '$lib/client/image';
 	import { dayInParis } from '$lib/domain/dates';
+	import { eventSummary as eventSummaryText } from '$lib/domain/events';
 	import { fmt, relativeDay } from '$lib/ui';
 	import Icon from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import TankTabs from '$lib/ios/TankTabs.svelte';
-	import Segmented from '$lib/ios/Segmented.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
+	import SwipeRow from '$lib/ios/SwipeRow.svelte';
+	import EventRow from '$lib/ios/EventRow.svelte';
+	import EventSheet from '$lib/ios/EventSheet.svelte';
+	import type { AquariumEvent, EventKind } from '$lib/types';
 
 	interface Note { id: number; body: string; notedOn: string }
 	interface Photo { id: number; caption: string | null; takenOn: string }
@@ -28,8 +32,53 @@
 	let viewing = $state<Photo | null>(null);
 	let draft = $state('');
 	let loaded = $state(false);
-	// Par défaut le carnet (notes, photos, entretien) ; les séries de mesures en option.
-	let withTests = $state(false);
+	// Filtre du fil : tout (sans les séries de mesures), par type d'événement, ou les mesures seules.
+	type Filter = 'tout' | 'eau' | 'dosages' | 'reglages' | 'vivants' | 'notes' | 'mesures';
+	const FILTERS: { value: Filter; label: string }[] = [
+		{ value: 'tout', label: 'Tout' },
+		{ value: 'eau', label: 'Eau' },
+		{ value: 'dosages', label: 'Dosages' },
+		{ value: 'reglages', label: 'Réglages' },
+		{ value: 'vivants', label: 'Vivants' },
+		{ value: 'notes', label: 'Notes et photos' },
+		{ value: 'mesures', label: 'Mesures' }
+	];
+	const FILTER_KINDS: Partial<Record<Filter, EventKind[]>> = {
+		eau: ['changement_eau', 'appoint'],
+		dosages: ['dosage', 'maintenance'],
+		reglages: ['eclairage', 'co2'],
+		vivants: ['habitant_ajout', 'habitant_depart'],
+		notes: ['note', 'etape']
+	};
+	let filter = $state<Filter>('tout');
+
+	// Feuille des événements : création (choix du type) ou modification.
+	let eventSheet = $state(false);
+	let eventEdited = $state<AquariumEvent | null>(null);
+	function newEvent() {
+		eventEdited = null;
+		eventSheet = true;
+	}
+	function editEvent(e: AquariumEvent) {
+		eventEdited = e;
+		eventSheet = true;
+	}
+	async function removeEvent(e: AquariumEvent) {
+		if (e.id == null) return;
+		const ok = await ui.confirm({
+			title: 'Supprimer cet événement ?',
+			message: eventSummaryText(e),
+			confirmLabel: 'Supprimer',
+			destructive: true
+		});
+		if (!ok) return;
+		try {
+			await store.deleteEvent(e.id);
+			ui.show('Événement supprimé');
+		} catch (err) {
+			ui.show((err as Error).message);
+		}
+	}
 
 	async function load() {
 		try {
@@ -118,6 +167,7 @@
 	type Entry =
 		| { kind: 'note'; note: Note }
 		| { kind: 'photos'; photos: Photo[] }
+		| { kind: 'event'; event: AquariumEvent }
 		| { kind: 'done'; title: string; time: string }
 		| { kind: 'tests'; summary: string; count: number };
 
@@ -128,18 +178,27 @@
 			if (list) list.push(entry);
 			else byDay.set(day, [entry]);
 		};
-		for (const note of notes) push(note.notedOn.slice(0, 10), { kind: 'note', note });
+		const showAll = filter === 'tout';
+		const showNotes = showAll || filter === 'notes';
+		const kinds = FILTER_KINDS[filter];
+		if (showNotes) for (const note of notes) push(note.notedOn.slice(0, 10), { kind: 'note', note });
+		for (const event of view?.events ?? []) {
+			if (event.aquariumId !== id) continue;
+			if (!showAll && !kinds?.includes(event.kind)) continue;
+			push(dayInParis(event.at), { kind: 'event', event });
+		}
 		const photoDays = new Map<string, Photo[]>();
 		for (const photo of photos) {
 			const d = photo.takenOn.slice(0, 10);
 			photoDays.set(d, [...(photoDays.get(d) ?? []), photo]);
 		}
-		for (const [d, list] of photoDays) push(d, { kind: 'photos', photos: list });
+		if (showNotes) for (const [d, list] of photoDays) push(d, { kind: 'photos', photos: list });
 
 		const tasks = (view?.tasks ?? []).filter((t) => t.aquariumId === id);
-		for (const c of view?.completions ?? []) {
+		for (const c of showAll ? (view?.completions ?? []) : []) {
 			const task = tasks.find((t) => t.id === c.taskId);
-			if (!task) continue;
+			// Les changements d'eau cochés ont déjà leur événement dans le fil.
+			if (!task || task.kind === 'eau') continue;
 			const time = new Date(c.doneAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 			push(dayInParis(c.doneAt), { kind: 'done', title: task.title, time });
 		}
@@ -153,17 +212,18 @@
 			map.set(m.parameterId, m.value);
 			tests.set(d, map);
 		}
-		for (const [d, values] of withTests ? tests : []) {
+		for (const [d, values] of filter === 'mesures' ? tests : []) {
 			const parts = params
 				.filter((p) => values.has(p.id))
 				.map((p) => `${p.name.replace(/\s*\(.*\)$/, '')} ${fmt(values.get(p.id)!, p.decimals)}`);
 			push(d, { kind: 'tests', summary: parts.slice(0, 4).join(' · '), count: parts.length });
 		}
 
-		const order = { photos: 0, note: 1, done: 2, tests: 3 } as const;
+		const order = { photos: 0, note: 1, event: 2, done: 3, tests: 4 } as const;
+		const at = (e: Entry) => (e.kind === 'event' ? Date.parse(e.event.at) : 0);
 		return [...byDay.entries()]
 			.sort((a, b) => b[0].localeCompare(a[0]))
-			.map(([day, entries]) => ({ day, entries: entries.sort((a, b) => order[a.kind] - order[b.kind]) }));
+			.map(([day, entries]) => ({ day, entries: entries.sort((a, b) => order[a.kind] - order[b.kind] || at(b) - at(a)) }));
 	});
 
 	const dayLabel = (d: string) => {
@@ -192,6 +252,9 @@
 			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={() => (writing = true)} aria-label="Nouvelle note">
 				<Icon name="edit" size={23} />
 			</button>
+			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={newEvent} aria-label="Nouvel événement">
+				<Icon name="plus" size={26} weight={2.2} />
+			</button>
 		{/snippet}
 		<TankTabs {aquarium} tab="journal" />
 	</NavBar>
@@ -201,33 +264,46 @@
 		{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 		{#if uploading}<p class="subhead mb-4 px-1 text-label2">Envoi de la photo…</p>{/if}
 
-		<div class="mb-6">
-			<Segmented
-				label="Contenu du journal"
-				options={[
-					{ value: 'carnet', label: 'Carnet' },
-					{ value: 'tests', label: 'Avec les mesures' }
-				]}
-				value={withTests ? 'tests' : 'carnet'}
-				onchange={(v) => (withTests = v === 'tests')}
-			/>
+		<div class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" style="scrollbar-width: none" role="tablist" aria-label="Filtrer le journal">
+			{#each FILTERS as f (f.value)}
+				<button
+					role="tab"
+					aria-selected={filter === f.value}
+					class="subhead shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition-colors {filter === f.value ? 'bg-label text-bg2' : 'bg-bg2 text-label2'}"
+					onclick={() => (filter = f.value)}
+				>
+					{f.label}
+				</button>
+			{/each}
 		</div>
 
 		{#if loaded && days.length === 0}
 			<div class="mt-14 flex flex-col items-center px-6 text-center">
 				<span class="mb-3 text-label3"><Icon name="book" size={56} weight={1.4} /></span>
-				<h2 class="title3">Journal vide</h2>
-				<p class="subhead mt-1 text-label2">Note une observation, un incident, une taille de plantes, ou ajoute une photo du bac.</p>
-				<button class="btn-tinted mt-5" onclick={() => (writing = true)}>Nouvelle note</button>
+				<h2 class="title3">{filter === 'tout' ? 'Journal vide' : 'Rien dans cette catégorie'}</h2>
+				<p class="subhead mt-1 text-label2">
+					{filter === 'tout'
+						? 'Note un changement d’eau, un dosage, un réglage, une observation, ou ajoute une photo du bac.'
+						: 'Rien n’a encore été noté ici.'}
+				</p>
+				<button class="btn-tinted mt-5" onclick={newEvent}>Ajouter un événement</button>
 			</div>
 		{/if}
 
 		{#each days as { day, entries } (day)}
 			<section class="mb-6">
 				<h2 class="headline mb-2 px-1">{dayLabel(day)}</h2>
-				<div class="group">
-					{#each entries as entry, n (n)}
-						<div class="px-4 py-3 {n ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}">
+				<ul class="group">
+					{#each entries as entry, n (entry.kind === 'event' ? `e${entry.event.id ?? entry.event.clientId}` : n)}
+						{#if entry.kind === 'event'}
+							<SwipeRow
+								class={n ? 'border-t-[0.5px] border-sep' : ''}
+								trailing={entry.event.id != null ? [{ label: 'Supprimer', icon: 'trash', color: 'var(--red)', onaction: () => removeEvent(entry.event) }] : []}
+							>
+								<EventRow event={entry.event} onopen={() => editEvent(entry.event)} oncomplete={() => editEvent(entry.event)} />
+							</SwipeRow>
+						{:else}
+						<li class="px-4 py-3 {n ? 'border-t-[0.5px] border-sep' : ''}">
 							{#if entry.kind === 'note'}
 								<div class="flex items-start gap-3">
 									<p class="body min-w-0 flex-1 whitespace-pre-line select-text">{entry.note.body}</p>
@@ -262,12 +338,22 @@
 									</span>
 								</p>
 							{/if}
-						</div>
+						</li>
+						{/if}
 					{/each}
-				</div>
+				</ul>
 			</section>
 		{/each}
 	</div>
+
+	<EventSheet
+		open={eventSheet}
+		aquariumId={id}
+		volumeL={aquarium.volumeL}
+		waterType={aquarium.waterType}
+		event={eventEdited}
+		onclose={() => (eventSheet = false)}
+	/>
 
 	<Sheet open={writing} title="Nouvelle note" detent="medium" onclose={() => (writing = false)} action={{ label: 'Ajouter', onclick: addNote, disabled: !draft.trim() }}>
 		<textarea

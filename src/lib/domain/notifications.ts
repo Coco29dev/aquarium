@@ -5,7 +5,9 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 	quietStart: null,
 	quietEnd: null,
 	aquariumIds: null,
-	ntfyTopic: null
+	ntfyTopic: null,
+	weeklyReport: true,
+	weeklyTime: '18:00'
 };
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -56,6 +58,28 @@ export function summaryDue(
 	return !inQuietHours(settings, minutes);
 }
 
+/** Jour de la semaine à Paris pour un instant donné : 0 = dimanche … 6 = samedi. */
+export function parisWeekday(now: Date | number = Date.now()): number {
+	const name = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short' }).format(new Date(now));
+	return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(name);
+}
+
+/**
+ * Le bilan de la semaine part-il maintenant ? Oui le dimanche, à partir de l'heure choisie, hors heures de
+ * silence (un bilan retardé par le silence part à leur fin, tant que c'est encore dimanche), une fois par semaine.
+ */
+export function weeklyDue(
+	settings: Pick<NotificationSettings, 'weeklyReport' | 'weeklyTime' | 'quietStart' | 'quietEnd'>,
+	weekday: number,
+	minutes: number,
+	alreadySentThisWeek: boolean
+): boolean {
+	if (!settings.weeklyReport || alreadySentThisWeek) return false;
+	if (weekday !== 0) return false;
+	if (minutes < minutesOf(settings.weeklyTime)) return false;
+	return !inQuietHours(settings, minutes);
+}
+
 /** Valide et complète des réglages reçus ; lève une erreur lisible si un champ est invalide. */
 export function parseNotificationSettings(value: unknown): NotificationSettings {
 	const v = (value ?? {}) as Record<string, unknown>;
@@ -77,6 +101,14 @@ export function parseNotificationSettings(value: unknown): NotificationSettings 
 	if (v.ntfyTopic === undefined || v.ntfyTopic === null || v.ntfyTopic === '') out.ntfyTopic = null;
 	else if (typeof v.ntfyTopic === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v.ntfyTopic.trim())) out.ntfyTopic = v.ntfyTopic.trim();
 	else throw new Error('Sujet ntfy invalide (lettres, chiffres, - et _).');
+	if (v.weeklyReport !== undefined) {
+		if (typeof v.weeklyReport !== 'boolean') throw new Error('Réglage du bilan hebdomadaire invalide.');
+		out.weeklyReport = v.weeklyReport;
+	}
+	if (v.weeklyTime !== undefined) {
+		if (!isTime(v.weeklyTime)) throw new Error('Heure du bilan hebdomadaire invalide (HH:MM).');
+		out.weeklyTime = v.weeklyTime;
+	}
 	return out;
 }
 

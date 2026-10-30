@@ -1,16 +1,20 @@
 # Documentation par phase
 
-Mise à jour : 30 octobre 2026. Décrit l'état réel du dépôt (phases 0 à 3++ commitées, puis passe de fiabilisation décrite en fin de document).
+Mise à jour : 30 octobre 2026, 12 h. Décrit le dépôt `Coco29dev/aquarium` jusqu'au commit `3ba8f2e` (dernier déploiement Railway en succès, 11 h 51).
 
 ## Vue d'ensemble
 
-| Phase | Commit | Contenu | État |
+| Phase | Commits | Contenu | État |
 | --- | --- | --- | --- |
 | 0 | `430d335` | Prototype de risque : PWA, auth, push VAPID | Fait, déployé |
 | 1 | `3531c72` | MVP : aquariums, mesures, tâches, alertes, cyclage, hors ligne, export | Fait, déployé |
 | 2 | `db284d4` | Calculateurs, inventaire, dépenses, notes, photos | Fait, déployé |
-| 3 | `da5507f` | Espèces (FishBase/SeaLifeBase), compatibilité, charge biologique, consommables | Fait, déployé (9 025 espèces importées) |
-| 3++ | commité | Encyclopédie « noyau » rédigée à la main, photos Wikimedia, champs verrouillables | Fait |
+| 3 | `da5507f` | Espèces FishBase/SeaLifeBase, compatibilité, charge biologique, consommables | Fait, déployé |
+| 3++ | `7ce20ba`, `fab22e6` | Encyclopédie « noyau » de 638 fiches, photos Wikimedia, champs verrouillables | Fait, déployé |
+| 4 (hors brief) | `662ef5c` à `dfc5fe4`, `a9f302c`, `a3a37be` | Refonte de l'interface : trois directions graphiques successives, la dernière « façon iOS » retenue | Fait, déployé |
+| 5 (hors brief) | `f589a37`, `66382b5`, `ffd2b95`, `3ba8f2e` | Édition des données, réglages de notifications, repli ntfy, sauvegarde hebdomadaire | Fait, déployé |
+
+Note de numérotation : le brief appelait « phase 4 » les capteurs ESP32 et l'IA. Ce document réserve « 4 » et « 5 » au travail réellement fait ; les capteurs deviennent la phase 6 (non commencée).
 
 Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, adapter-node ; Postgres Railway (migrations `node-pg-migrate` lancées au démarrage du serveur) ; serveur = source de vérité, IndexedDB (Dexie) = cache. Logique métier dans `src/lib/domain/` (fonctions pures testées avec vitest).
 
@@ -44,10 +48,10 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 - Alertes (`domain/drift.ts`) : hors plage, et dérive par régression linéaire sur 7 jours ; seuil par défaut = 25 % de la largeur de la plage.
 - Coach de cyclage (`domain/cycling.ts`) : étapes `aucune_mesure`, `demarrage`, `pic_nitrites`, `finalisation`, `pret` à partir de NH3/NO2/NO3 (seuil de détection des tests colorimétriques).
 - Hors ligne : `client/store.svelte.ts` + Dexie (`client/db.ts`) ; les saisies partent dans une file renvoyée à l'ouverture via `/api/sync`, l'état frais vient de `/api/state`.
-- Rappel quotidien (`server/scheduler.ts`) : node-cron toutes les 5 minutes, envoi à l'heure réglée dans Réglages › Notifications (08:30 par défaut), fuseau Europe/Paris, un seul envoi par jour (clé `last_reminder_day`), rattrapage si le service redémarre.
+- Rappel quotidien (`server/scheduler.ts`) : node-cron, un seul envoi par jour (clé `last_reminder_day`), rattrapage si le service redémarre. Version initiale : toutes les heures de 8 h à 21 h. Remplacé en phase 5 par un passage toutes les 5 minutes avec heure réglable.
 - Export JSON/CSV : `/api/export`.
 
-**Tests** : `domain.test.ts` (20 cas : dérive, cyclage, tâches, dates).
+**Tests** : `domain.test.ts` (22 cas aujourd'hui : dérive, cyclage, tâches, dates).
 
 ---
 
@@ -79,35 +83,80 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 
 ---
 
-## Phase 3++ : encyclopédie « noyau » (non commitée)
+## Phase 3++ : encyclopédie « noyau »
 
-**Pourquoi** : les données FishBase/SeaLifeBase sont scientifiques, pas des fiches d'élevage (comportement, pH, tempérament souvent absents). Le changement : un jeu de fiches d'élevage rédigées à la main passe devant le seed.
+**Pourquoi** : FishBase et SeaLifeBase donnent des données scientifiques, pas des fiches d'élevage (tempérament, pH, groupe souvent absents). Des fiches d'élevage rédigées à la main passent donc devant le seed.
 
 **Réalisé**
-- `migrations/1762100000000_encyclopedie.sql` : source `noyau`, colonnes `description`, `curated`, `data_quality` (`claude` ou `verifie`), `locked[]`, `photo_key/source/author/license`, index sur `curated` et unicité du nom scientifique pour le noyau.
-- `data/core/01…06*.jsonl` : environ 405 fiches (characins et cyprinidés, fond/labyrinthes, cichlidés, invertébrés, plantes, poissons marins avec drapeau récif `rf`). Format compact : `s` nom scientifique, `fr`/`en`, `k` type, `w` eau, `L` taille, `v` volume minimal, `t` température, `p` pH, `b` bioload, `m` tempérament, `r` régime, `z` zone, `g` groupe, `d` description.
-- `scripts/check-core.mjs` : contrôle de cohérence des fichiers avant import.
-- `seedCore` (`server/species.ts`) : version = sha1 des noms et contenus, import ignoré si `app_state.species_core` est déjà à jour ; une espèce existante non « maison » est mise à jour sans toucher aux colonnes verrouillées, sinon insérée en `noyau`. Toute modification manuelle verrouille le champ concerné et une fiche vérifiée passe en `verifie`.
-- Photos Wikimedia Commons avec auteur et licence (`server/species-photos.ts`, route `/api/species/[id]/photo`), synchronisées en arrière-plan au démarrage.
-- `hooks.server.ts` : migrate → seedSpecies → seedCore → syncSpeciesPhotos (arrière-plan) → startScheduler. Page `especes` : filtre « fiches d'élevage », badge de qualité, option `all=1` de l'API.
-- 7 tests ajoutés dans `species.test.ts`.
+- `migrations/1762100000000_encyclopedie.sql` : source `noyau`, colonnes `description`, `curated`, `data_quality` (`claude` ou `verifie`), `locked[]`, `photo_key/source/author/license`, index sur `curated`, unicité du nom scientifique pour le noyau.
+- `data/core/01…10*.jsonl` : **638 fiches** en dix fichiers : characins et cyprinidés, fond et labyrinthes, cichlidés, invertébrés d'eau douce, plantes, poissons marins, invertébrés marins (26), coraux et anémones (69), compléments eau douce et mer. Le manque signalé plus tôt (aucun corail ni invertébré marin) est donc comblé. Format compact : `s` nom scientifique, `fr`/`en`, `k` type, `w` eau, `L` taille, `v` volume minimal, `t` température, `p` pH, `b` bioload, `m` tempérament, `r` régime, `z` zone, `g` groupe, `rf` compatible récif, `d` description.
+- `scripts/check-core.mjs` : contrôle de cohérence avant import.
+- `seedCore` (`server/species.ts`) : version = sha1 des fichiers, import ignoré si inchangé ; une espèce existante non « maison » est mise à jour sans toucher aux colonnes verrouillées, sinon insérée en `noyau`. Toute modification manuelle verrouille le champ ; une fiche vérifiée passe en `verifie`.
+- Photos Wikimedia Commons avec auteur et licence (`server/species-photos.ts`, route `/api/species/[id]/photo`). Un instantané `data/species.photos.json` (574 entrées) est versionné ; `fab22e6` ajoute des passes de reprise après limite de débit de Wikimedia.
+- Démarrage (`hooks.server.ts`) : migrate → seedSpecies → seedCore → syncSpeciesPhotos (arrière-plan) → startScheduler.
+- Tests : `species.test.ts` à 22 cas.
 
-**Limites connues**
-- Les fiches sont rédigées par Claude (`data_quality = 'claude'`), non vérifiées : à relire avant de s'y fier pour l'achat d'animaux vivants, en particulier les poissons marins et récifaux.
-- Aucun corail, aucune anémone ni invertébré marin dans le noyau pour l'instant.
-- Le fichier d'instantané des photos (`data/species.photos.json`) n'existe pas : les photos dépendent d'un accès réseau à Wikimedia au démarrage.
+**Limites**
+- Fiches rédigées par Claude (`data_quality = 'claude'`), non vérifiées : à relire avant un achat d'animaux, surtout poissons marins, coraux et anémones.
+- Les photos restent soumises aux limites de Wikimedia au démarrage si l'instantané ne couvre pas une espèce (574 photos pour 638 fiches).
 
 ---
 
+## Phase 4 : refonte de l'interface (hors brief)
+
+**Ce qui s'est passé** : l'interface a changé de direction trois fois en une heure, sur la même logique métier.
+1. `662ef5c` : charte « Bulle » (palette Chirurgien, jetons clair/sombre, polices Fredoka et Figtree, icône poisson-chirurgien). Ce commit est signé `Co-authored-by: Claude` et rattaché à la PR #1 : il vient d'une autre branche, fusionnée dans `main`.
+2. `34e781f` à `0ac80d2` : charte « Carnet de bac » (jetons, polices, icône poisson riso sur fond lagon, navigation, écran Aujourd'hui, bacs, atelier, encyclopédie, mesure en deux touches, onglets Vivants et Journal).
+3. `6a9167e` à `a9f302c` : charte finale **« Aquarium façon iOS »**, qui remplace les deux précédentes.
+
+**État final (charte iOS)**
+- Jetons dans `src/routes/layout.css` : couleurs système d'iOS en clair et en sombre, matériaux en verre, polices système (SF Pro). Thème Automatique, Clair ou Sombre appliqué avant l'affichage via `data-scheme` (script de `app.html`).
+- Bibliothèque `src/lib/ios/` (24 fichiers) : barre de navigation à grand titre, barre d'onglets flottante, listes groupées (`Section`, `Row`), feuilles (`Sheet`), alertes (`AlertHost`), segmenté, interrupteur, stepper, lignes balayables (`SwipeRow`), menus par appui long (`ContextMenuHost`, `contextMenu.ts`), recherche, mini-graphe (`Spark`).
+- Écrans refaits : Aujourd'hui, Bacs (liste, création en feuille, suivi façon Santé), page paramètre, tâches façon Rappels, Mesurer (feuille façon Santé, saisie en deux touches), Vivants, Peuplement, Journal, Atelier (outils), Encyclopédie, Dépenses, Réglages, connexion. Nouvelles routes : `/bienvenue` (accueil guidé au premier lancement), `/recherche` (recherche globale), `/mesurer`.
+- Coque (`a3a37be`) : glissement de lignes, menu par appui long, tirer pour synchroniser, retour par le bord de l'écran, pastille d'état, indicateur hors ligne, thème manuel (`client/ui.svelte.ts`).
+- Graphe : uPlot est remplacé par un **graphe SVG interactif** (curseur et bulle de verre au glissement du doigt), dans le même fichier `components/Chart.svelte` ; les anciens composants et la dépendance sont retirés (`package.json` ne contient plus que aws4fetch, dexie, node-cron, node-pg-migrate, pg, web-push).
+- `lib/tank.ts` : `tankHealth` résume l'état d'un bac (niveaux `ok | warn | bad | cycle`) pour les cartes.
+
+**Points d'attention** : les trois chartes ont laissé beaucoup de réécriture (plusieurs milliers de lignes ajoutées puis supprimées) ; une recherche dans `src/` et `static/` ne retrouve plus ni « Carnet de bac », ni la palette Bulle, ni uPlot. Le rendu n'a pas été confronté à ton iPhone dans cette analyse.
+
+---
+
+## Phase 5 : données et notifications (hors brief)
+
+**Données**
+- `migrations/1762200000000_couverture.sql` : `aquariums.cover_photo_id` (photo de couverture façon Plans, `ON DELETE SET NULL`).
+- Mesures modifiables et supprimables (`/api/measurements/[id]`), date de mesure choisissable, comparaison de deux paramètres sur un même graphe avec repères de changement d'eau, réordonnancement des paramètres.
+- Tâches : « fait », « reporter » (feuille `PostponeSheet`) ou « ignorer » ; ignorer décale d'un cycle, jamais dans le passé (`skipDue` dans `domain/notifications.ts`). Une tâche cochée reste annulable pendant un court délai avant envoi (bannière « Annuler »).
+- Les réalisations de tâches figurent dans l'état synchronisé ; les dérives « rassurantes » sont ignorées (`34e781f`).
+
+**Notifications** (`/reglages/notifications`, `/api/settings/notifications`, `server/settings.ts`, `domain/notifications.ts`)
+- Réglages : heure du récapitulatif (08:30 par défaut), heures de silence (plage pouvant passer minuit), bacs concernés (tous par défaut), sujet ntfy.
+- Planificateur (`server/scheduler.ts`) : passage toutes les 5 minutes, récapitulatif envoyé une fois par jour à l'heure choisie, rattrapage après un redémarrage.
+- **Repli ntfy** : si un sujet est réglé, le récapitulatif part aussi via ntfy.sh, pour le cas où le push iOS cesse de fonctionner. C'était une exigence du brief, absente de mon bilan précédent, désormais présente.
+- Pastille d'application mise à jour via le push.
+- Tests : `notifications.test.ts` (10 cas : silence, heure du récapitulatif, validation, report).
+
+**Sauvegarde** (`/reglages/sauvegarde`, `/api/settings/backup`, `server/backup.ts`)
+- Export JSON complet écrit chaque **dimanche à 3 h 10** (Europe/Paris) dans le bucket (`backups/aquarium-AAAA-MM-JJ.json`), 8 sauvegardes conservées. Sans bucket, le fichier va sur le disque du service, qui est éphémère sur Railway.
+- Dernière sauvegarde et taille visibles dans l'appli, lancement manuel possible (POST sur la même route).
+- Complète l'export JSON/CSV de la phase 1. Cela ne remplace pas une sauvegarde de Postgres elle-même (modèle Railway à envisager, comme le brief le suggère).
+
+---
+
+## État des tests
+
+70 cas vitest : calculateurs 16, domaine (dérive, cyclage, tâches) 22, notifications 10, espèces 22. Non exécutés dans cette analyse ; lancer `npm test` et `npm run check`. Aucun test d'interface.
+
 ## Écarts et risques
 
-1. Le dernier déploiement Railway correspond à la phase 3 ; le noyau (3++) n'est pas en ligne tant que non commité et poussé.
-2. `CLAUDE.md` est obsolète : il dit encore que le service de l'appli, le domaine et les clés VAPID restent à créer, et que le projet est en phase 0.
-3. Tests et vérification de types : non exécutés dans cette analyse (environnement local macOS). Lancer `npm test` et `npm run check` avant de commiter.
-4. Licence CC-BY-NC du seed FishBase : à conserver pour un usage strictement personnel.
-5. Phase 0 : les critères sur iPhone (push verrouillé, 3 à 7 jours, une semaine sans ouverture) restent à confirmer par toi ; le brief demandait un accord explicite avant la phase 1.
-6. Repli du push (e-mail ou ntfy), prévu par le brief, n'apparaît pas dans le code.
-7. Phase 4 (capteurs ESP32, IA) : non commencée, comme prévu.
+1. **CLAUDE.md obsolète** : il indique encore que le service de l'appli, le domaine et les clés VAPID restent à créer, et qu'on est en phase 0. Ligne 24 à corriger, avec le domaine `app-production-9ed3.up.railway.app`, le bucket `photos` et les phases faites.
+2. **Dossier local en retard** : `/Users/corentin/Desktop/aquarium` s'arrête à `fab22e6` ; GitHub est à `3ba8f2e` (11 commits d'avance, dont l'interface iOS et la phase 5). Un `git pull` est nécessaire avant de continuer à travailler en local.
+3. **Critères iPhone de la phase 0** non confirmés (plein écran, push écran verrouillé, 3 à 7 jours, une semaine sans ouverture), alors que le brief demandait de valider avant la phase 1. L'alerte et la limite d'usage Railway restent aussi à vérifier.
+4. **Un déploiement a échoué** (10 h 53, commit `0ac80d2`) ; le même commit a été redéployé à 10 h 55 et tous les suivants sont en succès. Les logs montrent aussi des `npm error` sur `SIGTERM` à chaque arrêt de conteneur : normal lors d'un redéploiement.
+5. **Fiches non vérifiées** (`data_quality = 'claude'`) : à relire avant tout achat d'animaux.
+6. **Licence FishBase CC-BY-NC 4.0** : usage strictement personnel. Les photos Wikimedia exigent d'afficher l'auteur et la licence, ce que l'appli stocke.
+7. **Sauvegarde Postgres** : l'export JSON hebdomadaire est en place, pas de sauvegarde de la base elle-même.
+8. **Capteurs ESP32 et IA** (phase 6 de ce document) : non commencés, comme prévu.
 
 ---
 
@@ -115,7 +164,7 @@ Architecture commune : SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, a
 
 - **Coach de cyclage** : « prêt » exige d'avoir mesuré au moins une fois de l'ammoniaque ou des nitrites (un bac neuf à l'eau du robinet n'est plus déclaré cyclé). `hasCycled` distingue un bac mûr (pic d'ammoniaque = alerte) d'un bac en cyclage.
 - **Alertes** (`collectTankAlerts`) : la dérive repart du dernier changement d'eau ; pas d'alerte NH3/NO2 pendant un cyclage ; le récapitulatif quotidien ne répète pas une alerte déjà poussée depuis moins de 3 jours ; nouvel essai (6 maximum) si ni push ni ntfy n'ont abouti.
-- **Sauvegarde** : l'export JSON contient désormais l'historique des consommables, les espèces « maison » et les réglages de notification ; restauration depuis Réglages › Sauvegarde (`server/restore.ts`, route `/api/settings/backup/restore`, envoi compressé en gzip) avec sauvegarde de sécurité préalable ; sauvegarde hebdomadaire rattrapée si le service était éteint.
+- **Sauvegarde hebdomadaire** rattrapée si le service était éteint à l'heure prévue (`backupDue`, vérifiée toutes les 5 minutes).
 - **Hors ligne** : une opération invalide ne bloque plus la file ; envoi par lots de 500.
 - **Sécurité et robustesse** : freinage de connexion par adresse (voir `ADDRESS_HEADER`/`XFF_DEPTH` dans `.env.example`), endpoints push limités à Apple/Google/Mozilla/Microsoft, cache des pages purgé à la déconnexion, validations (400/404, plage min/max, départ après arrivée).
 - **Historique** : 400 jours dans l'état synchronisé, période « 1 an » sur les courbes.

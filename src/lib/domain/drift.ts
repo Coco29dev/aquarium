@@ -1,6 +1,6 @@
 import { DAY_MS } from './dates';
 import { cyclingForAquarium, hasCycled } from './cycling';
-import type { Completion, Measurement, Parameter, Task } from '../types';
+import type { AquariumEvent, Completion, Measurement, Parameter, Task } from '../types';
 
 export type AlertLevel = 'hors_plage' | 'derive';
 
@@ -140,7 +140,7 @@ export function collectAlerts(
 }
 
 /** Dernier changement d'eau de chaque bac (réalisations des tâches de type « eau »), en ms. */
-export function lastWaterChanges(tasks: Task[], completions: Completion[]): Map<number, number> {
+export function lastWaterChanges(tasks: Task[], completions: Completion[], events: AquariumEvent[] = []): Map<number, number> {
 	const tankOf = new Map(tasks.filter((t) => t.kind === 'eau').map((t) => [t.id, t.aquariumId]));
 	const last = new Map<number, number>();
 	for (const c of completions) {
@@ -148,6 +148,12 @@ export function lastWaterChanges(tasks: Task[], completions: Completion[]): Map<
 		if (aquariumId == null) continue;
 		const t = new Date(c.doneAt).getTime();
 		if (t > (last.get(aquariumId) ?? 0)) last.set(aquariumId, t);
+	}
+	// Le journal d'événements compte aussi (changement d'eau saisi à la main).
+	for (const e of events) {
+		if (e.kind !== 'changement_eau') continue;
+		const t = new Date(e.at).getTime();
+		if (t > (last.get(e.aquariumId) ?? 0)) last.set(e.aquariumId, t);
 	}
 	return last;
 }
@@ -157,10 +163,10 @@ export function lastWaterChanges(tasks: Task[], completions: Completion[]): Map<
  * cyclage d'un bac, l'ammoniac et les nitrites hors plage sont attendus (le coach en parle déjà).
  */
 export function collectTankAlerts(
-	data: { parameters: Parameter[]; measurements: Measurement[]; tasks: Task[]; completions?: Completion[] },
+	data: { parameters: Parameter[]; measurements: Measurement[]; tasks: Task[]; completions?: Completion[]; events?: AquariumEvent[] },
 	now = Date.now()
 ): DriftAlert[] {
-	const changes = lastWaterChanges(data.tasks, data.completions ?? []);
+	const changes = lastWaterChanges(data.tasks, data.completions ?? [], data.events ?? []);
 	const alerts = collectAlerts(data.parameters, data.measurements, now, (id) => changes.get(id));
 
 	const cycling = new Set<number>();

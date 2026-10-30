@@ -6,11 +6,19 @@
 	import { collectTankAlerts } from '$lib/domain/drift';
 	import { addDays, dayInParis } from '$lib/domain/dates';
 	import { consumableLife } from '$lib/domain/consumables';
-	import { tankHealth } from '$lib/tank';
-	import { SHORT_WATER, TANK_ICON, TANK_TONE, fmt, lateBy } from '$lib/ui';
+	import { activeTanks, isProject, stageOf, tankHealth } from '$lib/tank';
+	import { activityRings, tankStability, testsDue } from '$lib/domain/stability';
+	import { dueTasks } from '$lib/domain/tasks';
+	import { weeklyReport } from '$lib/domain/weekly';
+	import { listResource } from '$lib/client/api';
+	import { SHORT_WATER, TANK_ICON, TANK_TONE, fmt, lateBy, relativeDay, tankAge } from '$lib/ui';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Row from '$lib/ios/Row.svelte';
+	import Section from '$lib/ios/Section.svelte';
+	import Sheet from '$lib/ios/Sheet.svelte';
+	import ActivityRings from '$lib/ios/ActivityRings.svelte';
+	import FeedChip from '$lib/ios/FeedChip.svelte';
 	import Spark from '$lib/ios/Spark.svelte';
 	import SearchButton from '$lib/ios/SearchButton.svelte';
 	import TaskItem from '$lib/ios/TaskItem.svelte';
@@ -23,12 +31,18 @@
 	const aquariums = $derived(view?.aquariums ?? []);
 	const tankOf = (id: number) => aquariums.find((a) => a.id === id);
 	const health = $derived(view ? aquariums.map((a) => ({ aquarium: a, health: tankHealth(view, a) })) : []);
+	// Les bacs en projet n'ont ni mesures, ni alertes, ni tâches : ils sont écartés de tous les calculs.
+	const active = $derived(view ? activeTanks(view) : []);
+	const activeIds = $derived(new Set(active.map((a) => a.id)));
+	const projects = $derived(aquariums.filter(isProject));
 
 	// Bandeau de semaine façon Calendrier : aujourd'hui (avec les retards) puis 6 jours.
 	const week = $derived(
 		Array.from({ length: 7 }, (_, i) => {
 			const day = addDays(today, i);
-			const tasks = (view?.tasks ?? []).filter((t) => t.active && (i === 0 ? t.nextDue <= day : t.nextDue === day));
+			const tasks = (view?.tasks ?? []).filter(
+				(t) => t.active && activeIds.has(t.aquariumId) && (i === 0 ? t.nextDue <= day : t.nextDue === day)
+			);
 			const date = new Date(`${day}T12:00:00`);
 			return {
 				day,
@@ -55,7 +69,15 @@
 			.reverse()
 	);
 
-	const alerts = $derived(view ? collectTankAlerts(view) : []);
+	const alerts = $derived(
+		view
+			? collectTankAlerts({
+					...view,
+					parameters: view.parameters.filter((p) => activeIds.has(p.aquariumId)),
+					measurements: view.measurements.filter((m) => activeIds.has(m.aquariumId))
+				})
+			: []
+	);
 	const paramOf = (id: number) => view?.parameters.find((p) => p.id === id);
 	const pointsOf = (id: number, n = 14) =>
 		(view?.measurements ?? [])
@@ -79,6 +101,71 @@
 			.sort((a, b) => (a.life.daysLeft ?? 0) - (b.life.daysLeft ?? 0))
 	);
 	const coaches = $derived(health.filter((h) => h.health.coach));
+
+	// --- Anneaux du jour --------------------------------------------------------------------
+	const rings = $derived(view ? activityRings(view, Date.now()) : null);
+	/** Tâches cochées en sursis (délai d'annulation) : déjà comptées comme faites. */
+	const checkingDue = $derived(week[0].tasks.filter((t) => ui.checking[t.id]).length);
+	const tasksRing = $derived.by(() => {
+		if (!rings) return { done: 0, total: 0, ratio: 1 };
+		const done = rings.tasks.done + checkingDue;
+		const total = rings.tasks.total;
+		return { done, total, ratio: total > 0 ? Math.min(1, done / total) : 1 };
+	});
+	const stabilityRatio = $derived(rings?.stability.score != null ? rings.stability.score / 100 : null);
+
+	let detailOpen = $state(false);
+	const testDetails = $derived(
+		view
+			? active
+					.map((a) => {
+						const parameters = view.parameters.filter((p) => p.aquariumId === a.id);
+						const measurements = view.measurements.filter((m) => m.aquariumId === a.id);
+						const t = testsDue(parameters, measurements, stageOf(a), Date.now());
+						return {
+							aquarium: a,
+							due: t.due.map((p) => {
+								const last = measurements.filter((m) => m.parameterId === p.id).pop();
+								return { p, since: last ? relativeDay(dayInParis(last.measuredAt), today) : null };
+							})
+						};
+					})
+					.filter((x) => x.due.length)
+			: []
+	);
+	const stabilityDetails = $derived(
+		view
+			? active.map((a) => ({
+					aquarium: a,
+					s: tankStability(
+						view.parameters.filter((p) => p.aquariumId === a.id),
+						view.measurements.filter((m) => m.aquariumId === a.id),
+						Date.now()
+					)
+				}))
+			: []
+	);
+	const remainingTasks = $derived(
+		view ? dueTasks(view.tasks.filter((t) => activeIds.has(t.aquariumId))).filter((t) => !ui.checking[t.id]) : []
+	);
+
+	// --- Bacs en projet : avancement de la liste -----------------------------------------------
+	let projectProgress = $state<Record<number, { done: number; total: number }>>({});
+	const requested = new Set<number>();
+	$effect(() => {
+		for (const a of projects) {
+			if (requested.has(a.id)) continue;
+			requested.add(a.id);
+			listResource<{ done: boolean }>('project_items', a.id)
+				.then((items) => (projectProgress = { ...projectProgress, [a.id]: { done: items.filter((i) => i.done).length, total: items.length } }))
+				.catch(() => requested.delete(a.id));
+		}
+	});
+
+	// --- Bilan de la semaine : mis en avant le dimanche et le lundi ----------------------------
+	const report = $derived(view ? weeklyReport(view) : null);
+	const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Europe/Paris' }).format(new Date());
+	const bilanProminent = weekday === 'Sun' || weekday === 'Mon';
 	const lateTasks = $derived(week[0].tasks.filter((t) => lateBy(t, today) > 0 && !ui.checking[t.id]));
 
 	// Carte de synthèse : une ligne par chose qui demande de l'attention, la plus grave d'abord.
@@ -194,6 +281,24 @@
 	</button>
 {/snippet}
 
+{#snippet bilanLink(prominent: boolean)}
+	{#if report}
+		<a href="/bilan" class="pressable group mb-8 flex items-center gap-3 p-4">
+			<span class="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-indigo text-white" style="--cut: var(--indigo)">
+				<Icon name="chart" size={23} weight={2} />
+			</span>
+			<div class="min-w-0 flex-1">
+				<p class="headline flex items-center gap-2">
+					Bilan de la semaine
+					{#if prominent}<span class="caption1 rounded-full bg-tint px-2 py-0.5 font-semibold text-white">Prêt</span>{/if}
+				</p>
+				<p class="subhead truncate text-label2">{report.summary}</p>
+			</div>
+			<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+		</a>
+	{/if}
+{/snippet}
+
 {#if view && aquariums.length === 0}
 	<div class="mt-16 flex flex-col items-center px-6 text-center">
 		<span class="mb-4 grid h-20 w-20 place-items-center rounded-[22px] bg-gradient-to-b from-cyan to-blue text-white shadow-lg" style="--cut: var(--blue)">
@@ -204,8 +309,38 @@
 		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>
 	</div>
 {:else}
-	<!-- Synthèse : tout va bien, ou ce qui demande de l'attention -->
+	<!-- Anneaux du jour + synthèse : tout va bien, ou ce qui demande de l'attention -->
 	<section class="group mb-6 mt-2">
+		{#if rings && active.length}
+			<button type="button" class="tappable flex w-full items-center gap-4 p-4 text-left" onclick={() => (detailOpen = true)} aria-label="Voir le détail des anneaux du jour">
+				<ActivityRings
+					rings={[
+						{ ratio: tasksRing.ratio, color: 'var(--red)' },
+						{ ratio: rings.tests.ratio, color: 'var(--green)' },
+						{ ratio: stabilityRatio, color: 'var(--cyan)' }
+					]}
+					label="Tâches {tasksRing.done} sur {tasksRing.total}, tests {rings.tests.done} sur {rings.tests.total}, stabilité {rings.stability.score ?? 'inconnue'}"
+				/>
+				<dl class="min-w-0 flex-1 space-y-1.5">
+					<div>
+						<dt class="caption1 font-semibold text-red">Tâches</dt>
+						<dd class="rounded-num title3 leading-6">{tasksRing.done}<span class="subhead font-semibold text-label2">/{tasksRing.total}</span></dd>
+					</div>
+					<div>
+						<dt class="caption1 font-semibold text-green">Tests à jour</dt>
+						<dd class="rounded-num title3 leading-6">{rings.tests.done}<span class="subhead font-semibold text-label2">/{rings.tests.total}</span></dd>
+					</div>
+					<div>
+						<dt class="caption1 font-semibold text-cyan">Stabilité</dt>
+						<dd class="rounded-num title3 leading-6">
+							{#if rings.stability.score != null}{rings.stability.score}<span class="subhead font-semibold text-label2"> %</span>{:else}<span class="text-label3">–</span>{/if}
+						</dd>
+					</div>
+				</dl>
+				<span class="self-start text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+			</button>
+			<div class="mx-4 h-px bg-sep opacity-60"></div>
+		{/if}
 		{#if attention.length === 0}
 			<div class="flex items-center gap-3 p-4">
 				<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green text-white"><Icon name="check" size={22} weight={3} /></span>
@@ -244,38 +379,75 @@
 	<div class="-mx-4 mb-8 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1" style="scrollbar-width: none">
 		{#each health as { aquarium, health: h } (aquarium.id)}
 			{@const tone = TANK_TONE[aquarium.waterType]}
-			<a
-				href="/aquariums/{aquarium.id}"
-				class="pressable flex w-[78%] max-w-72 shrink-0 snap-start flex-col rounded-[22px] bg-bg2 p-4"
-				use:contextMenu={tankMenu(aquarium)}
-			>
-				<div class="flex items-center gap-2" style="color: {tone}; --cut: var(--bg2)">
-					<Icon name={TANK_ICON[aquarium.waterType]} size={20} filled weight={1.6} />
-					<span class="headline min-w-0 flex-1 truncate">{aquarium.name}</span>
-					<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
-				</div>
-				<p class="footnote mt-0.5 text-label2">
-					{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}
-				</p>
-				<div class="mt-4 flex gap-6">
-					{#each featured(aquarium.id) as p (p.id)}
-						{@const last = lastOf(p.id)}
-						<div>
-							<p class="caption1 font-semibold text-label2">{p.key === 'temp' ? 'Température' : 'Nitrates'}</p>
-							<p class="rounded-num">
-								<span class="text-[28px] font-semibold leading-8">{last ? fmt(last.value, p.decimals) : '–'}</span>
-								<span class="subhead font-semibold text-label2">{p.unit}</span>
-							</p>
+			{#if isProject(aquarium)}
+				{@const pr = projectProgress[aquarium.id]}
+				<a
+					href="/aquariums/{aquarium.id}/projet"
+					class="pressable flex w-[78%] max-w-72 shrink-0 snap-start flex-col rounded-[22px] border-2 border-dashed border-sep bg-bg2 p-4"
+					use:contextMenu={tankMenu(aquarium)}
+				>
+					<div class="flex items-center gap-2" style="color: {tone}; --cut: var(--bg2)">
+						<Icon name={TANK_ICON[aquarium.waterType]} size={20} filled weight={1.6} />
+						<span class="headline min-w-0 flex-1 truncate">{aquarium.name}</span>
+						<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+					</div>
+					<p class="footnote mt-0.5 text-label2">
+						{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}
+					</p>
+					<span class="caption1 mt-3 self-start rounded-full bg-fill3 px-2.5 py-0.5 font-semibold text-label2">En projet</span>
+					{#if pr && pr.total > 0}
+						<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-fill">
+							<div class="h-full rounded-full bg-tint transition-[width] duration-700" style="width: {Math.round((pr.done / pr.total) * 100)}%"></div>
 						</div>
-					{/each}
-				</div>
-				<p class="footnote mt-3 flex items-center gap-1.5 font-semibold {h.level === 'bad' ? 'text-red' : h.level === 'warn' ? 'text-orange' : h.level === 'cycle' ? 'text-indigo' : 'text-green'}">
-					<Icon name={h.level === 'ok' ? 'check' : h.level === 'cycle' ? 'cycle' : 'alert'} size={15} weight={2.6} />
-					{h.label}
-				</p>
-			</a>
+						<p class="footnote mt-1.5 text-label2">{pr.done} sur {pr.total} étape{pr.total > 1 ? 's' : ''} faites</p>
+					{:else}
+						<p class="footnote mt-3 text-label2">Prépare ta liste : matériel, budget, espèces, mise en eau.</p>
+					{/if}
+				</a>
+			{:else}
+				{@const age = tankAge(aquarium)}
+				{@const cycling = stageOf(aquarium) === 'cyclage' || h.level === 'cycle'}
+				<a
+					href="/aquariums/{aquarium.id}"
+					class="pressable flex w-[78%] max-w-72 shrink-0 snap-start flex-col rounded-[22px] bg-bg2 p-4"
+					use:contextMenu={tankMenu(aquarium)}
+				>
+					<div class="flex items-center gap-2" style="color: {tone}; --cut: var(--bg2)">
+						<Icon name={TANK_ICON[aquarium.waterType]} size={20} filled weight={1.6} />
+						<span class="headline min-w-0 flex-1 truncate">{aquarium.name}</span>
+						<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+					</div>
+					<p class="footnote mt-0.5 text-label2">
+						{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}
+					</p>
+					<div class="mt-4 flex gap-6">
+						{#each featured(aquarium.id) as p (p.id)}
+							{@const last = lastOf(p.id)}
+							<div>
+								<p class="caption1 font-semibold text-label2">{p.key === 'temp' ? 'Température' : 'Nitrates'}</p>
+								<p class="rounded-num">
+									<span class="text-[28px] font-semibold leading-8">{last ? fmt(last.value, p.decimals) : '–'}</span>
+									<span class="subhead font-semibold text-label2">{p.unit}</span>
+								</p>
+							</div>
+						{/each}
+					</div>
+					<p class="footnote mt-3 flex items-center gap-1.5 font-semibold {h.level === 'bad' ? 'text-red' : h.level === 'warn' ? 'text-orange' : cycling ? 'text-indigo' : 'text-green'}">
+						<Icon name={h.level === 'ok' && !cycling ? 'check' : cycling ? 'cycle' : 'alert'} size={15} weight={2.6} />
+						{cycling ? (age != null ? `Cyclage · jour ${age}` : 'En cyclage') : h.label}
+					</p>
+					<div class="mt-3 pt-2.5 shadow-[inset_0_0.5px_0_var(--sep)]">
+						<FeedChip aquariumId={aquarium.id} compact />
+					</div>
+				</a>
+			{/if}
 		{/each}
 	</div>
+
+	<!-- Bilan de la semaine : mis en avant le dimanche et le lundi -->
+	{#if report && active.length && bilanProminent}
+		{@render bilanLink(true)}
+	{/if}
 
 	<!-- À faire, façon Rappels -->
 	<section class="mb-8">
@@ -409,7 +581,95 @@
 			{/if}
 		</section>
 	{/if}
+
+	{#if report && active.length && !bilanProminent}
+		{@render bilanLink(false)}
+	{/if}
 {/if}
+
+<!-- Détail des anneaux du jour -->
+<Sheet open={detailOpen} title="Aujourd’hui" cancelLabel="Fermer" onclose={() => (detailOpen = false)}>
+	{#if rings}
+		<div class="mb-6 flex items-center gap-4 px-1">
+			<ActivityRings
+				size={84}
+				stroke={10}
+				rings={[
+					{ ratio: tasksRing.ratio, color: 'var(--red)' },
+					{ ratio: rings.tests.ratio, color: 'var(--green)' },
+					{ ratio: stabilityRatio, color: 'var(--cyan)' }
+				]}
+			/>
+			<p class="subhead text-label2">
+				Les anneaux se ferment quand les tâches du jour sont faites, que les tests sont à jour et que tes valeurs restent stables sur 30 jours.
+			</p>
+		</div>
+	{/if}
+
+	{#if testDetails.length === 0}
+		<Section header="Tests à faire" variant="title">
+			<Row icon="check" iconColor="var(--green)" title="Tous les tests sont à jour" />
+		</Section>
+	{:else}
+		<h2 class="title3 mb-2 px-1 font-bold">Tests à faire</h2>
+		{#each testDetails as { aquarium, due }, i (aquarium.id)}
+			<Section
+				header={aquarium.name}
+				footer={i === testDetails.length - 1 ? 'Un test est à faire quand la dernière mesure est plus ancienne que sa cadence : 7 jours, 2 jours pour l’ammoniac et les nitrites d’un bac en cyclage.' : undefined}
+				class={i < testDetails.length - 1 ? '!mb-4' : ''}
+			>
+				{#each due as { p, since } (p.id)}
+					<Row
+						href="/mesurer?bac={aquarium.id}"
+						icon="drop"
+						iconColor={TANK_TONE[aquarium.waterType]}
+						title={p.name}
+						subtitle={since ? `Mesuré ${since}` : 'Jamais mesuré'}
+						value="Mesurer"
+					/>
+				{/each}
+			</Section>
+		{/each}
+	{/if}
+
+	<Section header="Tâches restantes" variant="title">
+		{#if remainingTasks.length === 0}
+			<Row icon="check" iconColor="var(--green)" title="Tout est fait pour aujourd’hui" />
+		{:else}
+			{#each remainingTasks as t (t.id)}
+				{@const tank = tankOf(t.aquariumId)}
+				<Row
+					href="/aquariums/{t.aquariumId}/taches"
+					icon="calendar"
+					iconColor={lateBy(t, today) > 0 ? 'var(--red)' : 'var(--orange)'}
+					title={t.title}
+					subtitle="{tank?.name ?? ''}{lateBy(t, today) > 0 ? ` · en retard de ${lateBy(t, today)} j` : ''}"
+				/>
+			{/each}
+		{/if}
+	</Section>
+
+	<Section header="Stabilité sur 30 jours" variant="title" footer="La stabilité compare la variation de chaque valeur à la largeur de sa plage acceptable. Il faut au moins 3 mesures par paramètre.">
+		{#each stabilityDetails as { aquarium, s } (aquarium.id)}
+			<Row
+				icon={TANK_ICON[aquarium.waterType]}
+				iconColor={TANK_TONE[aquarium.waterType]}
+				title={aquarium.name}
+				subtitle={s.score == null ? 'Pas assez de mesures' : undefined}
+				value={s.score == null ? undefined : `${s.score} %`}
+			/>
+			{#each [...s.parameters].sort((a, b) => a.score - b.score).slice(0, 3) as ps (ps.parameterId)}
+				{@const param = paramOf(ps.parameterId)}
+				<Row
+					href="/aquariums/{aquarium.id}/parametre/{ps.parameterId}"
+					title={param?.name ?? 'Paramètre'}
+					subtitle={ps.reason}
+					value="{ps.score} %"
+				/>
+			{/each}
+		{/each}
+	</Section>
+</Sheet>
 
 <PostponeSheet bind:task={postponing} />
 

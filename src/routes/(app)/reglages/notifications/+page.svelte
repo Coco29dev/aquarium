@@ -212,6 +212,32 @@
 		{/if}
 	</Section>
 
+	<Section
+		header="Bilan du dimanche"
+		footer={settings.weeklyReport
+			? 'Un bilan de ta semaine : tâches faites, valeurs hors plage, points marquants. Il part le dimanche à cette heure-là (heure de Paris).'
+			: 'Reçois le dimanche un bilan de ta semaine : tâches faites, valeurs hors plage, points marquants.'}
+	>
+		<Row title="Bilan du dimanche">
+			{#snippet trailing()}
+				<Switch checked={settings?.weeklyReport ?? true} onchange={(e) => save({ weeklyReport: e.currentTarget.checked })} label="Bilan du dimanche" />
+			{/snippet}
+		</Row>
+		{#if settings.weeklyReport}
+			<Row title="Heure">
+				{#snippet trailing()}
+					<input
+						type="time"
+						value={settings?.weeklyTime}
+						onchange={(e) => e.currentTarget.value && save({ weeklyTime: e.currentTarget.value })}
+						class="body rounded-lg bg-fill3 px-2.5 py-1 text-right"
+						aria-label="Heure du bilan du dimanche"
+					/>
+				{/snippet}
+			</Row>
+		{/if}
+	</Section>
+
 	{#if aquariums.length}
 		<Section header="Bacs concernés" footer={settings.aquariumIds == null ? 'Tous les bacs, y compris ceux que tu ajouteras.' : 'Seules les tâches de ces bacs apparaissent dans les rappels.'}>
 			{#each aquariums as a (a.id)}

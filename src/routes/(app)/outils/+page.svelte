@@ -6,6 +6,8 @@
 	import type { IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Section from '$lib/ios/Section.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import Tile from '$lib/relief/Tile.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import Segmented from '$lib/ios/Segmented.svelte';
@@ -143,16 +145,34 @@
 
 <NavBar title="Atelier" />
 
-<Section class="mt-2">
-	<Row href="/encyclopedie" icon="book" iconColor="var(--teal)" title="Encyclopédie" subtitle="Espèces, guides, maladies, biotopes" />
-	<Row href="/depenses" icon="euro" iconColor="var(--green)" title="Dépenses" value={monthTotal != null ? eur(monthTotal) : undefined} />
-</Section>
+<div class="mb-8 mt-2 grid grid-cols-2 gap-3">
+	<Tile href="/depenses" tone="var(--green)" variant="solid" mark="euro" class="rise min-h-[7rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Dépenses</p>
+		<p class="rounded-num title2 mt-1">{monthTotal != null ? eur(monthTotal) : '–'}</p>
+		<p class="footnote mt-0.5 text-white/85">ce mois-ci</p>
+	</Tile>
+	<Tile href="/encyclopedie" tone="var(--teal)" variant="solid" mark="book" class="rise min-h-[7rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Savoir</p>
+		<p class="title3 mt-1">Encyclopédie</p>
+		<p class="footnote mt-0.5 text-white/85">Espèces, guides, maladies</p>
+	</Tile>
+</div>
 
-<Section header="Calculateurs" footer="Les calculs utilisent le volume du bac choisi. Vérifie toujours avec tes tests avant de doser.">
-	{#each tools as t (t.id)}
-		<Row onclick={() => (open = t.id)} icon={t.icon} iconColor={t.color} title={t.title} subtitle={t.hint} chevron />
-	{/each}
-</Section>
+<section class="mb-8" aria-label="Calculateurs">
+	<h2 class="title3 mb-2.5 px-1 font-bold">Calculateurs</h2>
+	<div class="grid grid-cols-2 gap-3">
+		{#each tools as t, i (t.id)}
+			<Tile onclick={() => (open = t.id)} tone={t.color} variant={i === 0 ? 'solid' : 'soft'} mark={t.icon} class="reveal flex flex-col justify-between {i === 0 ? 'col-span-2 min-h-[7.5rem]' : 'min-h-[9rem]'}">
+				<span class="grid h-10 w-10 place-items-center rounded-[13px] {i === 0 ? 'bg-white/25 text-white' : 'text-white'}" style={i === 0 ? '' : `background: ${t.color}`}><Icon name={t.icon} size={22} filled weight={1.8} /></span>
+				<div class="mt-4">
+					<p class="headline">{t.title}</p>
+					<p class="footnote mt-0.5 {i === 0 ? 'text-white/85' : 'text-label2'}">{t.hint}</p>
+				</div>
+			</Tile>
+		{/each}
+	</div>
+	<p class="footnote mt-3 px-4 text-label2">Les calculs utilisent le volume du bac choisi. Vérifie toujours avec tes tests avant de doser.</p>
+</section>
 
 <Sheet open={open != null} title={tool?.title} cancelLabel="OK" onclose={() => (open = null)}>
 	{#if tool}

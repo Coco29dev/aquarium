@@ -38,8 +38,17 @@ export function tankHealth(view: Snapshot, aquarium: Aquarium, now = Date.now())
 	const due = dueTasks(view.tasks.filter((t) => t.aquariumId === aquarium.id), now);
 	const status = cyclingForAquarium(parameters, measurements);
 	// Un bac qui a déjà cyclé et qui revoit de l'ammoniaque est en alerte, pas en cyclage.
+	// Un bac déclaré « actif » dont toutes les mesures sont à zéro n'est pas en cyclage : il tourne déjà, simplement
+	// sans historique d'ammoniaque. Le coach ne s'y invite que si de l'ammoniaque ou des nitrites sont bien mesurés.
+	const declaredCycling = stageOf(aquarium) === 'cyclage';
 	const coach =
-		status && status.stage !== 'pret' && status.stage !== 'aucune_mesure' && !hasCycled(parameters, measurements) ? status : null;
+		status &&
+		status.stage !== 'pret' &&
+		status.stage !== 'aucune_mesure' &&
+		(declaredCycling || status.stage !== 'finalisation') &&
+		!hasCycled(parameters, measurements)
+			? status
+			: null;
 	// Le journal d'événements (changements d'eau cochés ou saisis à la main) prime ; repli sur les réalisations de tâches.
 	const waterDays =
 		daysSinceEvent(view.events ?? [], aquarium.id, 'changement_eau', now) ??

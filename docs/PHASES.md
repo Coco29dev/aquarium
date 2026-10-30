@@ -182,3 +182,13 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - **Vérification des noms** : `scripts/verify-names.mjs` compare les noms latins à GBIF et les noms français et tailles à FishBase. Renommages appliqués (champ `was`, l'identifiant de la fiche est conservé) : Marosatherina ladigesi, Corydoras splendens, Helostoma temminckii, Anentome helena, Megalechis thoracata, Micranthemum callitrichoides, Cryptocoryne walkeri.
 - Les fiches et guides sont rédigés avec Claude à partir de connaissances générales : les fiches restent marquées « à vérifier » tant que tu ne les as pas confirmées.
 
+---
+
+## Refonte graphique : relief et accueil vivant (30 octobre 2026)
+
+- **Système de relief** (`routes/layout.css`, `lib/relief/`) : élévations `raised` et `lifted` (ombre douce en clair, liseré clair en sombre), cartes colorées `tone-card` et teintées `tone-soft`, apparition au défilement `reveal`. Les mouvements d'ambiance (vagues, bulles, poissons) portent la classe `.ambient`, coupée pour qui préfère moins d'animations.
+- **Composants** : `Scene` (ciel selon l'heure, eau qui ondule, bulles), `Tile` (tuile pleine, teintée ou claire avec icône en filigrane), `TankCard` (carte de bac en hauteur : photo de couverture ou eau teintée, température en grand, pied clair avec nourrissage), `Carousel`, `Dock` (raccourcis ronds).
+- **Aujourd'hui** : scène d'accueil (salutation, état du moment, anneaux), raccourcis flottants, bloc « À regarder » seulement quand il y a quelque chose, carrousel des bacs, tuiles de tailles variées qui ouvrent leur détail en feuille (à surveiller, cyclage ou changement d'eau, à remplacer ou tests, stabilité, bilan), ruban de la semaine avec progression, puis « Pour toi » (conseils tirés de l'état des bacs, `domain/advice.ts`, puis découvertes du jour).
+- **Bacs, Encyclopédie, Atelier** : mêmes principes (carte héroïne et grille de tuiles, mosaïque d'espèces, carrousel de lectures, calculateurs en tuiles).
+- Le coach de cyclage ne s'invite plus dans un bac déclaré « actif » dont toutes les mesures sont à zéro.
+

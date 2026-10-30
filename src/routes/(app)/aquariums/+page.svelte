@@ -9,6 +9,9 @@
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
+	import TankCard from '$lib/relief/TankCard.svelte';
+	import Tile from '$lib/relief/Tile.svelte';
+	import { tankFacts } from '$lib/relief/facts';
 	import { contextMenu } from '$lib/ios/contextMenu';
 	import type { Aquarium, ProjectItem } from '$lib/types';
 
@@ -100,42 +103,53 @@
 		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>
 	</div>
 {:else}
-	<div class="mb-8 mt-2 flex flex-col gap-3">
-		{#each live as { aquarium, health: h } (aquarium.id)}
+	<div class="mb-6 mt-2 grid grid-cols-2 gap-3">
+		{#each live as { aquarium, health: h }, i (aquarium.id)}
 			{@const tone = TANK_TONE[aquarium.waterType]}
 			{@const b = badge(aquarium)}
-			<a href="/aquariums/{aquarium.id}" class="pressable block rounded-[22px] bg-bg2 p-4" use:contextMenu={tankMenu(aquarium)}>
-				<div class="flex items-center gap-2" style="color: {tone}; --cut: var(--bg2)">
-					<Icon name={TANK_ICON[aquarium.waterType]} size={20} filled weight={1.6} />
-					<span class="headline min-w-0 flex-1 truncate">{aquarium.name}</span>
-					<span class="footnote shrink-0 rounded-full px-2 py-0.5 font-semibold" style="color: {b.color}; background: color-mix(in srgb, {b.color} 14%, transparent)">{b.text}</span>
-					<span class="text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+			{@const facts = view ? tankFacts(view, aquarium) : { big: null, stats: [] }}
+			{#if i === 0}
+				<div class="col-span-2 rise">
+					<TankCard
+						wide
+						href="/aquariums/{aquarium.id}"
+						name={aquarium.name}
+						subtitle="{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}{stageOf(aquarium) === 'actif' && tankAge(aquarium) != null ? ` · jour ${tankAge(aquarium)}` : ''}"
+						{tone}
+						icon={TANK_ICON[aquarium.waterType]}
+						coverPhotoId={aquarium.coverPhotoId}
+						big={facts.big}
+						stats={facts.stats}
+						status={{ text: h.level === 'cycle' ? b.text : h.label, level: h.level, icon: h.level === 'ok' ? 'check' : h.level === 'cycle' ? 'cycle' : 'alert' }}
+						feedFor={aquarium.id}
+						menu={tankMenu(aquarium)}
+					/>
 				</div>
-				<p class="footnote mt-0.5 text-label2">
-					{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}{stageOf(aquarium) === 'actif' && tankAge(aquarium) != null ? ` · jour ${tankAge(aquarium)}` : ''}
-				</p>
-				<div class="mt-4 grid grid-cols-3 gap-3">
-					{#each featured(aquarium.id) as p (p.id)}
-						{@const last = lastOf(p.id)}
-						<div class="min-w-0">
-							<p class="caption1 truncate font-semibold text-label2">{shortName(p.key, p.name)}</p>
-							<p class="rounded-num truncate">
-								<span class="text-[24px] font-semibold leading-7">{last ? fmt(last.value, p.decimals) : '–'}</span>
-								{#if p.unit}<span class="footnote font-semibold text-label2">{p.unit}</span>{/if}
-							</p>
+			{:else}
+				<div class="reveal" use:contextMenu={tankMenu(aquarium)}>
+					<Tile href="/aquariums/{aquarium.id}" {tone} variant="solid" mark={TANK_ICON[aquarium.waterType]} class="flex min-h-[11.5rem] flex-col">
+						<div class="flex items-start gap-2">
+							<div class="min-w-0 flex-1">
+								<p class="headline truncate">{aquarium.name}</p>
+								<p class="caption1 truncate text-white/80">{SHORT_WATER[aquarium.waterType]}{aquarium.volumeL ? ` · ${fmt(aquarium.volumeL, 0)} L` : ''}</p>
+							</div>
 						</div>
-					{/each}
+						<div class="mt-auto pt-5">
+							{#if facts.big}
+								<p class="rounded-num leading-none">
+									<span class="text-[40px] font-bold tracking-tight">{facts.big.value}</span>
+									<span class="subhead font-semibold text-white/80">{facts.big.unit}</span>
+								</p>
+							{/if}
+							<p class="footnote mt-1.5 flex items-center gap-1.5 font-semibold">
+								<Icon name={h.level === 'ok' ? 'check' : h.level === 'cycle' ? 'cycle' : 'alert'} size={14} weight={2.6} />
+								<span class="truncate">{h.level === 'cycle' ? b.text : h.label}</span>
+							</p>
+							{#if h.due.length}<p class="caption1 mt-0.5 text-white/80">{h.due.length} à faire</p>{/if}
+						</div>
+					</Tile>
 				</div>
-				<div class="mt-3 flex items-center justify-between gap-2">
-					<p class="footnote flex min-w-0 items-center gap-1.5 font-semibold {h.level === 'bad' ? 'text-red' : h.level === 'warn' ? 'text-orange' : h.level === 'cycle' ? 'text-indigo' : 'text-green'}">
-						<Icon name={h.level === 'ok' ? 'check' : h.level === 'cycle' ? 'cycle' : 'alert'} size={15} weight={2.6} />
-						<span class="truncate">{h.label}</span>
-					</p>
-					{#if h.due.length}
-						<span class="footnote shrink-0 text-label2">{h.due.length} à faire</span>
-					{/if}
-				</div>
-			</a>
+			{/if}
 		{/each}
 	</div>
 
@@ -146,7 +160,7 @@
 					{@const tone = TANK_TONE[aquarium.waterType]}
 					<a
 						href="/aquariums/{aquarium.id}/projet"
-						class="pressable block rounded-[22px] border-[1.5px] border-dashed border-label3 p-4"
+						class="pressable raised block border-[1.5px] border-dashed border-label3 p-4"
 						use:contextMenu={tankMenu(aquarium)}
 					>
 						<div class="flex items-center gap-2" style="color: {tone}">
@@ -163,8 +177,14 @@
 		</Section>
 	{/if}
 
-	<Section>
-		<Row href="/aquariums/nouveau" icon="plus" iconColor="var(--blue)" title="Ajouter un bac" subtitle="En eau, en cyclage ou en projet" />
-		<Row href="/encyclopedie" icon="book" iconColor="var(--teal)" title="Encyclopédie" subtitle="Espèces, guides, maladies, biotopes" />
-	</Section>
+	<div class="grid grid-cols-2 gap-3 pb-2">
+		<Tile href="/aquariums/nouveau" tone="var(--blue)" variant="soft" mark="plus" class="reveal min-h-[6.5rem]">
+			<p class="headline">Ajouter un bac</p>
+			<p class="footnote mt-1 text-label2">En eau, en cyclage ou en projet</p>
+		</Tile>
+		<Tile href="/encyclopedie" tone="var(--teal)" variant="soft" mark="book" class="reveal min-h-[6.5rem]">
+			<p class="headline">Encyclopédie</p>
+			<p class="footnote mt-1 text-label2">Espèces, guides, maladies</p>
+		</Tile>
+	</div>
 {/if}

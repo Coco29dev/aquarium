@@ -135,6 +135,62 @@
 		if (ok) sheet = null;
 	}
 
+	// --- Photo de couverture
+	const cover = $derived(aquarium?.coverPhotoId ?? null);
+	async function removeCover() {
+		await run(() => store.mutate('PATCH', `/api/aquariums/${id}`, { coverPhotoId: null }), 'Photo de couverture retirée');
+	}
+
+	// --- Ordre des paramètres : mode « Modifier » avec poignées, glisser-déposer au doigt.
+	let reordering = $state(false);
+	let order = $state<number[]>([]);
+	const ordered = $derived(order.map((pid) => parameters.find((p) => p.id === pid)).filter((p): p is Parameter => Boolean(p)));
+	let dragIndex = $state<number | null>(null);
+	let dragY = $state(0);
+	let rowH = 44;
+	let startY = 0;
+
+	function startReorder() {
+		order = parameters.map((p) => p.id);
+		reordering = true;
+	}
+	async function finishReorder() {
+		const ids = [...order];
+		reordering = false;
+		const same = ids.length === parameters.length && ids.every((pid, i) => parameters[i]?.id === pid);
+		if (!same) await run(() => store.reorderParameters(id, ids), 'Ordre enregistré');
+	}
+	/** Indice d'arrivée de la ligne tirée, d'après le déplacement du doigt. */
+	const dropIndex = $derived(
+		dragIndex == null ? null : Math.max(0, Math.min(order.length - 1, dragIndex + Math.round(dragY / rowH)))
+	);
+	function shiftOf(i: number): number {
+		if (dragIndex == null || dropIndex == null || i === dragIndex) return 0;
+		if (dragIndex < dropIndex && i > dragIndex && i <= dropIndex) return -rowH;
+		if (dragIndex > dropIndex && i < dragIndex && i >= dropIndex) return rowH;
+		return 0;
+	}
+	function grab(e: PointerEvent, i: number) {
+		const li = (e.currentTarget as HTMLElement).closest('li');
+		rowH = li?.offsetHeight || 44;
+		dragIndex = i;
+		dragY = 0;
+		startY = e.clientY;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+	function drag(e: PointerEvent) {
+		if (dragIndex != null) dragY = e.clientY - startY;
+	}
+	function drop() {
+		if (dragIndex == null || dropIndex == null) return;
+		const next = [...order];
+		const [moved] = next.splice(dragIndex, 1);
+		next.splice(dropIndex, 0, moved);
+		order = next;
+		dragIndex = null;
+		dragY = 0;
+	}
+
 	const range = (p: Parameter) =>
 		p.min == null && p.max == null
 			? 'Aucune plage'
@@ -171,12 +227,69 @@
 		<FieldRow id="started" label="Mise en eau" type="date" bind:value={started} />
 	</Section>
 
-	<Section header="Paramètres" footer="Touche un paramètre pour régler sa plage acceptable et la dérive tolérée sur 7 jours (vide : 25 % de la plage).">
-		{#each parameters as p (p.id)}
-			<Row title={p.name} value={range(p)} onclick={() => openParam(p)} chevron />
-		{/each}
-		<Row title="Ajouter un paramètre" action onclick={() => openParam(null)} />
+	<Section header="Photo de couverture" footer="Elle s’affiche en grand en haut de la fiche du bac. Choisis-la depuis une photo du journal.">
+		{#if cover != null}
+			<Row href="/aquariums/{id}/journal" title="Changer de photo">
+				{#snippet leading()}
+					<img src="/api/photos/{cover}" alt="" class="h-[30px] w-[30px] shrink-0 rounded-[8px] object-cover" />
+				{/snippet}
+			</Row>
+			<Row title="Retirer la photo de couverture" destructive onclick={removeCover} />
+		{:else}
+			<Row href="/aquariums/{id}/journal" icon="camera" iconColor="var(--teal)" title="Choisir dans le journal" />
+		{/if}
 	</Section>
+
+	<section class="mb-8">
+		<div class="flex items-baseline justify-between px-4 pb-1.5">
+			<h2 class="footnote uppercase text-label2">Paramètres</h2>
+			{#if parameters.length > 1}
+				{#if reordering}
+					<button class="btn-plain subhead font-semibold" onclick={finishReorder}>OK</button>
+				{:else}
+					<button class="btn-plain subhead" onclick={startReorder}>Modifier</button>
+				{/if}
+			{/if}
+		</div>
+		{#if reordering}
+			<ul class="group reorder-list touch-none">
+				{#each ordered as p, i (p.id)}
+					{@const lifted = i === dragIndex}
+					<li
+						class="relative bg-bg2 pl-4 {lifted ? 'z-10 shadow-[0_8px_24px_rgb(0_0_0/0.18)]' : ''}"
+						style="transform: translateY({lifted ? dragY : shiftOf(i)}px) scale({lifted ? 1.02 : 1}); transition: {lifted ? 'none' : 'transform 220ms cubic-bezier(0.3,0.8,0.3,1)'}"
+					>
+						<div class="row-body flex min-h-11 items-center gap-3 pr-2">
+							<p class="body min-w-0 flex-1 truncate">{p.name}</p>
+							<span class="subhead shrink-0 text-label2">{range(p)}</span>
+							<button
+								type="button"
+								class="grid h-11 w-11 shrink-0 cursor-grab touch-none place-items-center text-label3"
+								aria-label="Déplacer {p.name}"
+								onpointerdown={(e) => grab(e, i)}
+								onpointermove={drag}
+								onpointerup={drop}
+								onpointercancel={drop}
+							>
+								<svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
+									<path d="M2 2h16M2 7h16M2 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</button>
+						</div>
+					</li>
+				{/each}
+			</ul>
+			<p class="footnote px-4 pt-1.5 text-label2">Fais glisser les poignées pour suivre l’ordre de ton kit de tests. Cet ordre est repris dans la saisie et le suivi.</p>
+		{:else}
+			<ul class="group ios-params">
+				{#each parameters as p (p.id)}
+					<Row title={p.name} value={range(p)} onclick={() => openParam(p)} chevron />
+				{/each}
+				<Row title="Ajouter un paramètre" action onclick={() => openParam(null)} />
+			</ul>
+			<p class="footnote px-4 pt-1.5 text-label2">Touche un paramètre pour régler sa plage acceptable et la dérive tolérée sur 7 jours (vide : 25 % de la plage).</p>
+		{/if}
+	</section>
 
 	<Section header="Tâches">
 		<Row href="/aquariums/{id}/taches" title="Tâches récurrentes" />
@@ -210,3 +323,10 @@
 		{/if}
 	</Sheet>
 {/if}
+
+<style>
+	.ios-params > :global(li + li .row-body),
+	.reorder-list > li + li .row-body {
+		box-shadow: inset 0 0.5px 0 var(--sep);
+	}
+</style>

@@ -119,6 +119,22 @@
 		return r === "aujourd'hui" ? `auj. ${new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : r;
 	};
 
+	// Date de la mesure : maintenant par défaut, ou choisie (test fait plus tôt).
+	let whenLocal = $state('');
+	let pickingDate = $state(false);
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	const nowLocal = () => toLocal(new Date());
+	const whenLabel = $derived.by(() => {
+		if (!whenLocal) return 'Maintenant';
+		const d = new Date(whenLocal);
+		const day = relativeDay(dayInParis(d), today);
+		const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+		if (day === "aujourd'hui") return `Aujourd’hui, ${time}`;
+		if (day === 'hier') return `Hier, ${time}`;
+		return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}, ${time}`;
+	});
+
 	let saving = $state(false);
 	function close() {
 		if (history.length > 1) history.back();
@@ -143,11 +159,13 @@
 		saving = true;
 		const values = ready.map((p) => ({ parameterId: p.id, value: valueOf(p)! }));
 		try {
-			await store.addMeasurements(tank.id, values);
+			await store.addMeasurements(tank.id, values, whenLocal ? new Date(whenLocal).toISOString() : undefined);
 			ui.show(`${values.length} mesure${values.length > 1 ? 's' : ''} ajoutée${values.length > 1 ? 's' : ''} · ${tank.name}`, undefined, 'check');
 			drafts = {};
 			confirmed = {};
 			close();
+		} catch (e) {
+			ui.show((e as Error).message);
 		} finally {
 			saving = false;
 		}
@@ -203,6 +221,31 @@
 	</div>
 
 	<Section>
+		<Row icon="calendar" title="Date" onclick={() => (pickingDate = !pickingDate)} chevron={false}>
+			{#snippet trailing()}
+				<span class="body {whenLocal ? 'text-tint' : 'text-label2'}">{whenLabel}</span>
+			{/snippet}
+		</Row>
+		{#if pickingDate}
+			<li class="pl-4">
+				<div class="row-body flex min-h-11 flex-wrap items-center justify-end gap-2 py-2 pr-4">
+					<input
+						type="datetime-local"
+						aria-label="Date et heure de la mesure"
+						class="body rounded-lg bg-fill3 px-2.5 py-1 text-right outline-none"
+						max={nowLocal()}
+						value={whenLocal || nowLocal()}
+						onchange={(e) => {
+							const v = e.currentTarget.value;
+							whenLocal = v && new Date(v).getTime() < Date.now() - 60_000 ? v : '';
+						}}
+					/>
+					{#if whenLocal}
+						<button class="btn-plain subhead" onclick={() => (whenLocal = '')}>Maintenant</button>
+					{/if}
+				</div>
+			</li>
+		{/if}
 		<Row icon="undo" title="Reprendre les dernières valeurs" action onclick={allSame} />
 		{#if hasCycleParams}
 			<Row icon="cycle" title="Tests du cyclage seulement">

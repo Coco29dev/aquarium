@@ -93,6 +93,17 @@
 		}
 	}
 
+	/** Fait de cette photo la couverture de la fiche du bac (ou la retire si elle l'est déjà). */
+	async function toggleCover(photo: Photo) {
+		const isCover = aquarium?.coverPhotoId === photo.id;
+		try {
+			await store.mutate('PATCH', `/api/aquariums/${id}`, { coverPhotoId: isCover ? null : photo.id });
+			ui.show(isCover ? 'Photo de couverture retirée' : 'Photo de couverture du bac', undefined, 'check');
+		} catch (e) {
+			ui.show((e as Error).message);
+		}
+	}
+
 	async function removeNote(note: Note) {
 		if (!(await ui.confirm({ title: 'Supprimer cette note ?', message: note.body.slice(0, 80), confirmLabel: 'Supprimer', destructive: true }))) return;
 		try {
@@ -308,6 +319,12 @@
 			<img src="/api/photos/{photo.id}" alt={photo.caption ?? 'Photo'} class="max-h-full max-w-full object-contain" draggable="false" />
 		</div>
 		{#if photo.caption}<p class="subhead px-6 pb-2 text-center text-white/80">{photo.caption}</p>{/if}
+		<div class="flex justify-center px-6 pt-2">
+			<button class="subhead flex items-center gap-2 rounded-full bg-white/15 px-4 py-2.5 font-semibold text-white backdrop-blur-xl active:opacity-60" onclick={() => toggleCover(photo)}>
+				<Icon name="camera" size={18} />
+				{aquarium?.coverPhotoId === photo.id ? 'Retirer de la couverture' : 'Définir comme photo du bac'}
+			</button>
+		</div>
 		<div style="height: calc(env(safe-area-inset-bottom) + 16px)"></div>
 	</div>
 {/if}

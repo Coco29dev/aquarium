@@ -17,6 +17,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			kind: url.searchParams.get('kind') || undefined,
 			water: url.searchParams.get('water') || undefined,
 			ids: ids.length ? ids : undefined,
+			all: url.searchParams.get('all') === '1',
 			// Sans critère, ne renvoie que les espèces maison pour ne pas lister 9 000 lignes.
 			limit: ids.length ? ids.length : 40
 		})

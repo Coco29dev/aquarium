@@ -35,7 +35,8 @@
 			groupMin: toNumber(f.get('groupMin')),
 			reefSafe: reef === 'oui' ? true : reef === 'non' ? false : null,
 			bioloadG: toNumber(f.get('bioloadG')),
-			notes: toText(f.get('notes'))
+			notes: toText(f.get('notes')),
+			description: toText(f.get('description'))
 		};
 		if (editable) {
 			Object.assign(body, {
@@ -118,6 +119,7 @@
 		</select>
 	</label>
 	<label class="{label} col-span-6">Charge biologique adulte (g, sinon estimée d'après la taille)<input name="bioloadG" inputmode="decimal" value={species?.bioloadG ?? ''} class={field} /></label>
+	<label class="{label} col-span-6">Description<textarea name="description" rows="4" maxlength="2000" class={field}>{species?.description ?? ''}</textarea></label>
 	<label class="{label} col-span-6">Notes d'élevage<textarea name="notes" rows="3" maxlength="2000" class={field}>{species?.notes ?? ''}</textarea></label>
 	{#if message}<p class="col-span-6 text-sm text-red-300" role="alert">{message}</p>{/if}
 	<button disabled={busy} class="col-span-3 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium active:bg-cyan-800 disabled:opacity-40">Enregistrer</button>

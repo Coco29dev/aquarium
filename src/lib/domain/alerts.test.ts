@@ -79,8 +79,9 @@ describe('sauvegarde due', () => {
 	it('rattrape une sauvegarde manquée', () => {
 		expect(backupDue('2026-10-20T03:10:00Z', now, 4 * 60)).toBe(true);
 	});
-	it('attend une semaine entre deux sauvegardes', () => {
-		expect(backupDue('2026-10-29T03:10:00Z', now, 4 * 60)).toBe(false);
+	it('part une fois par jour', () => {
+		expect(backupDue('2026-10-31T03:10:00Z', now, 4 * 60)).toBe(true);
+		expect(backupDue('2026-11-01T02:10:00Z', now, 4 * 60)).toBe(false);
 	});
 });
 

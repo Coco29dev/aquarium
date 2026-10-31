@@ -40,7 +40,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 - PWA : `@vite-pwa/sveltekit` (manifeste, service worker, mode hors ligne).
 - Cache local : Dexie (IndexedDB), jamais seule source de vérité.
 - Base : Postgres sur Railway, migrations SQL avec `node-pg-migrate` (dossier `migrations/`, lancées au démarrage du serveur). Un changement de schéma = une nouvelle migration, jamais une modification d'une migration déjà déployée.
-- Rappels : planificateur interne au service (node-cron, passage toutes les 5 minutes, récapitulatif quotidien à l'heure réglée, sauvegarde JSON le dimanche à 3 h 10) qui envoie du Web Push (VAPID), avec repli ntfy. Ne pas utiliser le cron natif de Railway : intervalle minimal de 5 minutes, sans garantie de ponctualité.
+- Rappels : planificateur interne au service (node-cron, passage toutes les 5 minutes, récapitulatif quotidien à l'heure réglée, sauvegarde JSON tous les jours à 3 h 10, 7 quotidiennes puis 4 hebdomadaires conservées) qui envoie du Web Push (VAPID), avec repli ntfy. Ne pas utiliser le cron natif de Railway : intervalle minimal de 5 minutes, sans garantie de ponctualité.
 - Photos et sauvegardes : **bucket Railway** (S3, `aws4fetch`), décision prise en phase 2. Sans variables S3, repli sur le dossier local `.data/` (éphémère sur Railway).
 - Graphes : SVG maison (`components/Chart.svelte`), plus de bibliothèque de graphes.
 - Interface : charte « façon iOS » (jetons dans `src/routes/layout.css`, composants dans `src/lib/ios/`). Ne pas réintroduire les anciennes chartes « Bulle » et « Carnet de bac ».

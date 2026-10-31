@@ -148,7 +148,7 @@ async function sendNtfy(topic: string, body: string): Promise<boolean> {
 	}
 }
 
-/** Sauvegarde hebdomadaire avec rattrapage : si le service était éteint, elle part dès qu'il revient (après 3 h 10). */
+/** Sauvegarde quotidienne avec rattrapage : si le service était éteint, elle part dès qu'il revient (après 3 h 10). */
 async function backupIfDue(now = new Date()): Promise<void> {
 	const { lastBackupAt } = await backupStatus();
 	if (backupDue(lastBackupAt, now, parisMinutes(now))) await runBackup(now);
@@ -157,7 +157,7 @@ async function backupIfDue(now = new Date()): Promise<void> {
 /**
  * Planificateur interne (pas le cron Railway : trop imprécis). Toutes les 5 minutes, regarde
  * si le récapitulatif doit partir ; un redémarrage ou une heure ratée est rattrapé au passage suivant.
- * Sauvegarde complète toutes les semaines (vers 3 h 10), rattrapée au passage suivant si elle a été manquée.
+ * Sauvegarde complète tous les jours (vers 3 h 10), rattrapée au passage suivant si elle a été manquée.
  */
 export function startScheduler(): void {
 	if (started) return;
@@ -171,5 +171,5 @@ export function startScheduler(): void {
 		},
 		{ timezone: TIMEZONE }
 	);
-	console.log(`[rappels] planificateur actif (récapitulatif quotidien, bilan du dimanche, sauvegarde hebdomadaire, ${TIMEZONE})`);
+	console.log(`[rappels] planificateur actif (récapitulatif quotidien, bilan du dimanche, sauvegarde quotidienne, ${TIMEZONE})`);
 }

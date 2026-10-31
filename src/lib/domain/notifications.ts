@@ -1,3 +1,4 @@
+import { dayInParis } from './dates';
 import type { NotificationSettings } from '../types';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -139,11 +140,11 @@ export function freshAlerts<T extends { parameterId: number; level: string }>(
 	});
 }
 
-/** Sauvegarde due : aucune, ou la dernière a plus de 7 jours ; jamais avant 3 h 10 (heure de Paris). */
+/** Sauvegarde due : aucune, ou la dernière n'est pas d'aujourd'hui (heure de Paris) ; jamais avant 3 h 10. */
 export function backupDue(lastBackupAt: string | null, now: Date, minutes: number): boolean {
 	if (minutes < 3 * 60 + 10) return false;
 	if (!lastBackupAt) return true;
-	return now.getTime() - new Date(lastBackupAt).getTime() >= 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000;
+	return dayInParis(new Date(lastBackupAt)) !== dayInParis(now);
 }
 
 /** Services de push des navigateurs (Apple, Google, Mozilla, Microsoft) : on n'envoie rien ailleurs. */

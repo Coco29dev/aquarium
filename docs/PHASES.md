@@ -280,3 +280,8 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Playwright (`@playwright/test`, Chromium, profil iPhone 14) : `npm run test:e2e`. Le serveur de développement tourne sur une base `aquarium_e2e` recréée au lancement (`e2e/prepare-db.mjs`, refuse tout nom de base sans « e2e »).
 - Parcours couverts : accès protégé, visite de bienvenue, état vide, carte « À faire maintenant » et prévision, cocher « Fait », écran de l'assistant. Premier lancement : `npx playwright install chromium`.
 - Hors du déploiement : Railway ne lance pas ces tests.
+
+## V2, lot 7 : sauvegarde quotidienne
+
+- L'export JSON part désormais **chaque nuit** (après 3 h 10, rattrapé si le service était éteint) au lieu de chaque dimanche : `backupDue` compare le jour de Paris de la dernière sauvegarde.
+- Rotation (`domain/backups.ts`) : 7 quotidiennes, puis la plus récente de chacune des 4 semaines suivantes (11 fichiers au plus). Les sauvegardes de volume Railway étant réservées au plan Pro, c'est le seul filet de la base.

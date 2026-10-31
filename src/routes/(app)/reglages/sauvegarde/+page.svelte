@@ -69,7 +69,7 @@
 	</span>
 	{#if status}
 		<p class="title3">{status.lastBackupAt ? `Sauvegardé ${backupAge(status.lastBackupAt)}` : 'Aucune sauvegarde pour l’instant'}</p>
-		<p class="subhead mt-1 text-label2">Sauvegarde automatique chaque dimanche</p>
+		<p class="subhead mt-1 text-label2">Sauvegarde automatique chaque nuit</p>
 	{:else if loadError}
 		<p class="subhead text-label2">{loadError}</p>
 		<button class="btn-plain mt-2" onclick={load}>Réessayer</button>
@@ -91,7 +91,7 @@
 	<Section header="Dernière sauvegarde">
 		<Row title="Date" value={when(status.lastBackupAt)} />
 		<Row title="Taille" value={size(status.bytes)} />
-		<Row title="Copies conservées" value="8 dernières" />
+		<Row title="Copies conservées" value="7 jours, puis 4 semaines" />
 	</Section>
 
 	<Section footer="Copie complète de tes bacs, mesures, tâches, vivants, matériel, dépenses et notes.">

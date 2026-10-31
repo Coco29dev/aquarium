@@ -220,13 +220,22 @@
 					<Icon name="back" size={22} weight={2.4} />
 				</a>
 				<p class="headline max-w-[56vw] truncate transition-opacity duration-200 {past ? 'opacity-100' : 'opacity-0'}">{aquarium.name}</p>
-				<a
-					href="/aquariums/{id}/reglages"
-					class="pressable grid h-9 w-9 place-items-center justify-self-end rounded-full {past ? 'text-tint' : 'glass text-label'}"
-					aria-label="Réglages du bac"
-				>
-					<Icon name="ellipsis" size={22} />
-				</a>
+				<div class="flex items-center gap-2 justify-self-end">
+					<a
+						href="/assistant?bac={id}"
+						class="pressable grid h-9 w-9 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}"
+						aria-label="Assistant"
+					>
+						<Icon name="chat" size={21} />
+					</a>
+					<a
+						href="/aquariums/{id}/reglages"
+						class="pressable grid h-9 w-9 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}"
+						aria-label="Réglages du bac"
+					>
+						<Icon name="ellipsis" size={22} />
+					</a>
+				</div>
 			</div>
 		</div>
 		<div class="relative -mx-4 overflow-hidden bg-black" style="height: 42dvh; min-height: 260px" bind:clientHeight={heroH}>
@@ -247,9 +256,14 @@
 	{:else}
 		<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }} {kicker}>
 			{#snippet trailing()}
-				<a href="/aquariums/{id}/reglages" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Réglages du bac">
-					<Icon name="ellipsis" size={22} />
-				</a>
+				<div class="flex items-center gap-2 pr-2">
+					<a href="/assistant?bac={id}" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Assistant">
+						<Icon name="chat" size={21} />
+					</a>
+					<a href="/aquariums/{id}/reglages" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Réglages du bac">
+						<Icon name="ellipsis" size={22} />
+					</a>
+				</div>
 			{/snippet}
 			<TankTabs {aquarium} tab="suivi" />
 		</NavBar>

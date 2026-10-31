@@ -222,3 +222,14 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Choix d’un biotope en un geste : le bouton « Choisir ce biotope » de l’écran d’une idée ajoute au projet les espèces (`espece`), les plantes (`plante`, nouveau type, migration `1763400000000_projet_plantes.sql`) et le matériel coché (`equipement`, prix moyen estimé), sans doublon, puis ouvre le projet.
 - Écran d’une idée : volume, résumé chiffré et bouton de choix en tête, puis onglets Faune / Plantes / Matériel / Infos.
 - Écran du projet : onglets Aperçu / Vivant (animaux et plantes) / Matériel (budget) / Idées.
+
+## Phase 7 : assistant conversationnel (31 octobre 2026)
+
+- **Écran** `/assistant` (entrée par l'Atelier et par le bouton bulle de l'en-tête d'un bac) : un fil par aquarium, réponses en flux, mise en forme minimale (`domain/markdown.ts`, texte échappé), suggestions au démarrage, bouton « Effacer ».
+- **Serveur** (`server/assistant.ts`) : Claude `claude-sonnet-5-5` via le SDK officiel, effort moyen, repli côté serveur `fallbacks: "default"`. Routes : `GET/POST/DELETE /api/assistant`, `POST /api/assistant/confirm` (réponses SSE). Le travail se poursuit côté serveur si l'écran est quitté : l'état se relit au retour.
+- **Contexte** (`domain/assistant.ts`, `buildContext`) : état du bac (dernières valeurs et plages, alertes, cyclage, tâches, habitants, nourrissage, journal récent), joint à chaque message de l'utilisateur. Le prompt système et les outils ne changent jamais, et l'historique n'est jamais modifié : cache de prompt et blocs de réflexion restent valides.
+- **Outils** : lecture `historique_parametre` (exécutée tout de suite) ; écriture `noter_mesure`, `terminer_tache`, `noter_repas`, `ajouter_note`, qui réutilisent les actions des raccourcis. Chaque écriture est mise en pause : une carte Confirmer / Refuser s'affiche, et seul « Confirmer » exécute l'action (contrôle côté serveur, pas seulement dans la consigne du modèle). Un refus est rendu au modèle.
+- **Base** : table `chat_messages` (migration `1763500000000_assistant.sql`), incluse dans l'export JSON et la restauration (`chatMessages`).
+- **Garde-fous** : session obligatoire, un tour à la fois par bac, 150 messages par jour (`ASSISTANT_DAILY_LIMIT`), 4000 caractères par message, 300 messages par fil (au-delà, effacer), 6 allers-retours outils au plus par demande.
+- **Tests** : `domain/assistant.test.ts` (actions, historique affichable, contexte, markdown). Parcours complet vérifié en local contre une fausse API Claude (message, confirmation, refus, export, effacement) ; **jamais exécuté avec la vraie clé ni vu sur iPhone**.
+- **Pistes** : outil de consultation des fiches d'espèces (compatibilité), photos envoyées au chat, notifications d'une réponse longue.

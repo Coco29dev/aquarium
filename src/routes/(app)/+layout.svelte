@@ -30,7 +30,7 @@
 	const ROOTS = ['/', '/aquariums', '/encyclopedie', '/outils', '/reglages'];
 	/** Écrans présentés en feuille plein écran : pas de barre d'onglets, entrée par le bas. */
 	const isModal = (path: string) =>
-		path.startsWith('/mesurer') || path === '/aquariums/nouveau' || path.startsWith('/bienvenue');
+		path.startsWith('/mesurer') || path === '/aquariums/nouveau' || path.startsWith('/bienvenue') || path.startsWith('/assistant');
 	const depth = (path: string) => path.split('/').filter(Boolean).length;
 
 	/** Sens de l'animation, façon UINavigationController : empile, dépile, change d'onglet, modale. */

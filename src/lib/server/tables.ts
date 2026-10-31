@@ -57,6 +57,13 @@ export const RESTORE_TABLES: TableSpec[] = [
 		label: 'éléments de projet',
 		refs: [{ column: 'aquarium_id', to: 'aquariums' }],
 		optionalTable: true
+	},
+	{
+		table: 'chat_messages',
+		key: 'chatMessages',
+		label: "messages de l'assistant",
+		refs: [{ column: 'aquarium_id', to: 'aquariums' }],
+		optionalTable: true
 	}
 ];
 

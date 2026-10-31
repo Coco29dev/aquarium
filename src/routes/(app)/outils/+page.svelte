@@ -146,6 +146,11 @@
 <NavBar title="Atelier" />
 
 <div class="mb-8 mt-2 grid grid-cols-2 gap-3">
+	<Tile href="/assistant" tone="var(--indigo)" variant="solid" mark="chat" class="rise col-span-2 min-h-[6rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Conseil</p>
+		<p class="title3 mt-1">Assistant</p>
+		<p class="footnote mt-0.5 text-white/85">Pose une question sur ton bac, note une mesure</p>
+	</Tile>
 	<Tile href="/depenses" tone="var(--green)" variant="solid" mark="euro" class="rise min-h-[7rem]">
 		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Dépenses</p>
 		<p class="rounded-num title2 mt-1">{monthTotal != null ? eur(monthTotal) : '–'}</p>

@@ -7,7 +7,7 @@ Brief pour Claude Code. Interface et commentaires en français. Dernière mise �
 - Usage strictement personnel : une seule personne, deux aquariums, types variés (eau douce, plantée, eau de mer, récif).
 - Application web déployée sur Railway, installée sur un iPhone (iOS 27) via « Sur l'écran d'accueil ». Pas de compte développeur Apple, pas d'App Store.
 - Priorité produit : aide à la décision (alertes de dérive, coach de cyclage, compatibilité), avec une saisie très rapide.
-- Pas d'IA pour l'instant, pas de capteurs au départ, pas d'import : démarrage à vide.
+- Pas de capteurs au départ, pas d'import : démarrage à vide. Un assistant conversationnel (Claude) a été ajouté en phase 7 ; pas de diagnostic de maladie par IA.
 - **État** : phases 0 à 3 et encyclopédie d'espèces faites et déployées, plus une refonte d'interface « façon iOS » et des réglages de notifications / sauvegarde (voir « Avancement »).
 
 ## Infrastructure déjà en place
@@ -26,7 +26,7 @@ Créée et en production, ne pas recréer :
 
 Chaque push sur `main` redéploie le service `app` (build `npm run build`, démarrage `npm start`, healthcheck `/health`, voir `railway.json`).
 
-Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_URL` (= `${{Postgres.DATABASE_URL}}`), `HOST`, `APP_PASSWORD`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, accès au bucket (`S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), `NTFY_TOPIC` facultative (repli de notification, sinon réglé dans l'appli). Modèle local : `.env.example`.
+Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_URL` (= `${{Postgres.DATABASE_URL}}`), `HOST`, `APP_PASSWORD`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, accès au bucket (`S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), `NTFY_TOPIC` facultative (repli de notification, sinon réglé dans l'appli), `ANTHROPIC_API_KEY` (assistant ; sans elle l'écran Assistant explique quoi configurer), `ASSISTANT_MODEL` et `ASSISTANT_DAILY_LIMIT` facultatives. Modèle local : `.env.example`.
 
 - Pour que l'appli lise la base, utiliser la variable de référence `${{Postgres.DATABASE_URL}}` sur le service de l'appli (adresse privée Railway).
 - Ne jamais écrire de mot de passe, de clé ou de jeton dans le dépôt ni dans ce fichier. Tout passe par des variables Railway et un fichier `.env` local ignoré par Git.
@@ -45,6 +45,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 - Graphes : SVG maison (`components/Chart.svelte`), plus de bibliothèque de graphes.
 - Interface : charte « façon iOS » (jetons dans `src/routes/layout.css`, composants dans `src/lib/ios/`). Ne pas réintroduire les anciennes chartes « Bulle » et « Carnet de bac ».
 - Espèces : seed FishBase/SeaLifeBase (CC-BY-NC 4.0, usage personnel uniquement) + « noyau » de 638 fiches d'élevage dans `data/core/*.jsonl` (`data_quality` `claude` ou `verifie`, champs `locked` protégés des mises à jour). Contrôle : `node scripts/check-core.mjs`.
+- Assistant : SDK officiel `@anthropic-ai/sdk`, modèle `claude-sonnet-5-5`, flux SSE (`src/lib/server/assistant.ts`, routes `/api/assistant`). Conversation par bac dans `chat_messages`, jamais modifiée après écriture (cache et blocs de réflexion). Le contexte du bac est joint à chaque message de l'utilisateur, jamais au prompt système. Les outils qui écrivent attendent une confirmation dans l'appli.
 - Connexion : un seul compte géré par l'appli.
 
 ## Contraintes iOS à respecter
@@ -66,7 +67,8 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 | 3++ : encyclopédie noyau (638 fiches, photos Wikimedia) | Fait, déployé ; fiches non vérifiées |
 | 4 : refonte de l'interface façon iOS (hors brief initial) | Fait, déployé |
 | 5 : édition des données, réglages de notifications, ntfy, sauvegarde hebdomadaire (hors brief initial) | Fait, déployé |
-| 6 : capteurs ESP32, IA | Non commencée (c'était la « phase 4 » du brief) |
+| 6 : capteurs ESP32 | Non commencée (c'était la « phase 4 » du brief) |
+| 7 : assistant conversationnel Claude (hors brief initial) | Code fait, **à tester avec la vraie clé** (variable `ANTHROPIC_API_KEY` à ajouter sur Railway) |
 
 Restes connus : confirmer la phase 0 sur l'iPhone ; relire les fiches du noyau ; envisager une sauvegarde de Postgres elle-même (modèle Railway) en plus de l'export JSON ; tests d'interface inexistants (70 tests de logique métier, `npm test`).
 

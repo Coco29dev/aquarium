@@ -59,10 +59,31 @@ export const RESTORE_TABLES: TableSpec[] = [
 		optionalTable: true
 	},
 	{
+		table: 'chat_threads',
+		key: 'chatThreads',
+		label: "conversations de l'assistant",
+		refs: [{ column: 'aquarium_id', to: 'aquariums' }],
+		optionalTable: true
+	},
+	// Métadonnées seulement : les images restent dans le stockage, comme les photos.
+	{
+		table: 'chat_attachments',
+		key: 'chatAttachments',
+		label: "photos de l'assistant",
+		refs: [
+			{ column: 'aquarium_id', to: 'aquariums' },
+			{ column: 'thread_id', to: 'chatThreads', nullable: true }
+		],
+		optionalTable: true
+	},
+	{
 		table: 'chat_messages',
 		key: 'chatMessages',
 		label: "messages de l'assistant",
-		refs: [{ column: 'aquarium_id', to: 'aquariums' }],
+		refs: [
+			{ column: 'aquarium_id', to: 'aquariums' },
+			{ column: 'thread_id', to: 'chatThreads', nullable: true }
+		],
 		optionalTable: true
 	}
 ];

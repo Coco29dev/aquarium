@@ -276,7 +276,11 @@ export async function updateAquarium(
 
 export async function deleteAquarium(id: number): Promise<void> {
 	// Les lignes photos partent en cascade ; les fichiers du stockage sont à supprimer à la main.
-	const { rows } = await db().query<{ storage_key: string }>('SELECT storage_key FROM photos WHERE aquarium_id = $1', [id]);
+	const { rows } = await db().query<{ storage_key: string }>(
+		`SELECT storage_key FROM photos WHERE aquarium_id = $1
+		 UNION ALL SELECT storage_key FROM chat_attachments WHERE aquarium_id = $1`,
+		[id]
+	);
 	await db().query('DELETE FROM aquariums WHERE id = $1', [id]);
 	await Promise.allSettled(rows.map((r) => deleteObject(r.storage_key)));
 }

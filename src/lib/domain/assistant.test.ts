@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REFUSED_TEXT, buildContext, describeAction, isWriteTool, pendingActions, toDisplay, type StoredMessage } from './assistant';
+import { REFUSED_TEXT, buildContext, describeAction, firstUserText, groupByRecency, isWriteTool, pendingActions, threadLabel, toDisplay, type StoredMessage, type ThreadSummary } from './assistant';
 import { renderMarkdown } from './markdown';
 import type { Aquarium, Measurement, Parameter, Task } from '../types';
 
@@ -101,5 +101,52 @@ describe('markdown', () => {
 	it('met en forme gras, listes et paragraphes', () => {
 		expect(renderMarkdown('**Attention** : test\n\n- un\n- deux')).toBe('<p><strong>Attention</strong> : test</p><ul><li>un</li><li>deux</li></ul>');
 		expect(renderMarkdown('1. a\n2. b')).toBe('<ol><li>a</li><li>b</li></ol>');
+	});
+});
+
+describe('photos dans la conversation', () => {
+	const withPhoto = row(1, 'user', [
+		{ type: 'x_image', attachment_id: 7 },
+		{ type: 'x_image', attachment_id: 8 },
+		{ type: 'text', text: '[Contexte du bac]' },
+		{ type: 'text', text: 'Que penses-tu de cette plante ?' }
+	]);
+
+	it("affiche les photos jointes à côté du texte de l'utilisateur", () => {
+		expect(toDisplay([withPhoto])[0]).toMatchObject({ kind: 'user', text: 'Que penses-tu de cette plante ?', images: [7, 8] });
+	});
+
+	it('un message sans photo a une liste vide', () => {
+		expect(toDisplay([row(1, 'user', [{ type: 'text', text: 'ctx' }, { type: 'text', text: 'Salut' }])])[0]).toMatchObject({ images: [] });
+	});
+
+	it("retrouve la première question, sans le contexte ni les résultats d'outils", () => {
+		const result = row(2, 'user', [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }]);
+		expect(firstUserText([result, withPhoto])).toBe('Que penses-tu de cette plante ?');
+		expect(firstUserText([])).toBe('');
+	});
+});
+
+describe('conversations', () => {
+	const t = (id: number, updatedAt: string, title: string | null = null, preview = ''): ThreadSummary => ({ id, aquariumId: 1, title, preview, updatedAt });
+	const now = Date.parse('2026-10-31T12:00:00Z');
+
+	it('range les conversations par ancienneté, les plus récentes d’abord', () => {
+		const groups = groupByRecency(
+			[t(1, '2026-10-31T08:00:00Z'), t(2, '2026-10-30T20:00:00Z'), t(3, '2026-10-27T10:00:00Z'), t(4, '2026-10-10T10:00:00Z'), t(5, '2026-08-01T10:00:00Z'), t(6, '2026-10-31T11:00:00Z')],
+			now
+		);
+		expect(groups.map((g) => g.label)).toEqual(["Aujourd'hui", 'Hier', '7 derniers jours', '30 derniers jours', 'Plus ancien']);
+		expect(groups[0].threads.map((x) => x.id)).toEqual([6, 1]);
+	});
+
+	it('omet les groupes vides', () => {
+		expect(groupByRecency([t(1, '2026-10-31T08:00:00Z')], now).map((g) => g.label)).toEqual(["Aujourd'hui"]);
+	});
+
+	it('nomme une conversation par son titre, sinon par son premier message', () => {
+		expect(threadLabel(t(1, '', 'Nitrates en hausse', 'blabla'))).toBe('Nitrates en hausse');
+		expect(threadLabel(t(1, '', null, 'Mes nitrates montent, que faire ?'))).toBe('Mes nitrates montent, que faire ?');
+		expect(threadLabel(t(1, '', '  ', ''))).toBe('Nouvelle conversation');
 	});
 });

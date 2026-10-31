@@ -56,7 +56,7 @@ const BODY_LIMIT_PHOTO = 7 * 1024 * 1024;
 
 function bodyLimit(pathname: string): number {
 	if (pathname.startsWith('/api/restore')) return Infinity;
-	if (pathname === '/api/photos') return BODY_LIMIT_PHOTO;
+	if (pathname === '/api/photos' || pathname === '/api/assistant/images') return BODY_LIMIT_PHOTO;
 	return BODY_LIMIT_DEFAULT;
 }
 

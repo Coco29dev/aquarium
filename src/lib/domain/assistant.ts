@@ -44,6 +44,54 @@ export function describeAction(name: string, input: Record<string, unknown>): st
 	}
 }
 
+/** Photos jointes à un message au plus. */
+export const MAX_IMAGES = 4;
+/** Texte du message quand l'utilisateur n'envoie qu'une photo (l'API refuse un texte vide). */
+export const PHOTO_ONLY_TEXT = 'Voici une photo.';
+
+// --- Conversations ---------------------------------------------------------------------------
+
+export interface ThreadSummary {
+	id: number;
+	aquariumId: number;
+	title: string | null;
+	/** Début du premier message de l'utilisateur, pour une conversation sans titre. */
+	preview: string;
+	updatedAt: string; // ISO
+}
+
+export const threadLabel = (t: Pick<ThreadSummary, 'title' | 'preview'>): string => t.title?.trim() || t.preview.trim().slice(0, 60) || 'Nouvelle conversation';
+
+/** Premier message de l'utilisateur d'une conversation, tel qu'il l'a écrit (sans le contexte joint). */
+export function firstUserText(rows: StoredMessage[]): string {
+	const first = rows.find((r) => r.role === 'user' && !parseBlocks(r.content).some((b) => b.type === 'tool_result'));
+	if (!first) return '';
+	const texts = parseBlocks(first.content).filter((b) => b.type === 'text');
+	return texts[texts.length - 1]?.text ?? '';
+}
+
+export interface ThreadGroup {
+	label: string;
+	threads: ThreadSummary[];
+}
+
+/** Regroupe par ancienneté (jours calendaires de Paris), les plus récentes d'abord. */
+export function groupByRecency(threads: ThreadSummary[], now: number = Date.now()): ThreadGroup[] {
+	const today = dayInParis(now);
+	const buckets: ThreadGroup[] = [
+		{ label: "Aujourd'hui", threads: [] },
+		{ label: 'Hier', threads: [] },
+		{ label: '7 derniers jours', threads: [] },
+		{ label: '30 derniers jours', threads: [] },
+		{ label: 'Plus ancien', threads: [] }
+	];
+	for (const t of [...threads].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))) {
+		const age = daysBetween(dayInParis(t.updatedAt), today);
+		buckets[age <= 0 ? 0 : age === 1 ? 1 : age <= 7 ? 2 : age <= 30 ? 3 : 4].threads.push(t);
+	}
+	return buckets.filter((b) => b.threads.length);
+}
+
 // --- Événements de flux (serveur → écran) --------------------------------------------------
 
 export interface PendingAction {
@@ -56,6 +104,7 @@ export interface PendingAction {
 export type ActionStatus = 'pending' | 'done' | 'refused' | 'error';
 
 export type AssistantEvent =
+	| { type: 'thread'; id: number }
 	| { type: 'text'; text: string }
 	| { type: 'action'; id: string; label: string; status: Exclude<ActionStatus, 'pending'>; detail: string }
 	| { type: 'pending'; actions: PendingAction[] }
@@ -73,6 +122,8 @@ export interface StoredMessage {
 
 interface Block {
 	type?: string;
+	/** Bloc maison `x_image` : la photo est dans le stockage, le serveur la remplace par une image à l'envoi à Claude. */
+	attachment_id?: number;
 	text?: string;
 	id?: string;
 	name?: string;
@@ -99,7 +150,7 @@ const resultText = (content: unknown): string => {
 };
 
 export type DisplayItem =
-	| { kind: 'user'; key: string; text: string }
+	| { kind: 'user'; key: string; text: string; images: number[] }
 	| { kind: 'assistant'; key: string; text: string }
 	| { kind: 'action'; key: string; id: string; name: string; label: string; status: ActionStatus; detail: string };
 
@@ -118,7 +169,8 @@ export function toDisplay(rows: StoredMessage[]): DisplayItem[] {
 			// Le premier bloc est le contexte du bac, ajouté par le serveur : seul le dernier texte est celui de l'utilisateur.
 			const texts = blocks.filter((b) => b.type === 'text');
 			const last = texts[texts.length - 1];
-			if (last?.text) items.push({ kind: 'user', key: `m${row.id}`, text: last.text });
+			const images = blocks.filter((b) => b.type === 'x_image' && typeof b.attachment_id === 'number').map((b) => b.attachment_id!);
+			if (last?.text) items.push({ kind: 'user', key: `m${row.id}`, text: last.text, images });
 			continue;
 		}
 		const text = blocks

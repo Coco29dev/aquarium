@@ -93,6 +93,12 @@
 		return path.startsWith(href);
 	}
 	const modal = $derived(isModal(page.url.pathname));
+
+	/** Bulle de l'assistant : ouvre le chat du bac affiché, sinon du dernier bac utilisé. */
+	const bubbleHref = $derived.by(() => {
+		const onTank = /^\/aquariums\/(\d+)/.exec(page.url.pathname);
+		return onTank ? `/assistant?bac=${onTank[1]}` : '/assistant';
+	});
 	const root = $derived(ROOTS.includes(page.url.pathname));
 
 	// --- Pastille de l'icône : tâches du jour encore à faire ---------------------------------
@@ -325,6 +331,14 @@
 					</li>
 				{/each}
 			</ul>
+			<a
+				href={bubbleHref}
+				class="pressable pointer-events-auto absolute right-4 grid h-[52px] w-[52px] place-items-center rounded-full text-white shadow-[0_6px_18px_rgb(0_0_0/0.28)]"
+				style="bottom: calc(max(10px, calc(env(safe-area-inset-bottom) - 6px)) + 62px + 14px); background: var(--indigo); view-transition-name: assistant"
+				aria-label="Ouvrir l'assistant"
+			>
+				<Icon name="chat" size={26} filled weight={1.8} />
+			</a>
 			<a
 				href="/mesurer"
 				class="glass pressable pointer-events-auto grid h-[62px] w-[62px] shrink-0 place-items-center rounded-full text-tint"

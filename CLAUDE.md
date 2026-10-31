@@ -45,7 +45,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 - Graphes : SVG maison (`components/Chart.svelte`), plus de bibliothèque de graphes.
 - Interface : charte « façon iOS » (jetons dans `src/routes/layout.css`, composants dans `src/lib/ios/`). Ne pas réintroduire les anciennes chartes « Bulle » et « Carnet de bac ».
 - Espèces : seed FishBase/SeaLifeBase (CC-BY-NC 4.0, usage personnel uniquement) + « noyau » de 638 fiches d'élevage dans `data/core/*.jsonl` (`data_quality` `claude` ou `verifie`, champs `locked` protégés des mises à jour). Contrôle : `node scripts/check-core.mjs`.
-- Assistant : SDK officiel `@anthropic-ai/sdk`, modèle `claude-sonnet-5-5`, flux SSE (`src/lib/server/assistant.ts`, routes `/api/assistant`). Conversation par bac dans `chat_messages`, jamais modifiée après écriture (cache et blocs de réflexion). Le contexte du bac est joint à chaque message de l'utilisateur, jamais au prompt système. Les outils qui écrivent attendent une confirmation dans l'appli.
+- Assistant : SDK officiel `@anthropic-ai/sdk`, modèle `claude-sonnet-5-5`, flux SSE (`src/lib/server/assistant.ts`, routes `/api/assistant`). Plusieurs conversations par bac (`chat_threads`, `chat_messages`), photos dans le bucket (`chat_attachments`, bloc maison `x_image` remplacé par l'image à chaque tour), historique jamais modifié après écriture (cache et blocs de réflexion). Le contexte du bac est joint à chaque message de l'utilisateur, jamais au prompt système. Les outils qui écrivent attendent une confirmation dans l'appli.
 - Connexion : un seul compte géré par l'appli.
 
 ## Contraintes iOS à respecter
@@ -68,7 +68,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 | 4 : refonte de l'interface façon iOS (hors brief initial) | Fait, déployé |
 | 5 : édition des données, réglages de notifications, ntfy, sauvegarde hebdomadaire (hors brief initial) | Fait, déployé |
 | 6 : capteurs ESP32 | Non commencée (c'était la « phase 4 » du brief) |
-| 7 : assistant conversationnel Claude (hors brief initial) | Code fait, **à tester avec la vraie clé** (variable `ANTHROPIC_API_KEY` à ajouter sur Railway) |
+| 7 : assistant conversationnel Claude (hors brief initial) | Fait, déployé ; conversations multiples, historique, photos et bulle d'accès rapide en cours de test |
 
 Restes connus : confirmer la phase 0 sur l'iPhone ; relire les fiches du noyau ; envisager une sauvegarde de Postgres elle-même (modèle Railway) en plus de l'export JSON ; tests d'interface inexistants (70 tests de logique métier, `npm test`).
 

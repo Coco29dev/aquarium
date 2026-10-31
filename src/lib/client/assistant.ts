@@ -1,4 +1,5 @@
 import type { AssistantEvent } from '$lib/domain/assistant';
+import { shrinkImage } from './image';
 
 /**
  * Appelle une route de l'assistant qui répond en flux d'événements (SSE) et transmet chaque
@@ -30,4 +31,20 @@ export async function streamAssistant(url: string, body: unknown, onEvent: (even
 			if (data) onEvent(JSON.parse(data) as AssistantEvent);
 		}
 	}
+}
+
+/** Réduit une photo puis l'envoie au serveur ; renvoie son identifiant, à joindre au message. */
+export async function uploadChatImage(aquariumId: number, file: File): Promise<number> {
+	if (!navigator.onLine) throw new Error('Connexion requise.');
+	const blob = await shrinkImage(file, 1280, 0.8);
+	const form = new FormData();
+	form.set('file', new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+	form.set('aquariumId', String(aquariumId));
+	const response = await fetch('/api/assistant/images', { method: 'POST', body: form });
+	if (response.status === 401) {
+		location.href = '/login';
+		throw new Error('Session expirée');
+	}
+	if (!response.ok) throw new Error((await response.json().catch(() => null))?.message ?? `Erreur ${response.status}`);
+	return ((await response.json()) as { id: number }).id;
 }

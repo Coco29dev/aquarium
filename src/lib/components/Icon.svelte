@@ -42,6 +42,8 @@
 		sun: '<circle class="f" cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
 		bubbles: '<circle class="f" cx="9" cy="14" r="5"/><circle cx="17" cy="7" r="2.6"/><circle cx="18.5" cy="17" r="1.6"/>',
 		chat: '<path class="f" d="M5 4.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7.5L7 20v-3.5H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path class="c" d="M7.5 9.5h9M7.5 12.5h5.5"/>',
+		photo: '<rect class="f" x="3.5" y="5" width="17" height="14" rx="2.5"/><circle class="c" cx="9" cy="10" r="1.6"/><path class="c" d="M4 17l4.8-4.6 3.4 3.2 2.6-2.4L20 17"/>',
+		history: '<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4L4.5 8.8"/><path d="M4.5 4.5v4.3h4.3M12 8v4.4l3 1.8"/>',
 		cycle: '<path d="M12 4a8 8 0 1 1-7.4 5"/><path d="M4 4.5v4.8h4.8"/><circle class="f" cx="12" cy="12" r="2.5"/>'
 	} as const;
 

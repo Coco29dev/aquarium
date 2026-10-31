@@ -20,7 +20,7 @@
 					{a.cancelLabel ?? 'Annuler'}
 				</button>
 				<button
-					class="headline min-h-12 rounded-full active:opacity-60 {a.destructive ? 'bg-red text-white' : 'bg-tint text-white'}"
+					class="headline min-h-12 rounded-full active:opacity-60 {a.destructive ? 'bg-red text-white' : 'bg-tint text-on-tint'}"
 					onclick={() => a.resolve(true)}
 				>
 					{a.confirmLabel ?? 'OK'}

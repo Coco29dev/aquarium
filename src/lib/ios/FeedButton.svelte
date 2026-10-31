@@ -96,7 +96,7 @@
 			<Icon name="fish" size={18} filled weight={1.8} />
 			Nourri
 			{#if today.count > 0}
-				<span class="rounded-num ml-0.5 min-w-5 rounded-full px-1.5 text-center text-[13px] {status === 'trop' ? 'bg-red text-white' : status === 'complet' ? 'bg-orange text-white' : 'bg-tint text-white'}">{today.count}</span>
+				<span class="rounded-num ml-0.5 min-w-5 rounded-full px-1.5 text-center text-[13px] {status === 'trop' ? 'bg-red text-white' : status === 'complet' ? 'bg-orange text-white' : 'bg-tint text-on-tint'}">{today.count}</span>
 			{/if}
 			{#if waiting}<span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg2 bg-orange" title="En attente d’envoi"></span>{/if}
 		</button>

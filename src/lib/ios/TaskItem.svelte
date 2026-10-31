@@ -67,7 +67,7 @@
 >
 	<div class="flex items-start gap-3 pl-4" use:contextMenu={{ items }}>
 		<button
-			class="mt-2.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {done ? 'border-tint bg-tint text-white' : 'border-label3'}"
+			class="mt-2.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {done ? 'border-tint bg-tint text-on-tint' : 'border-label3'}"
 			onclick={toggle}
 			aria-pressed={done}
 			aria-label="{done ? 'Annuler' : 'Marquer comme fait'} : {task.title}"

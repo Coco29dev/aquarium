@@ -268,3 +268,9 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 
 - `domain/forecast.ts` : pour une valeur encore dans la plage, date estimée de sortie de plage au rythme actuel (régression sur 14 jours, repartie du dernier changement d'eau, horizon 21 jours, bruit ignoré, ammoniac et nitrites écartés pendant le cyclage). 8 tests.
 - Affichée dans « À regarder » de l'accueil et sous la valeur actuelle de l'écran d'un paramètre.
+
+## V2, lot 5 : qualité technique
+
+- Audit : `npm audit --omit=dev` ne remonte que 3 avis modérés (`minimatch` via `node-pg-migrate`, outil de migration qui ne lit que nos fichiers) : non corrigés, le correctif impose un retour en arrière de version. En-têtes de sécurité déjà en place (nosniff, DENY, referrer, HSTS).
+- Contraste : teinte claire assombrie (`#0a7385`, 5,5:1 avec du blanc, 4,9:1 en texte sur le fond) ; nouveau jeton `--on-tint` (encre profonde en sombre) pour les boutons pleins, la teinte sombre claire n'offrant que 2,6:1 avec du blanc.
+- Toujours à faire : sauvegarde de Postgres elle-même (volume Railway, réglage du tableau de bord), tests d'interface (dépendance lourde, à valider avant).

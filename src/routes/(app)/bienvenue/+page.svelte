@@ -129,7 +129,7 @@
 			<ol class="flex flex-col gap-6">
 				{#each steps as st (st.n)}
 					<li class="flex items-start gap-4">
-						<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-tint text-[17px] font-bold text-white">{st.n}</span>
+						<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-tint text-[17px] font-bold text-on-tint">{st.n}</span>
 						<div>
 							<p class="headline">{st.title}</p>
 							<p class="subhead mt-0.5 text-label2">{st.text}</p>

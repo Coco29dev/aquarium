@@ -27,8 +27,10 @@
 	--fill2: rgb(120 120 128 / 0.16);
 	--fill3: rgb(118 118 128 / 0.12);
 	/* Couleurs système */
-	--tint: #0b7f93;
-	--blue: #0b7f93;
+	--tint: #0a7385;
+	--blue: #0a7385;
+	/* Encre posée sur un fond teinté (boutons pleins) : blanc en clair, encre profonde en sombre pour le contraste */
+	--on-tint: #ffffff;
 	/* Signature : lagon (tint, eau) et corail (accent chaud, poisson du logo) */
 	--coral: #ff6f61;
 	--lagoon-deep: #06323f;
@@ -72,6 +74,7 @@
 		--fill3: rgb(118 118 128 / 0.24);
 		--tint: #1fb0c4;
 		--blue: #1fb0c4;
+		--on-tint: #04222c;
 		--coral: #ff8576;
 		--green: #30d158;
 		--orange: #ff9f0a;
@@ -107,6 +110,7 @@
 	--color-tint: var(--tint);
 	--color-blue: var(--blue);
 	--color-coral: var(--coral);
+	--color-on-tint: var(--on-tint);
 	--color-green: var(--green);
 	--color-orange: var(--orange);
 	--color-red: var(--red);
@@ -302,7 +306,7 @@ a {
 	padding: 0 22px;
 	border-radius: 999px;
 	background: var(--tint);
-	color: #fff;
+	color: var(--on-tint);
 	font-size: 17px;
 	font-weight: 600;
 	letter-spacing: -0.022em;

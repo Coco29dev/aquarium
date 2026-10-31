@@ -96,7 +96,7 @@
 	<Row href="/reglages/notifications" icon="bell" iconColor="var(--red)" title="Notifications" value={notifications} />
 	<Row href="/reglages/affichage" title="Affichage" value={themeLabel}>
 		{#snippet leading()}
-			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-blue text-[13px] font-bold tracking-tight text-white" aria-hidden="true">AA</span>
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-blue text-[13px] font-bold tracking-tight text-on-tint" aria-hidden="true">AA</span>
 		{/snippet}
 	</Row>
 	<Row href="/reglages/sauvegarde" icon="sync" iconColor="var(--green)" title="Sauvegarde" value={backupValue} />

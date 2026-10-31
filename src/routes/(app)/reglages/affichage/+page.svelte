@@ -64,7 +64,7 @@
 				</span>
 				<span class="subhead font-medium">{p.label}</span>
 				<span
-					class="grid h-[22px] w-[22px] place-items-center rounded-full border-[1.5px] transition-colors duration-200 {on ? 'border-tint bg-tint text-white' : 'border-label3'}"
+					class="grid h-[22px] w-[22px] place-items-center rounded-full border-[1.5px] transition-colors duration-200 {on ? 'border-tint bg-tint text-on-tint' : 'border-label3'}"
 					aria-hidden="true"
 				>
 					{#if on}<Icon name="check" size={13} weight={3.2} />{/if}

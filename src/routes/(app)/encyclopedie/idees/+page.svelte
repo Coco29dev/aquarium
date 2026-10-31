@@ -81,7 +81,7 @@
 		{#each [30, 60, 100, 150, 200, 300, 500] as v (v)}
 			<button
 				type="button"
-				class="footnote pressable rounded-full px-3 py-1.5 font-semibold {volume === v ? 'bg-blue text-white' : 'bg-fill3'}"
+				class="footnote pressable rounded-full px-3 py-1.5 font-semibold {volume === v ? 'bg-blue text-on-tint' : 'bg-fill3'}"
 				onclick={() => (volumeText = String(v))}
 			>{v} L</button>
 		{/each}

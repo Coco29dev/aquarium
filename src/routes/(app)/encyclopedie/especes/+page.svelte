@@ -259,7 +259,7 @@
 	<div class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4" style="scrollbar-width: none">
 		{#each KINDS as [value, label] (value)}
 			<button
-				class="subhead shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition-colors {kind === value ? 'bg-tint text-white' : 'bg-bg2 text-label'}"
+				class="subhead shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition-colors {kind === value ? 'bg-tint text-on-tint' : 'bg-bg2 text-label'}"
 				aria-pressed={kind === value}
 				onclick={() => ((kind = value), search())}
 			>

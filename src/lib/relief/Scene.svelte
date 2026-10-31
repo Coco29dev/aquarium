@@ -16,12 +16,12 @@
 
 	const sky = $derived(
 		hour >= 5 && hour < 11
-			? 'linear-gradient(170deg, #8fdcff 0%, #3aa0f2 48%, #1c63c9 100%)'
+			? 'linear-gradient(170deg, #a4eef0 0%, #35b9c9 48%, #0b7f93 100%)'
 			: hour >= 11 && hour < 17
-				? 'linear-gradient(170deg, #4cc3f7 0%, #1f86e6 52%, #164ba8 100%)'
+				? 'linear-gradient(170deg, #4fd0dc 0%, #14a0b4 52%, #0a6277 100%)'
 				: hour >= 17 && hour < 21
-					? 'linear-gradient(170deg, #ffb27a 0%, #d2609e 38%, #5b4bc4 72%, #1f2f78 100%)'
-					: 'linear-gradient(170deg, #24357a 0%, #131d4d 52%, #070b24 100%)'
+					? 'linear-gradient(170deg, #ffb27a 0%, #e8647a 38%, #6a4fa8 72%, #0f3a4d 100%)'
+					: 'linear-gradient(170deg, #14505f 0%, #0a2f3b 52%, #03141b 100%)'
 	);
 	const bubbles = [
 		{ left: 8, size: 7, dur: 9, delay: 0 },
@@ -34,7 +34,7 @@
 	const WAVE = 'M0 30 C 100 8 200 8 300 30 S 500 52 600 30 C 700 8 800 8 900 30 S 1100 52 1200 30 V80 H0 Z';
 </script>
 
-<div class="relative isolate overflow-hidden rounded-[32px] text-white {cls}" style="background: {sky}; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 22px 40px -18px rgb(10 40 120 / 0.55)">
+<div class="relative isolate overflow-hidden rounded-[32px] text-white {cls}" style="background: {sky}; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 22px 40px -18px rgb(6 50 63 / 0.55)">
 	<!-- Lumière du haut -->
 	<div class="pointer-events-none absolute inset-0" style="background: radial-gradient(90% 60% at 15% 0%, rgb(255 255 255 / 0.28), transparent 60%)"></div>
 

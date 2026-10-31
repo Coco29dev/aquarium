@@ -173,6 +173,9 @@
 	const report = $derived(view ? weeklyReport(view) : null);
 	const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Europe/Paris' }).format(new Date());
 	const bilanProminent = weekday === 'Sun' || weekday === 'Mon';
+	const nextTask = $derived(
+		[...remainingTasks].sort((x, y) => x.nextDue.localeCompare(y.nextDue))[0] ?? null
+	);
 	const lateTasks = $derived(week[0].tasks.filter((t) => lateBy(t, today) > 0 && !ui.checking[t.id]));
 
 	// Carte de synthèse : une ligne par chose qui demande de l'attention, la plus grave d'abord.
@@ -377,6 +380,20 @@
 
 	<!-- Raccourcis : accès direct aux gestes de tous les jours -->
 	<Dock items={dock} class="rise relative z-10 -mt-8 mb-6" />
+
+	<!-- Prochaine action : la tâche la plus urgente, à cocher d'un geste -->
+	{#if nextTask}
+		{@const d = taskDetail(nextTask)}
+		<section class="raised rise mb-6 flex items-center gap-3 py-3 pl-4 pr-3" aria-label="Prochaine action">
+			<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint/12 text-tint" style="--cut: var(--bg2)"><Icon name="calendar" size={22} filled weight={1.8} /></span>
+			<a href="/aquariums/{nextTask.aquariumId}/taches" class="min-w-0 flex-1">
+				<p class="caption1 font-semibold uppercase tracking-wide text-label2">À faire maintenant</p>
+				<p class="headline truncate">{nextTask.title}</p>
+				<p class="footnote truncate {d.late ? 'text-red' : 'text-label2'}">{tankOf(nextTask.aquariumId)?.name} · {d.text}</p>
+			</a>
+			<button type="button" class="btn-tinted shrink-0 !px-4" onclick={() => ui.check(nextTask.id, nextTask.title)}>Fait</button>
+		</section>
+	{/if}
 
 	<!-- Ce qui demande de l'attention, seulement s'il y en a -->
 	{#if attention.length}

@@ -258,3 +258,8 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Bienvenue refait en quatre pages : vignette animée `components/Lagoon.svelte` (poisson, bulles, rayons), fonctions (assistant ajouté), rappels, « Prêt en trois étapes ». Rejouable depuis Réglages › À propos › « Revoir la visite ».
 - Écrans de lancement iOS (`static/splash/`, générés par `node scripts/make-splash.mjs`, balises dans `app.html`), exclus du précache du service worker.
 - Version affichée : 2.0.
+
+## V2, lot 3 : accueil
+
+- Ambiance de la scène d'accueil passée aux teintes lagon (matin, jour, soir corail, nuit).
+- Carte « À faire maintenant » sous les raccourcis : la tâche la plus urgente avec un bouton « Fait » (même annulation différée que les listes).

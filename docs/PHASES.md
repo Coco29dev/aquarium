@@ -263,3 +263,8 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 
 - Ambiance de la scène d'accueil passée aux teintes lagon (matin, jour, soir corail, nuit).
 - Carte « À faire maintenant » sous les raccourcis : la tâche la plus urgente avec un bouton « Fait » (même annulation différée que les listes).
+
+## V2, lot 4 : métier, prévisions
+
+- `domain/forecast.ts` : pour une valeur encore dans la plage, date estimée de sortie de plage au rythme actuel (régression sur 14 jours, repartie du dernier changement d'eau, horizon 21 jours, bruit ignoré, ammoniac et nitrites écartés pendant le cyclage). 8 tests.
+- Affichée dans « À regarder » de l'accueil et sous la valeur actuelle de l'écran d'un paramètre.

@@ -4,6 +4,7 @@
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { collectTankAlerts } from '$lib/domain/drift';
+	import { collectForecasts } from '$lib/domain/forecast';
 	import { addDays, dayInParis } from '$lib/domain/dates';
 	import { consumableLife } from '$lib/domain/consumables';
 	import { activeTanks, isProject, stageOf, tankHealth } from '$lib/tank';
@@ -83,6 +84,16 @@
 					parameters: view.parameters.filter((p) => activeIds.has(p.aquariumId)),
 					measurements: view.measurements.filter((m) => activeIds.has(m.aquariumId))
 				})
+			: []
+	);
+	/** Valeurs encore dans la plage mais en route vers une limite ; celles déjà en alerte sont écartées. */
+	const forecasts = $derived(
+		view
+			? collectForecasts({
+					...view,
+					parameters: view.parameters.filter((p) => activeIds.has(p.aquariumId)),
+					measurements: view.measurements.filter((m) => activeIds.has(m.aquariumId))
+				}).filter((f) => !alerts.some((a) => a.parameterId === f.parameterId))
 			: []
 	);
 	const paramOf = (id: number) => view?.parameters.find((p) => p.id === id);
@@ -198,6 +209,16 @@
 				text: a.message,
 				detail: tankOf(a.aquariumId)?.name,
 				href: `/aquariums/${a.aquariumId}/parametre/${a.parameterId}`
+			});
+		}
+		for (const f of forecasts) {
+			list.push({
+				key: `f${f.parameterId}`,
+				icon: 'chart',
+				color: 'var(--orange)',
+				text: f.message,
+				detail: tankOf(f.aquariumId)?.name,
+				href: `/aquariums/${f.aquariumId}/parametre/${f.parameterId}`
 			});
 		}
 		for (const t of lateTasks) {

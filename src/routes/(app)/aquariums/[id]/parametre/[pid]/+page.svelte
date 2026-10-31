@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { analyzeParameter, driftThreshold, lastWaterChanges, slopePerDay } from '$lib/domain/drift';
+	import { forecastParameter } from '$lib/domain/forecast';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
 	import { fmt, isPendingMeasurement, relativeDay } from '$lib/ui';
 	import { ui } from '$lib/client/ui.svelte';
@@ -26,6 +27,7 @@
 	const last = $derived(list.length ? list[list.length - 1] : null);
 	const lastWater = $derived(lastWaterChanges(view?.tasks ?? [], view?.completions ?? [], view?.events ?? []).get(id));
 	const alert = $derived(parameter ? analyzeParameter(parameter, list, Date.now(), lastWater) : null);
+	const forecast = $derived(parameter && !alert ? forecastParameter(parameter, list, Date.now(), lastWater) : null);
 	const today = dayInParis();
 
 	let days = $state(30);
@@ -244,6 +246,10 @@
 		{#if alert}
 			<Row>
 				<p class="subhead {state === 'bad' ? 'text-red' : 'text-orange'}">{alert.message}</p>
+			</Row>
+		{:else if forecast}
+			<Row>
+				<p class="subhead text-orange">{forecast.message}, au rythme actuel.</p>
 			</Row>
 		{/if}
 	</Section>

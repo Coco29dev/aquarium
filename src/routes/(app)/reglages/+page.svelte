@@ -143,7 +143,8 @@
 </Section>
 
 <Section header="À propos">
-	<Row title="Version" value="0.0.1" />
+	<Row href="/bienvenue" icon="book" iconColor="var(--blue)" title="Revoir la visite" />
+	<Row title="Version" value="2.0" />
 	<Row title="Espèces" value="FishBase, SeaLifeBase" />
 </Section>
 

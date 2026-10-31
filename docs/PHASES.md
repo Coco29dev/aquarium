@@ -252,3 +252,9 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Nouveau logo (poisson corail dans l'eau lagon, `static/icon.svg`) et icônes PWA régénérées (`npm run generate-pwa-assets`).
 - Jetons : `--tint` et `--blue` passent au teal « lagon », ajout de `--coral`, fonds teintés (clair `#eef3f5`, sombre `#050b0e`).
 - États vides d'accueil et de Bacs : logo à la place du pictogramme générique.
+
+## V2, lot 2 : onboarding et lancement
+
+- Bienvenue refait en quatre pages : vignette animée `components/Lagoon.svelte` (poisson, bulles, rayons), fonctions (assistant ajouté), rappels, « Prêt en trois étapes ». Rejouable depuis Réglages › À propos › « Revoir la visite ».
+- Écrans de lancement iOS (`static/splash/`, générés par `node scripts/make-splash.mjs`, balises dans `app.html`), exclus du précache du service worker.
+- Version affichée : 2.0.

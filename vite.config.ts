@@ -38,7 +38,8 @@ export default defineConfig({
 				]
 			},
 			injectManifest: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webmanifest,woff2}']
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webmanifest,woff2}'],
+				globIgnores: ['**/splash/**']
 			},
 			kit: {
 				adapterFallback: undefined

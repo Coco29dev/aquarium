@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import Lagoon from '$lib/components/Lagoon.svelte';
+	import { APP_NAME, APP_TAGLINE } from '$lib/brand';
 	import { enableReminders, isStandalone, pushSupported } from '$lib/push-client';
 	import { ui } from '$lib/client/ui.svelte';
 
-	// Accueil du premier lancement, façon écrans de bienvenue d'Apple : trois pages qu'on fait
+	// Accueil du premier lancement, façon écrans de bienvenue d'Apple : quatre pages qu'on fait
 	// défiler, puis création du premier bac.
 
 	let scroller = $state<HTMLElement>();
@@ -21,9 +23,15 @@
 	const features: { icon: IconName; color: string; title: string; text: string }[] = [
 		{ icon: 'drop', color: 'var(--blue)', title: 'Mesures en deux touches', text: 'Les dernières valeurs sont déjà là : tu ne touches que ce qui a changé.' },
 		{ icon: 'chart', color: 'var(--orange)', title: 'Alertes de dérive', text: 'Une valeur qui bouge trop vite est signalée avant de sortir de la plage.' },
-		{ icon: 'cycle', color: 'var(--indigo)', title: 'Coach de cyclage', text: 'Ammoniac, nitrites, nitrates : il te dit quand le bac peut accueillir ses poissons.' }
+		{ icon: 'cycle', color: 'var(--indigo)', title: 'Coach de cyclage', text: 'Ammoniac, nitrites, nitrates : il te dit quand le bac peut accueillir ses poissons.' },
+		{ icon: 'chat', color: 'var(--coral)', title: 'Un assistant qui connaît ton bac', text: 'Pose une question ou envoie une photo : il répond avec tes mesures sous les yeux.' }
 	];
-	const PAGES = 3;
+	const steps = [
+		{ n: 1, title: 'Décris ton bac', text: 'Type d’eau, volume, date de mise en eau : les paramètres et leurs plages se préparent seuls.' },
+		{ n: 2, title: 'Note une première mesure', text: 'Deux touches suffisent, les valeurs précédentes sont déjà là.' },
+		{ n: 3, title: 'Laisse Biotope veiller', text: 'Tâches, rappels et alertes de dérive s’occupent du reste.' }
+	];
+	const PAGES = 4;
 
 	function onScroll() {
 		if (!scroller) return;
@@ -69,23 +77,16 @@
 		style="scrollbar-width: none"
 	>
 		<!-- 1. Bienvenue -->
-		<section class="flex w-full shrink-0 snap-center flex-col items-center justify-center px-8 text-center">
-			<img
-				src="/apple-touch-icon-180x180.png"
-				alt=""
-				width="120"
-				height="120"
-				class="mb-8 rounded-[27px] shadow-[0_18px_40px_rgb(10_91_214/0.35)]"
-				style="animation: pop-in 600ms cubic-bezier(0.3, 0.8, 0.3, 1.1) both"
-			/>
-			<h1 class="large-title">Bienvenue dans Biotope</h1>
-			<p class="body mt-3 text-label2">Tes bacs, tes mesures et tes tâches, réunis dans une seule appli pensée pour l’iPhone.</p>
+		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-6 text-center">
+			<Lagoon class="mb-9 h-[260px] w-full" />
+			<h1 class="large-title rise">Bienvenue dans {APP_NAME}</h1>
+			<p class="body rise mt-3 text-label2" style="animation-delay: 80ms">{APP_TAGLINE} Mesures, tâches et conseils, réunis dans une appli pensée pour ton iPhone.</p>
 		</section>
 
 		<!-- 2. Ce que fait l'appli -->
 		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
-			<h1 class="title1 mb-9 text-center">Ce que l’appli fait pour toi</h1>
-			<ul class="flex flex-col gap-7">
+			<h1 class="title1 mb-8 text-center">Ce que {APP_NAME} fait pour toi</h1>
+			<ul class="flex flex-col gap-6">
 				{#each features as f (f.title)}
 					<li class="flex items-start gap-4">
 						<span class="mt-0.5 shrink-0" style="color: {f.color}; --cut: var(--bg)"><Icon name={f.icon} size={38} filled weight={1.6} /></span>
@@ -120,6 +121,22 @@
 					Pour recevoir les rappels, ajoute d’abord l’appli à l’écran d’accueil : dans Safari, Partager puis « Sur l’écran d’accueil ».
 				</p>
 			{/if}
+		</section>
+
+		<!-- 4. Premier bac -->
+		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
+			<h1 class="title1 mb-8 text-center">Prêt en trois étapes</h1>
+			<ol class="flex flex-col gap-6">
+				{#each steps as st (st.n)}
+					<li class="flex items-start gap-4">
+						<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-tint text-[17px] font-bold text-white">{st.n}</span>
+						<div>
+							<p class="headline">{st.title}</p>
+							<p class="subhead mt-0.5 text-label2">{st.text}</p>
+						</div>
+					</li>
+				{/each}
+			</ol>
 		</section>
 	</div>
 

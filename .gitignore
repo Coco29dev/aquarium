@@ -27,3 +27,7 @@ vite.config.ts.timestamp-*
 
 # Photos de développement (stockage local sans bucket)
 .data/
+
+# Playwright
+/test-results
+/playwright-report

@@ -11,9 +11,11 @@
 		"prepare": "svelte-kit sync || echo \"\"",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.64.1",
 		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",

@@ -274,3 +274,9 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Audit : `npm audit --omit=dev` ne remonte que 3 avis modérés (`minimatch` via `node-pg-migrate`, outil de migration qui ne lit que nos fichiers) : non corrigés, le correctif impose un retour en arrière de version. En-têtes de sécurité déjà en place (nosniff, DENY, referrer, HSTS).
 - Contraste : teinte claire assombrie (`#0a7385`, 5,5:1 avec du blanc, 4,9:1 en texte sur le fond) ; nouveau jeton `--on-tint` (encre profonde en sombre) pour les boutons pleins, la teinte sombre claire n'offrant que 2,6:1 avec du blanc.
 - Toujours à faire : sauvegarde de Postgres elle-même (volume Railway, réglage du tableau de bord), tests d'interface (dépendance lourde, à valider avant).
+
+## V2, lot 6 : tests d'interface
+
+- Playwright (`@playwright/test`, Chromium, profil iPhone 14) : `npm run test:e2e`. Le serveur de développement tourne sur une base `aquarium_e2e` recréée au lancement (`e2e/prepare-db.mjs`, refuse tout nom de base sans « e2e »).
+- Parcours couverts : accès protégé, visite de bienvenue, état vide, carte « À faire maintenant » et prévision, cocher « Fait », écran de l'assistant. Premier lancement : `npx playwright install chromium`.
+- Hors du déploiement : Railway ne lance pas ces tests.

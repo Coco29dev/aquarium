@@ -58,7 +58,7 @@
 	];
 </script>
 
-<svelte:head><title>Sauvegarde · Aquarium</title></svelte:head>
+<svelte:head><title>Sauvegarde · Biotope</title></svelte:head>
 
 <NavBar title="Sauvegarde" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
 

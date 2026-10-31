@@ -251,7 +251,7 @@
 	const gauge = $derived(target > 0 ? Math.min(100, (total / target) * 100) : 0);
 </script>
 
-<svelte:head><title>{aquarium?.name ?? 'Projet'} · Aquarium</title></svelte:head>
+<svelte:head><title>{aquarium?.name ?? 'Projet'} · Biotope</title></svelte:head>
 
 {#if !aquarium}
 	<NavBar title="Projet" back={{ href: '/aquariums', label: 'Bacs' }} />

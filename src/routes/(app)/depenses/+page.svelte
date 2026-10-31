@@ -124,7 +124,7 @@
 	const cap = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 </script>
 
-<svelte:head><title>Dépenses · Aquarium</title></svelte:head>
+<svelte:head><title>Dépenses · Biotope</title></svelte:head>
 
 <NavBar title="Dépenses" back={{ href: '/outils', label: 'Atelier' }}>
 	{#snippet trailing()}

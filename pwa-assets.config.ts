@@ -6,12 +6,12 @@ export default defineConfig({
 		...minimal2023Preset,
 		maskable: {
 			...minimal2023Preset.maskable,
-			resizeOptions: { background: '#1e9bf0', fit: 'contain' }
+			resizeOptions: { background: '#0b7f93', fit: 'contain' }
 		},
 		apple: {
 			...minimal2023Preset.apple,
 			padding: 0,
-			resizeOptions: { background: '#1e9bf0', fit: 'contain' }
+			resizeOptions: { background: '#0b7f93', fit: 'contain' }
 		}
 	},
 	images: ['static/icon.svg']

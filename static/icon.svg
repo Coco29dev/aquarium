@@ -1,38 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
 	<defs>
-		<linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
-			<stop offset="0" stop-color="#6FD8FF" />
-			<stop offset="0.55" stop-color="#1E9BF0" />
-			<stop offset="1" stop-color="#0A5BD6" />
+		<linearGradient id="deep" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#19b6c6" />
+			<stop offset="0.5" stop-color="#0b7f93" />
+			<stop offset="1" stop-color="#06323f" />
 		</linearGradient>
-		<radialGradient id="light" cx="0.3" cy="0" r="0.9">
-			<stop offset="0" stop-color="#fff" stop-opacity=".45" />
+		<radialGradient id="glow" cx="0.28" cy="0.05" r="0.85">
+			<stop offset="0" stop-color="#fff" stop-opacity=".42" />
 			<stop offset="1" stop-color="#fff" stop-opacity="0" />
 		</radialGradient>
-		<linearGradient id="fish" x1="0" y1="0" x2="0" y2="1">
-			<stop offset="0" stop-color="#fff" />
-			<stop offset="1" stop-color="#E4F3FF" />
+		<linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#ffc178" />
+			<stop offset="1" stop-color="#ff6f61" />
 		</linearGradient>
 	</defs>
-	<rect width="1024" height="1024" fill="url(#water)" />
-	<rect width="1024" height="1024" fill="url(#light)" />
-	<g fill="#fff" opacity=".18">
-		<path d="M180 0h90L120 1024H40z" />
-		<path d="M420 0h60L360 1024h-70z" />
+	<rect width="1024" height="1024" fill="url(#deep)" />
+	<rect width="1024" height="1024" fill="url(#glow)" />
+	<!-- rayons de lumière -->
+	<g fill="#fff" opacity=".10">
+		<path d="M170 0h110L150 1024H20z" />
+		<path d="M440 0h70L360 1024h-100z" />
 	</g>
-	<path d="M0 820c120-40 240-40 360 0s240 40 360 0 200-36 304-20v244H0z" fill="#0A4FBF" opacity=".35" />
-	<g transform="translate(512 540)">
-		<path
-			d="M-300 0c110-170 300-215 450-150 60 26 108 76 140 135 30-34 78-74 112-100v230c-34-26-82-66-112-100-32 59-80 109-140 135-150 65-340 20-450-150z"
-			fill="url(#fish)"
-			filter="drop-shadow(0 18px 30px rgba(0,40,120,.35))"
-		/>
-		<circle cx="-170" cy="-22" r="28" fill="#0A5BD6" />
-		<path d="M-40-110c-36 70-36 150 0 220" fill="none" stroke="#B9DDFF" stroke-width="22" stroke-linecap="round" />
+	<!-- algue -->
+	<path d="M170 880c-60-110 40-170-10-290-24-58-4-110 30-150 4 70 56 110 40 200-14 80 48 120 6 240z" fill="#5ee0b3" opacity=".85" />
+	<!-- sable -->
+	<path d="M0 860c150-46 290-46 430 0s290 46 430 0l164-30v194H0z" fill="#04222c" opacity=".55" />
+	<!-- poisson -->
+	<g transform="translate(540 520) rotate(-8)">
+		<path d="M-260 0C-120-190 120-220 250 0 120 220-120 190-260 0z" fill="url(#coral)" filter="drop-shadow(0 22px 28px rgba(0,25,40,.45))" />
+		<path d="M230 0c60-72 130-112 200-120-34 70-34 170 0 240-70-8-140-48-200-120z" fill="url(#coral)" />
+		<path d="M-20-150c-50 90-50 210 0 300" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="26" stroke-linecap="round" />
+		<circle cx="-150" cy="-26" r="30" fill="#06323f" />
+		<circle cx="-142" cy="-36" r="9" fill="#fff" />
 	</g>
+	<!-- bulles -->
 	<g fill="none" stroke="#fff" stroke-width="20" opacity=".9">
-		<circle cx="720" cy="250" r="52" />
-		<circle cx="820" cy="150" r="30" />
-		<circle cx="650" cy="130" r="20" />
+		<circle cx="300" cy="300" r="46" />
+		<circle cx="390" cy="190" r="26" />
+		<circle cx="250" cy="170" r="16" />
 	</g>
 </svg>

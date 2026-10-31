@@ -204,7 +204,7 @@
 			: `${p.min == null ? '…' : fmt(p.min, p.decimals)} – ${p.max == null ? '…' : fmt(p.max, p.decimals)}${p.unit ? ` ${p.unit}` : ''}`;
 </script>
 
-<svelte:head><title>Réglages · {aquarium?.name ?? 'Bac'} · Aquarium</title></svelte:head>
+<svelte:head><title>Réglages · {aquarium?.name ?? 'Bac'} · Biotope</title></svelte:head>
 
 {#if !aquarium}
 	<NavBar title="Réglages" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />

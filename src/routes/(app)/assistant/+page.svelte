@@ -301,7 +301,7 @@
 	const waiting = $derived(working && items[items.length - 1]?.kind !== 'assistant' && pending.length === 0);
 </script>
 
-<svelte:head><title>{title ?? 'Assistant'} · Aquarium</title></svelte:head>
+<svelte:head><title>{title ?? 'Assistant'} · Biotope</title></svelte:head>
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (viewing = null)} />
 
 <NavBar title={title ?? 'Assistant'} {back} large={false}>

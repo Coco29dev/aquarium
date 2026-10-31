@@ -13,9 +13,9 @@
 :root {
 	color-scheme: light;
 	/* Fonds groupés */
-	--bg: #f2f2f7;
+	--bg: #eef3f5;
 	--bg2: #ffffff;
-	--bg3: #f2f2f7;
+	--bg3: #eef3f5;
 	/* Textes */
 	--label: #000000;
 	--label2: rgb(60 60 67 / 0.6);
@@ -27,8 +27,11 @@
 	--fill2: rgb(120 120 128 / 0.16);
 	--fill3: rgb(118 118 128 / 0.12);
 	/* Couleurs système */
-	--tint: #007aff;
-	--blue: #007aff;
+	--tint: #0b7f93;
+	--blue: #0b7f93;
+	/* Signature : lagon (tint, eau) et corail (accent chaud, poisson du logo) */
+	--coral: #ff6f61;
+	--lagoon-deep: #06323f;
 	--green: #34c759;
 	--orange: #ff9500;
 	--red: #ff3b30;
@@ -56,9 +59,9 @@
  */
 :root[data-scheme='dark'] {
 		color-scheme: dark;
-		--bg: #000000;
-		--bg2: #1c1c1e;
-		--bg3: #2c2c2e;
+		--bg: #050b0e;
+		--bg2: #101b20;
+		--bg3: #18262c;
 		--label: #ffffff;
 		--label2: rgb(235 235 245 / 0.6);
 		--label3: rgb(235 235 245 / 0.3);
@@ -67,8 +70,9 @@
 		--fill: rgb(120 120 128 / 0.36);
 		--fill2: rgb(120 120 128 / 0.32);
 		--fill3: rgb(118 118 128 / 0.24);
-		--tint: #0a84ff;
-		--blue: #0a84ff;
+		--tint: #1fb0c4;
+		--blue: #1fb0c4;
+		--coral: #ff8576;
 		--green: #30d158;
 		--orange: #ff9f0a;
 		--red: #ff453a;
@@ -102,6 +106,7 @@
 	--color-fill3: var(--fill3);
 	--color-tint: var(--tint);
 	--color-blue: var(--blue);
+	--color-coral: var(--coral);
 	--color-green: var(--green);
 	--color-orange: var(--orange);
 	--color-red: var(--red);

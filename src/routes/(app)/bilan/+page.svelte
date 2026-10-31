@@ -139,7 +139,7 @@
 	const headline = $derived(report ? report.summary.replace(/^./, (c) => c.toUpperCase()) + '.' : '');
 </script>
 
-<svelte:head><title>Bilan · Aquarium</title></svelte:head>
+<svelte:head><title>Bilan · Biotope</title></svelte:head>
 
 <NavBar title="Bilan" large={false} back={{ href: '/', label: 'Aujourd’hui' }}>
 	{#snippet trailing()}

@@ -154,7 +154,7 @@
 	const submit = (id: string) => (document.getElementById(id) as HTMLFormElement | null)?.requestSubmit();
 </script>
 
-<svelte:head><title>{selected ? speciesName(selected) : 'Espèces'} · Aquarium</title></svelte:head>
+<svelte:head><title>{selected ? speciesName(selected) : 'Espèces'} · Biotope</title></svelte:head>
 
 {#if selected}
 	{@const s = selected}

@@ -343,7 +343,7 @@
 	const quick = (offset: number) => addDays(today, -offset);
 </script>
 
-<svelte:head><title>Nouveau bac · Aquarium</title></svelte:head>
+<svelte:head><title>Nouveau bac · Biotope</title></svelte:head>
 
 <NavBar title="Nouveau bac" large={false}>
 	{#snippet leading()}

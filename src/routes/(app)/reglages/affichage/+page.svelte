@@ -27,19 +27,19 @@
 
 	// Couleurs fixes : chaque aperçu montre un thème précis, quel que soit le thème actif.
 	const previews = [
-		{ id: 'light', label: 'Clair', bg: '#f2f2f7', card: '#ffffff', ink: '#000000', soft: 'rgb(60 60 67 / 0.18)', frame: '#d1d1d6' },
-		{ id: 'dark', label: 'Sombre', bg: '#000000', card: '#1c1c1e', ink: '#ffffff', soft: 'rgb(235 235 245 / 0.18)', frame: '#3a3a3c' }
+		{ id: 'light', label: 'Clair', bg: '#eef3f5', card: '#ffffff', ink: '#000000', soft: 'rgb(60 60 67 / 0.18)', frame: '#d1d1d6' },
+		{ id: 'dark', label: 'Sombre', bg: '#050b0e', card: '#101b20', ink: '#ffffff', soft: 'rgb(235 235 245 / 0.18)', frame: '#3a3a3c' }
 	] as const;
 </script>
 
-<svelte:head><title>Affichage · Aquarium</title></svelte:head>
+<svelte:head><title>Affichage · Biotope</title></svelte:head>
 
 <NavBar title="Affichage" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
 
 <Section
 	header="Apparence"
 	class="mt-2"
-	footer={auto ? 'Aquarium suit l’apparence de ton iPhone et passe en sombre en même temps que lui.' : 'Aquarium garde cette apparence, quelle que soit celle de ton iPhone.'}
+	footer={auto ? 'Biotope suit l’apparence de ton iPhone et passe en sombre en même temps que lui.' : 'Biotope garde cette apparence, quelle que soit celle de ton iPhone.'}
 >
 	<li class="grid grid-cols-2 gap-4 px-6 pb-4 pt-5">
 		{#each previews as p (p.id)}

@@ -53,7 +53,7 @@ class Ui {
 		const root = document.documentElement;
 		root.dataset.theme = theme;
 		root.dataset.scheme = dark ? 'dark' : 'light';
-		document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#000000' : '#f2f2f7');
+		document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#050b0e' : '#eef3f5');
 	}
 
 	#timer: ReturnType<typeof setTimeout> | undefined;

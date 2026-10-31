@@ -172,7 +172,7 @@
 		t.lastUsedAt ? `utilisé ${relativeDay(dayInParis(t.lastUsedAt))}` : 'jamais utilisé';
 </script>
 
-<svelte:head><title>Raccourcis · Aquarium</title></svelte:head>
+<svelte:head><title>Raccourcis · Biotope</title></svelte:head>
 
 <NavBar title="Raccourcis" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
 

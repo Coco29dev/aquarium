@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>Connexion · Aquarium</title>
+	<title>Connexion · Biotope</title>
 </svelte:head>
 
 <main
@@ -23,10 +23,10 @@
 		<img
 			src="/apple-touch-icon-180x180.png"
 			alt=""
-			class="mb-5 h-[104px] w-[104px] rounded-[22%] shadow-[0_10px_30px_rgb(0_80_200/0.28),0_1px_3px_rgb(0_0_0/0.12)]"
+			class="mb-5 h-[104px] w-[104px] rounded-[22%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]"
 			style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both"
 		/>
-		<h1 class="large-title">Aquarium</h1>
+		<h1 class="large-title">Biotope</h1>
 		<p class="body mt-1.5 text-label2">Saisis ton mot de passe pour ouvrir tes bacs.</p>
 	</div>
 

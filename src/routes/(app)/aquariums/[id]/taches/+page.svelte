@@ -161,7 +161,7 @@
 	};
 </script>
 
-<svelte:head><title>Tâches · {aquarium?.name ?? 'Bac'} · Aquarium</title></svelte:head>
+<svelte:head><title>Tâches · {aquarium?.name ?? 'Bac'} · Biotope</title></svelte:head>
 
 {#if !aquarium}
 	<NavBar title="Tâches" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />

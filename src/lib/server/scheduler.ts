@@ -61,7 +61,7 @@ export async function sendDailyReminder(now = new Date()): Promise<boolean> {
 		const body = `${parts.join(', ')} · ${first}`;
 		let delivered = false;
 		try {
-			const results = await sendToAll({ title: 'Aquarium', body, url: '/', badge: due.length });
+			const results = await sendToAll({ title: 'Biotope', body, url: '/', badge: due.length });
 			delivered = results.some((r) => r.ok);
 		} catch (error) {
 			console.error('[rappels] push impossible', error);
@@ -138,7 +138,7 @@ async function sendNtfy(topic: string, body: string): Promise<boolean> {
 		const response = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
 			method: 'POST',
 			body,
-			headers: { Title: 'Aquarium', Tags: 'fish' }
+			headers: { Title: 'Biotope', Tags: 'fish' }
 		});
 		if (!response.ok) console.error(`[rappels] ntfy refusé (${response.status})`);
 		return response.ok;

@@ -55,7 +55,7 @@
 	}
 </script>
 
-<svelte:head><title>Bienvenue · Aquarium</title></svelte:head>
+<svelte:head><title>Bienvenue · Biotope</title></svelte:head>
 
 <div class="fixed inset-0 z-40 mx-auto flex max-w-md flex-col bg-bg" style="padding-top: env(safe-area-inset-top); padding-bottom: max(16px, env(safe-area-inset-bottom))">
 	<div class="flex h-11 items-center justify-end px-4">
@@ -78,7 +78,7 @@
 				class="mb-8 rounded-[27px] shadow-[0_18px_40px_rgb(10_91_214/0.35)]"
 				style="animation: pop-in 600ms cubic-bezier(0.3, 0.8, 0.3, 1.1) both"
 			/>
-			<h1 class="large-title">Bienvenue dans Aquarium</h1>
+			<h1 class="large-title">Bienvenue dans Biotope</h1>
 			<p class="body mt-3 text-label2">Tes bacs, tes mesures et tes tâches, réunis dans une seule appli pensée pour l’iPhone.</p>
 		</section>
 

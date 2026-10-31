@@ -179,7 +179,7 @@
 	});
 </script>
 
-<svelte:head><title>Mesures · Aquarium</title></svelte:head>
+<svelte:head><title>Mesures · Biotope</title></svelte:head>
 
 <div
 	class="sticky top-0 z-20 -mx-4 transition-[background-color,box-shadow] duration-200 {scrolled ? 'bar-material shadow-[0_0.5px_0_var(--sep)]' : 'bg-bg'}"

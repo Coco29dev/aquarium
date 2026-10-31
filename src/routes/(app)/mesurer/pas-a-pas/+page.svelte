@@ -388,7 +388,7 @@
 	const FUNCTION_KEYS = ['back', 'sign', 'same'];
 </script>
 
-<svelte:head><title>Pas à pas · Aquarium</title></svelte:head>
+<svelte:head><title>Pas à pas · Biotope</title></svelte:head>
 
 <div class="sticky top-0 z-20 -mx-4 bg-bg" style="padding-top: env(safe-area-inset-top)">
 	<div class="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">

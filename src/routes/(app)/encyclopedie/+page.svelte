@@ -38,7 +38,7 @@
 		});
 </script>
 
-<svelte:head><title>Encyclopédie · Aquarium</title></svelte:head>
+<svelte:head><title>Encyclopédie · Biotope</title></svelte:head>
 
 <NavBar title="Encyclopédie">
 	<SearchField bind:value={query} placeholder="Cyclage, algues, néon…" label="Rechercher dans l’encyclopédie" />

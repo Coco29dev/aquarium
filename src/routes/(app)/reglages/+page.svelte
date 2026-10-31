@@ -75,7 +75,7 @@
 	const pending = $derived(store.pending.length);
 </script>
 
-<svelte:head><title>Réglages · Aquarium</title></svelte:head>
+<svelte:head><title>Réglages · Biotope</title></svelte:head>
 
 <NavBar title="Réglages" />
 
@@ -84,7 +84,7 @@
 	<li class="flex items-center gap-4 px-4 py-3">
 		<img src="/apple-touch-icon-180x180.png" alt="" class="h-[60px] w-[60px] rounded-[22%] shadow-[0_1px_3px_rgb(0_0_0/0.15)]" />
 		<div class="min-w-0 flex-1">
-			<p class="title3 font-semibold">Aquarium</p>
+			<p class="title3 font-semibold">Biotope</p>
 			<p class="subhead text-label2">
 				{tankCount} bac{tankCount > 1 ? 's' : ''}{store.lastSync ? ` · synchronisé à ${time(store.lastSync)}` : ''}
 			</p>

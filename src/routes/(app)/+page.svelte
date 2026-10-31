@@ -311,7 +311,7 @@
 	const stages = ['Ammoniac', 'Nitrites', 'Nitrates'];
 </script>
 
-<svelte:head><title>Aujourd'hui · Aquarium</title></svelte:head>
+<svelte:head><title>Aujourd'hui · Biotope</title></svelte:head>
 
 <NavBar title="Aujourd’hui" large={false}>
 	{#snippet trailing()}<SearchButton />{/snippet}
@@ -319,9 +319,7 @@
 
 {#if view && aquariums.length === 0}
 	<div class="mt-16 flex flex-col items-center px-6 text-center">
-		<span class="mb-4 grid h-20 w-20 place-items-center rounded-[22px] bg-gradient-to-b from-cyan to-blue text-white shadow-lg" style="--cut: var(--blue)">
-			<Icon name="fish" size={44} filled weight={1.6} />
-		</span>
+		<img src="/apple-touch-icon-180x180.png" alt="" class="mb-5 h-24 w-24 rounded-[22%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]" style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both" />
 		<h2 class="title2">Aucun bac pour l’instant</h2>
 		<p class="subhead mt-1.5 text-label2">Ajoute ton premier aquarium : je prépare les paramètres à suivre et leurs plages.</p>
 		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>

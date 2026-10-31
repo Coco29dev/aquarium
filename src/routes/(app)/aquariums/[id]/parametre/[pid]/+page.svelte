@@ -174,7 +174,7 @@
 	}
 </script>
 
-<svelte:head><title>{parameter?.name ?? 'Paramètre'} · Aquarium</title></svelte:head>
+<svelte:head><title>{parameter?.name ?? 'Paramètre'} · Biotope</title></svelte:head>
 
 {#if !aquarium || !parameter}
 	<NavBar title="Paramètre" back={{ href: `/aquariums/${id}`, label: 'Bac' }} large={false} />

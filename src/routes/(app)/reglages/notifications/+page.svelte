@@ -134,16 +134,16 @@
 		!supported
 			? 'Les notifications ne sont pas disponibles sur cet appareil.'
 			: !installed
-				? 'Sur iPhone, les rappels demandent l’appli sur l’écran d’accueil : dans Safari, touche Partager, puis « Sur l’écran d’accueil », et ouvre Aquarium depuis son icône.'
+				? 'Sur iPhone, les rappels demandent l’appli sur l’écran d’accueil : dans Safari, touche Partager, puis « Sur l’écran d’accueil », et ouvre Biotope depuis son icône.'
 				: permission === 'denied'
-					? 'Notifications refusées : réactive-les dans Réglages > Notifications > Aquarium.'
+					? 'Notifications refusées : réactive-les dans Réglages > Notifications > Biotope.'
 					: active
 						? 'Pour couper les rappels, désactive les notifications d’Aquarium dans les Réglages de l’iPhone.'
 						: 'Active les rappels pour recevoir le récapitulatif des tâches du jour.'
 	);
 </script>
 
-<svelte:head><title>Notifications · Aquarium</title></svelte:head>
+<svelte:head><title>Notifications · Biotope</title></svelte:head>
 
 <NavBar title="Notifications" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
 

@@ -244,3 +244,11 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - **Export** : `chatThreads`, `chatAttachments` (métadonnées, comme `photos`) et `chatMessages`. Aller-retour export, restauration à blanc et restauration réelle vérifié en local.
 - **Vérifié en local** contre une fausse API Claude : conversation avec photo, rattachement et refus d'une photo déjà envoyée, 2e conversation, titre automatique, renommage, suppression avec photos, messages orphelins, export puis restauration, rendu mobile (chat, historique, bulle). **Pas vérifié** avec la vraie API ni sur iPhone (appareil photo, clavier).
 
+
+
+## V2, lot 1 : identité « Biotope »
+
+- Nom de l'appli **Biotope** (`src/lib/brand.ts`, manifeste, titres, notifications, écrans). Le nom sur l'écran d'accueil de l'iPhone ne change qu'en réinstallant la PWA.
+- Nouveau logo (poisson corail dans l'eau lagon, `static/icon.svg`) et icônes PWA régénérées (`npm run generate-pwa-assets`).
+- Jetons : `--tint` et `--blue` passent au teal « lagon », ajout de `--coral`, fonds teintés (clair `#eef3f5`, sombre `#050b0e`).
+- États vides d'accueil et de Bacs : logo à la place du pictogramme générique.

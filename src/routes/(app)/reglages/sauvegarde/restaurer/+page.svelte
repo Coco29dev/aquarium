@@ -202,7 +202,7 @@
 	}
 </script>
 
-<svelte:head><title>Restaurer · Aquarium</title></svelte:head>
+<svelte:head><title>Restaurer · Biotope</title></svelte:head>
 
 <NavBar
 	title="Restaurer"

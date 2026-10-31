@@ -113,7 +113,7 @@
 	const tool = $derived(tools.find((t) => t.id === open));
 </script>
 
-<svelte:head><title>Atelier · Aquarium</title></svelte:head>
+<svelte:head><title>Atelier · Biotope</title></svelte:head>
 
 {#snippet hero(r: Result<unknown>, value: (v: any) => string, unit: string, label: string, color: string)}
 	<div class="mb-6 mt-2 px-1 text-center">

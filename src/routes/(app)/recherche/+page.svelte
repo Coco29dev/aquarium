@@ -236,7 +236,7 @@
 	}
 </script>
 
-<svelte:head><title>Rechercher · Aquarium</title></svelte:head>
+<svelte:head><title>Rechercher · Biotope</title></svelte:head>
 
 <NavBar title="Rechercher" back={{ href: '/', label: 'Aujourd’hui' }}>
 	<form onsubmit={(e) => { e.preventDefault(); remember(); (document.activeElement as HTMLElement | null)?.blur(); }}>

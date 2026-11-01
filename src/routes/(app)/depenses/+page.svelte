@@ -126,7 +126,7 @@
 
 <svelte:head><title>Dépenses · Biotope</title></svelte:head>
 
-<NavBar title="Dépenses" back={{ href: '/outils', label: 'Atelier' }}>
+<NavBar title="Dépenses" back={{ href: '/reglages', label: 'Plus' }}>
 	{#snippet trailing()}
 		{#if expenses.length}
 			<button class="btn-plain px-2" onclick={() => (editing = !editing)}>{editing ? 'OK' : 'Modifier'}</button>

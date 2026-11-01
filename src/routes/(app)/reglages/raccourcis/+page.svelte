@@ -174,7 +174,7 @@
 
 <svelte:head><title>Raccourcis · Biotope</title></svelte:head>
 
-<NavBar title="Raccourcis" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
+<NavBar title="Raccourcis" back={{ href: '/reglages', label: 'Plus' }} large={false} />
 
 <div class="mb-6 mt-4 flex flex-col items-center px-4 text-center">
 	<span class="mb-3 grid h-16 w-16 place-items-center rounded-[18px] bg-purple text-white">

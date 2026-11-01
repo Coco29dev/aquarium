@@ -145,7 +145,7 @@
 
 <svelte:head><title>Notifications · Biotope</title></svelte:head>
 
-<NavBar title="Notifications" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
+<NavBar title="Notifications" back={{ href: '/reglages', label: 'Plus' }} large={false} />
 
 <Section class="mt-2" footer={remindersFooter}>
 	<Row icon="bell" iconColor="var(--red)" title="Rappels">

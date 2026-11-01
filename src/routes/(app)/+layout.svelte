@@ -27,7 +27,7 @@
 		return () => removeEventListener('pagehide', flush);
 	});
 
-	const ROOTS = ['/', '/aquariums', '/encyclopedie', '/outils', '/reglages'];
+	const ROOTS = ['/', '/aquariums', '/encyclopedie', '/reglages'];
 	/** Écrans présentés en feuille plein écran : pas de barre d'onglets, entrée par le bas. */
 	const isModal = (path: string) =>
 		path.startsWith('/mesurer') || path === '/aquariums/nouveau' || path.startsWith('/bienvenue') || path.startsWith('/assistant');
@@ -38,6 +38,9 @@
 		if (isModal(to)) return 'modal';
 		if (isModal(from)) return 'dismiss';
 		if (ROOTS.includes(from) && ROOTS.includes(to)) return 'tab';
+		// Les écrans de « Plus » (calculateurs, dépenses, bilan) sont au même niveau d'URL que les onglets.
+		if (ROOTS.includes(from)) return 'push';
+		if (ROOTS.includes(to)) return 'pop';
 		if (popstate) return delta > 0 ? 'push' : 'pop';
 		if (depth(to) > depth(from)) return 'push';
 		if (depth(to) < depth(from)) return 'pop';
@@ -81,15 +84,14 @@
 	const tabs: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/', label: "Aujourd'hui", icon: 'today' },
 		{ href: '/aquariums', label: 'Bacs', icon: 'bacs' },
-		{ href: '/encyclopedie', label: 'Encyclo', icon: 'book' },
-		{ href: '/outils', label: 'Atelier', icon: 'outils' },
-		{ href: '/reglages', label: 'Réglages', icon: 'gear' }
+		{ href: '/encyclopedie', label: 'Savoir', icon: 'book' },
+		{ href: '/reglages', label: 'Plus', icon: 'gear' }
 	];
 
 	function active(href: string): boolean {
 		const path = page.url.pathname;
 		if (href === '/') return path === '/';
-		if (href === '/outils') return ['/outils', '/depenses'].some((p) => path.startsWith(p));
+		if (href === '/reglages') return ['/reglages', '/outils', '/depenses'].some((p) => path.startsWith(p));
 		return path.startsWith(href);
 	}
 	const modal = $derived(isModal(page.url.pathname));

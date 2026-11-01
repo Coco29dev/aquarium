@@ -1,6 +1,6 @@
 # Appli perso de gestion d'aquariums (PWA)
 
-Brief pour Claude Code. Interface et commentaires en français. Dernière mise à jour : 30 octobre 2026 (état au commit `3ba8f2e`). Historique détaillé par phase : `docs/PHASES.md`.
+Brief pour Claude Code. Interface et commentaires en français. Dernière mise à jour : 1er novembre 2026 (état au commit `3ba8f2e`). Historique détaillé par phase : `docs/PHASES.md`.
 
 ## Contexte
 

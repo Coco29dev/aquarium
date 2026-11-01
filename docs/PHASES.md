@@ -285,3 +285,10 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 
 - L'export JSON part désormais **chaque nuit** (après 3 h 10, rattrapé si le service était éteint) au lieu de chaque dimanche : `backupDue` compare le jour de Paris de la dernière sauvegarde.
 - Rotation (`domain/backups.ts`) : 7 quotidiennes, puis la plus récente de chacune des 4 semaines suivantes (11 fichiers au plus). Les sauvegardes de volume Railway étant réservées au plan Pro, c'est le seul filet de la base.
+
+## V2, lot 8 : nouvelle organisation des écrans
+
+- Barre d'onglets : **Aujourd'hui, Bacs, Savoir, Plus** (l'ancien « Atelier » et « Réglages » sont fusionnés dans « Plus »). Routes inchangées : `/encyclopedie` = Savoir, `/reglages` = Plus.
+- « Plus » (`/reglages`) devient un hub : tuiles Assistant, Calculateurs (`/outils`), Dépenses (total du mois) et Bilan de la semaine, puis les réglages habituels. `/outils` n'affiche plus que les calculateurs, avec retour vers « Plus ».
+- Accueil : la rangée de raccourcis (`relief/Dock`, supprimée) fait doublon avec la barre d'onglets ; les tâches du jour passent avant les bacs et les tuiles « En un coup d'œil ».
+- Animations : tout écran ouvert depuis un onglet s'empile (push), même au même niveau d'URL.

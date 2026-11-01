@@ -18,7 +18,7 @@ export const DEMARRER: Theme = {
 					h: 'Le volume',
 					p: [
 						'Plus un bac est grand, plus l’eau reste stable : une erreur de dosage ou un poisson de trop se dilue au lieu de tuer. Pour un premier bac, vise 60 à 120 litres. Les bacs de moins de 30 litres sont plus difficiles qu’on ne le pense, car les paramètres y varient vite.',
-						'Le volume réel est inférieur au volume annoncé : sol, décor et marge sous le bord retirent 10 à 20 %. Le calculateur « Volume réel » de l’Atelier te donne la valeur exacte.'
+						'Le volume réel est inférieur au volume annoncé : sol, décor et marge sous le bord retirent 10 à 20 %. Le calculateur « Volume réel » des Calculateurs te donne la valeur exacte.'
 					]
 				},
 				{

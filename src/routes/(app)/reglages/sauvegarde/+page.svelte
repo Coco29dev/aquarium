@@ -60,7 +60,7 @@
 
 <svelte:head><title>Sauvegarde · Biotope</title></svelte:head>
 
-<NavBar title="Sauvegarde" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
+<NavBar title="Sauvegarde" back={{ href: '/reglages', label: 'Plus' }} large={false} />
 
 <!-- État, façon Sauvegarde iCloud -->
 <div class="mb-8 mt-4 flex flex-col items-center text-center">

@@ -101,7 +101,10 @@
 		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>
 	</div>
 {:else}
-	<div class="mb-6 mt-2 grid grid-cols-2 gap-3">
+	{#if live.length}
+		<h2 class="title3 mb-2.5 mt-2 px-1 font-bold">En eau</h2>
+	{/if}
+	<div class="mb-6 grid grid-cols-2 gap-3">
 		{#each live as { aquarium, health: h }, i (aquarium.id)}
 			{@const tone = TANK_TONE[aquarium.waterType]}
 			{@const b = badge(aquarium)}
@@ -175,14 +178,11 @@
 		</Section>
 	{/if}
 
-	<div class="grid grid-cols-2 gap-3 pb-2">
-		<Tile href="/aquariums/nouveau" tone="var(--blue)" variant="soft" mark="plus" class="reveal min-h-[6.5rem]">
-			<p class="headline">Ajouter un bac</p>
-			<p class="footnote mt-1 text-label2">En eau, en cyclage ou en projet</p>
-		</Tile>
-		<Tile href="/encyclopedie" tone="var(--teal)" variant="soft" mark="book" class="reveal min-h-[6.5rem]">
-			<p class="headline">Encyclopédie</p>
-			<p class="footnote mt-1 text-label2">Espèces, guides, maladies</p>
-		</Tile>
-	</div>
+	<a href="/aquariums/nouveau" class="pressable flex items-center gap-3 rounded-[22px] border-[1.5px] border-dashed border-label3 px-4 py-3.5 text-tint">
+		<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint/12"><Icon name="plus" size={22} weight={2.4} /></span>
+		<span class="min-w-0 flex-1">
+			<span class="headline block">Ajouter un bac</span>
+			<span class="footnote block text-label2">En eau, en cyclage ou en projet</span>
+		</span>
+	</a>
 {/if}

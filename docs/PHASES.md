@@ -292,3 +292,6 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - « Plus » (`/reglages`) devient un hub : tuiles Assistant, Calculateurs (`/outils`), Dépenses (total du mois) et Bilan de la semaine, puis les réglages habituels. `/outils` n'affiche plus que les calculateurs, avec retour vers « Plus ».
 - Accueil : la rangée de raccourcis (`relief/Dock`, supprimée) fait doublon avec la barre d'onglets ; les tâches du jour passent avant les bacs et les tuiles « En un coup d'œil ».
 - Animations : tout écran ouvert depuis un onglet s'empile (push), même au même niveau d'URL.
+- Liste des bacs : section « En eau », bac à ajouter en ligne pointillée (la tuile Encyclopédie, redondante avec l'onglet Savoir, est retirée).
+- Fiche d'un bac : paramètres juste après l'état et la saisie, rangés par deux (les valeurs en alerte prennent toute la largeur), puis entretien, puis tuiles Journal et Aide.
+- Savoir : bascule Guides / Espèces ; Guides = pour commencer, dépannage, thèmes ; Espèces = mosaïque et idées de peuplement.

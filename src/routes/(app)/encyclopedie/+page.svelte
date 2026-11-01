@@ -4,11 +4,13 @@
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import SearchField from '$lib/ios/SearchField.svelte';
+	import Segmented from '$lib/ios/Segmented.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
 	import Carousel from '$lib/relief/Carousel.svelte';
 	import { ALL_GUIDES, THEMES, guideOf, LEVEL_LABELS } from '$lib/content';
 
 	let query = $state('');
+	let view = $state<'guides' | 'especes'>('guides');
 
 	/** Minuscules sans accents : « ecrevisse » trouve « Écrevisse ». */
 	const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -19,13 +21,6 @@
 			? []
 			: ALL_GUIDES.filter(({ guide, theme }) => fold(`${guide.title} ${guide.summary} ${theme.title}`).includes(needle)).slice(0, 12)
 	);
-
-	const species: { href: string; title: string; subtitle: string; icon: 'fish' | 'leaf' | 'coral'; color: string }[] = [
-		{ href: '/encyclopedie/especes?kind=poisson&water=douce', title: 'Poissons d’eau douce', subtitle: 'Characins, cichlidés, loches, vivipares…', icon: 'fish', color: 'var(--blue)' },
-		{ href: '/encyclopedie/especes?kind=invertebre&water=douce', title: 'Crevettes, escargots, écrevisses', subtitle: 'Invertébrés d’eau douce', icon: 'fish', color: 'var(--orange)' },
-		{ href: '/encyclopedie/especes?kind=plante', title: 'Plantes d’aquarium', subtitle: 'Lumière, CO₂ et difficulté pour chaque plante', icon: 'leaf', color: 'var(--green)' },
-		{ href: '/encyclopedie/especes?water=mer', title: 'Eau de mer', subtitle: 'Poissons, coraux, invertébrés', icon: 'coral', color: 'var(--cyan)' }
-	];
 
 	// Les trois lectures pour commencer, puis les urgences les plus fréquentes.
 	const START = ['demarrer/choisir-son-bac', 'demarrer/cycle-azote', 'demarrer/premiers-poissons'];
@@ -58,6 +53,56 @@
 		<Row href="/encyclopedie/especes?q={encodeURIComponent(query.trim())}" icon="search" iconColor="var(--teal)" title="Chercher « {query.trim()} » dans les espèces" />
 	</Section>
 {:else}
+	<div class="mb-5 mt-1">
+		<Segmented options={[{ value: 'guides', label: 'Guides' }, { value: 'especes', label: 'Espèces' }]} bind:value={view} label="Rubrique" />
+	</div>
+
+	{#if view === 'guides'}
+	<!-- Pour commencer : trois lectures en cartes hautes -->
+	<Carousel header="Pour commencer">
+		{#each resolve(START) as { theme, guide }, i (guide.slug)}
+			<Tile href="/encyclopedie/{theme.slug}/{guide.slug}" tone={theme.color} variant="solid" mark={theme.icon} class="flex min-h-[12rem] w-[68%] max-w-64 shrink-0 snap-start flex-col justify-end {i === 1 ? 'mt-5' : ''}">
+				<p class="caption1 font-semibold uppercase tracking-wide text-white/80">{guide.minutes} min · {LEVEL_LABELS[guide.level ?? 'debutant']}</p>
+				<p class="headline mt-1">{guide.title}</p>
+				<p class="footnote mt-1 line-clamp-2 text-white/85">{guide.summary}</p>
+			</Tile>
+		{/each}
+	</Carousel>
+
+	<!-- Dépannage -->
+	<section class="reveal mb-8">
+		<h2 class="title3 mb-2.5 px-1 font-bold">Un souci ? Regarde ici d’abord</h2>
+		<ul class="raised overflow-hidden" style="border-left: 5px solid var(--red)">
+			{#each resolve(HELP) as { theme, guide }, i (guide.slug)}
+				<li class={i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}>
+					<a href="/encyclopedie/{theme.slug}/{guide.slug}" class="tappable flex min-h-12 items-center gap-3 px-4 py-2.5">
+						<span class="text-red" style="--cut: var(--bg2)"><Icon name="alert" size={18} filled weight={1.8} /></span>
+						<span class="body min-w-0 flex-1">{guide.title}</span>
+						<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
+					</a>
+				</li>
+			{/each}
+		</ul>
+		<p class="footnote mt-2 px-4 text-label2">Informations générales, pas un avis vétérinaire. Pour un traitement, suis la notice du produit ou demande conseil à un professionnel.</p>
+	</section>
+
+	<!-- Thèmes : grille de tuiles teintées -->
+	<section class="mb-8" aria-label="Guides par thème">
+		<h2 class="title3 mb-2.5 px-1 font-bold">Guides par thème</h2>
+		<div class="grid grid-cols-2 gap-3">
+			{#each THEMES as theme, i (theme.slug)}
+				<Tile href="/encyclopedie/{theme.slug}" tone={theme.color} variant="soft" mark={theme.icon} class="reveal flex min-h-[7.5rem] flex-col justify-between {i === THEMES.length - 1 && THEMES.length % 2 ? 'col-span-2' : ''}">
+					<span class="grid h-9 w-9 place-items-center rounded-[12px] text-white" style="background: {theme.color}; --cut: {theme.color}"><Icon name={theme.icon} size={20} filled weight={1.8} /></span>
+					<div class="mt-3">
+						<p class="headline">{theme.title}</p>
+						<p class="footnote text-label2">{theme.guides.length} guide{theme.guides.length > 1 ? 's' : ''}</p>
+					</div>
+				</Tile>
+			{/each}
+		</div>
+	</section>
+
+	{:else}
 	<!-- Espèces : mosaïque, une grande tuile et trois plus petites -->
 	<section class="mb-8" aria-label="Espèces">
 		<div class="grid grid-cols-2 gap-3">
@@ -95,49 +140,7 @@
 		</Tile>
 	</section>
 
-	<!-- Pour commencer : trois lectures en cartes hautes -->
-	<Carousel header="Pour commencer">
-		{#each resolve(START) as { theme, guide }, i (guide.slug)}
-			<Tile href="/encyclopedie/{theme.slug}/{guide.slug}" tone={theme.color} variant="solid" mark={theme.icon} class="flex min-h-[12rem] w-[68%] max-w-64 shrink-0 snap-start flex-col justify-end {i === 1 ? 'mt-5' : ''}">
-				<p class="caption1 font-semibold uppercase tracking-wide text-white/80">{guide.minutes} min · {LEVEL_LABELS[guide.level ?? 'debutant']}</p>
-				<p class="headline mt-1">{guide.title}</p>
-				<p class="footnote mt-1 line-clamp-2 text-white/85">{guide.summary}</p>
-			</Tile>
-		{/each}
-	</Carousel>
-
-	<!-- Thèmes : grille de tuiles teintées -->
-	<section class="mb-8" aria-label="Guides par thème">
-		<h2 class="title3 mb-2.5 px-1 font-bold">Guides par thème</h2>
-		<div class="grid grid-cols-2 gap-3">
-			{#each THEMES as theme, i (theme.slug)}
-				<Tile href="/encyclopedie/{theme.slug}" tone={theme.color} variant="soft" mark={theme.icon} class="reveal flex min-h-[7.5rem] flex-col justify-between {i === THEMES.length - 1 && THEMES.length % 2 ? 'col-span-2' : ''}">
-					<span class="grid h-9 w-9 place-items-center rounded-[12px] text-white" style="background: {theme.color}; --cut: {theme.color}"><Icon name={theme.icon} size={20} filled weight={1.8} /></span>
-					<div class="mt-3">
-						<p class="headline">{theme.title}</p>
-						<p class="footnote text-label2">{theme.guides.length} guide{theme.guides.length > 1 ? 's' : ''}</p>
-					</div>
-				</Tile>
-			{/each}
-		</div>
-	</section>
-
-	<!-- Dépannage -->
-	<section class="reveal mb-8">
-		<h2 class="title3 mb-2.5 px-1 font-bold">Un souci ? Regarde ici d’abord</h2>
-		<ul class="raised overflow-hidden" style="border-left: 5px solid var(--red)">
-			{#each resolve(HELP) as { theme, guide }, i (guide.slug)}
-				<li class={i ? 'shadow-[inset_0_0.5px_0_var(--sep)]' : ''}>
-					<a href="/encyclopedie/{theme.slug}/{guide.slug}" class="tappable flex min-h-12 items-center gap-3 px-4 py-2.5">
-						<span class="text-red" style="--cut: var(--bg2)"><Icon name="alert" size={18} filled weight={1.8} /></span>
-						<span class="body min-w-0 flex-1">{guide.title}</span>
-						<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
-					</a>
-				</li>
-			{/each}
-		</ul>
-		<p class="footnote mt-2 px-4 text-label2">Informations générales, pas un avis vétérinaire. Pour un traitement, suis la notice du produit ou demande conseil à un professionnel.</p>
-	</section>
+	{/if}
 
 	<p class="caption1 px-4 pb-4 text-label2">
 		Fiches d’espèces : données de base FishBase et SeaLifeBase (CC-BY-NC 4.0) enrichies et rédigées avec Claude ; les fiches non vérifiées sont signalées.

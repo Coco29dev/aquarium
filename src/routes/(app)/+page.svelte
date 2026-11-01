@@ -18,7 +18,6 @@
 	import Scene from '$lib/relief/Scene.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
 	import Carousel from '$lib/relief/Carousel.svelte';
-	import Dock from '$lib/relief/Dock.svelte';
 	import TankCard from '$lib/relief/TankCard.svelte';
 	import { tankFacts } from '$lib/relief/facts';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
@@ -324,13 +323,6 @@
 		return [...contextual, ...picks].slice(0, 6);
 	});
 
-	const dock = $derived([
-		{ href: '/mesurer', label: 'Mesurer', icon: 'drop' as const, tone: 'var(--blue)' },
-		{ href: active[0] ? `/aquariums/${active[0].id}/journal` : '/aquariums', label: 'Journal', icon: 'note' as const, tone: 'var(--orange)' },
-		{ href: '/outils', label: 'Calculs', icon: 'flask' as const, tone: 'var(--purple)' },
-		{ href: '/encyclopedie', label: 'Guides', icon: 'book' as const, tone: 'var(--teal)' }
-	]);
-
 	const stageIndex = { demarrage: 0, pic_nitrites: 1, finalisation: 2, pret: 3, aucune_mesure: -1 } as const;
 	const stages = ['Ammoniac', 'Nitrites', 'Nitrates'];
 </script>
@@ -350,8 +342,8 @@
 	</div>
 {:else}
 	<!-- Scène : accueil, ambiance du moment, anneaux du jour -->
-	<Scene {hour} class="rise mt-1">
-		<div class="px-5 pb-12 pt-5">
+	<Scene {hour} class="rise mb-6 mt-1">
+		<div class="px-5 pb-6 pt-5">
 			<div class="flex items-start justify-between gap-3">
 				<p class="footnote font-semibold uppercase tracking-wide text-white/80">{kicker}</p>
 				{#if active.length}
@@ -399,9 +391,6 @@
 		</div>
 	</Scene>
 
-	<!-- Raccourcis : accès direct aux gestes de tous les jours -->
-	<Dock items={dock} class="rise relative z-10 -mt-8 mb-6" />
-
 	<!-- Prochaine action : la tâche la plus urgente, à cocher d'un geste -->
 	{#if nextTask}
 		{@const d = taskDetail(nextTask)}
@@ -439,6 +428,67 @@
 			{/if}
 		</section>
 	{/if}
+
+	<!-- À faire : ruban de la semaine, progression, tâches -->
+	<section class="reveal mb-8" id="a-faire">
+		<div class="mb-2.5 flex items-baseline justify-between px-1">
+			<h2 class="title3 font-bold">À faire</h2>
+			{#if rings && tasksRing.total > 0}<span class="subhead text-label2">{tasksRing.done} sur {tasksRing.total} aujourd’hui</span>{/if}
+		</div>
+		{#if rings && tasksRing.total > 0}
+			<div class="mb-3 h-2 overflow-hidden rounded-full bg-fill px-0" aria-hidden="true">
+				<div class="h-full rounded-full transition-[width] duration-700" style="width: {Math.round(tasksRing.ratio * 100)}%; background: linear-gradient(90deg, var(--orange), var(--red))"></div>
+			</div>
+		{/if}
+		<div class="raised mb-3 grid grid-cols-7 px-1.5 py-2.5" role="tablist" aria-label="Jours de la semaine">
+			{#each week as d, i (d.day)}
+				{@const on = d.day === selectedDay}
+				<button role="tab" aria-selected={on} onclick={() => (selectedDay = d.day)} class="flex flex-col items-center gap-1">
+					<span class="caption2 font-semibold uppercase text-label2">{d.letter}</span>
+					<span
+						class="rounded-num grid h-9 w-9 place-items-center rounded-full text-[19px] transition-all duration-300 {on ? (i === 0 ? 'bg-red text-white shadow-[0_6px_14px_-4px_var(--red)]' : 'bg-label text-bg2') : i === 0 ? 'font-semibold text-red' : ''}"
+					>
+						{d.num}
+					</span>
+					<span class="flex h-1.5 gap-[3px]">
+						{#each d.tasks.slice(0, 3) as t (t.id)}
+							<span class="h-[5px] w-[5px] rounded-full {t.nextDue < today ? 'bg-red' : 'bg-label3'}"></span>
+						{/each}
+					</span>
+				</button>
+			{/each}
+		</div>
+
+		{#if sortedTasks.length === 0}
+			<div class="raised flex items-center gap-3 px-4 py-4">
+				<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/15 text-green"><Icon name="check" size={22} weight={2.8} /></span>
+				<p class="subhead text-label2">{selectedDay === today ? 'Rien à faire aujourd’hui. Profites-en.' : 'Rien de prévu ce jour-là.'}</p>
+			</div>
+		{:else}
+			<ul class="raised ios-tasks overflow-hidden">
+				{#each sortedTasks as task (task.id)}
+					{@const d = taskDetail(task)}
+					{@const tank = tankOf(task.aquariumId)}
+					<TaskItem
+						{task}
+						detail={d.text}
+						late={d.late}
+						tankName={tank?.name}
+						tankColor={tank ? TANK_TONE[tank.waterType] : undefined}
+						onpostpone={(t) => (postponing = t)}
+					/>
+				{/each}
+			</ul>
+			<p class="footnote mt-2 px-4 text-label2">Glisse une tâche vers la droite pour la cocher, vers la gauche pour la reporter.</p>
+		{/if}
+
+		{#if selectedDay === today && doneToday.length}
+			<p class="footnote mt-2 px-4 text-label2">
+				Fait aujourd’hui :
+				{#each doneToday as d, i (d.c.doneAt + d.task.id)}{i ? ', ' : ''}{d.task.title}{#if d.pending}<span class="text-label3"> (en attente d’envoi)</span>{/if}{/each}.
+			</p>
+		{/if}
+	</section>
 
 	<!-- Tes bacs : cartes en hauteur -->
 	<Carousel header="Tes bacs" more={{ href: '/aquariums', label: 'Tous' }}>
@@ -573,67 +623,6 @@
 			{/if}
 		</section>
 	{/if}
-
-	<!-- À faire : ruban de la semaine, progression, tâches -->
-	<section class="reveal mb-8" id="a-faire">
-		<div class="mb-2.5 flex items-baseline justify-between px-1">
-			<h2 class="title3 font-bold">À faire</h2>
-			{#if rings && tasksRing.total > 0}<span class="subhead text-label2">{tasksRing.done} sur {tasksRing.total} aujourd’hui</span>{/if}
-		</div>
-		{#if rings && tasksRing.total > 0}
-			<div class="mb-3 h-2 overflow-hidden rounded-full bg-fill px-0" aria-hidden="true">
-				<div class="h-full rounded-full transition-[width] duration-700" style="width: {Math.round(tasksRing.ratio * 100)}%; background: linear-gradient(90deg, var(--orange), var(--red))"></div>
-			</div>
-		{/if}
-		<div class="raised mb-3 grid grid-cols-7 px-1.5 py-2.5" role="tablist" aria-label="Jours de la semaine">
-			{#each week as d, i (d.day)}
-				{@const on = d.day === selectedDay}
-				<button role="tab" aria-selected={on} onclick={() => (selectedDay = d.day)} class="flex flex-col items-center gap-1">
-					<span class="caption2 font-semibold uppercase text-label2">{d.letter}</span>
-					<span
-						class="rounded-num grid h-9 w-9 place-items-center rounded-full text-[19px] transition-all duration-300 {on ? (i === 0 ? 'bg-red text-white shadow-[0_6px_14px_-4px_var(--red)]' : 'bg-label text-bg2') : i === 0 ? 'font-semibold text-red' : ''}"
-					>
-						{d.num}
-					</span>
-					<span class="flex h-1.5 gap-[3px]">
-						{#each d.tasks.slice(0, 3) as t (t.id)}
-							<span class="h-[5px] w-[5px] rounded-full {t.nextDue < today ? 'bg-red' : 'bg-label3'}"></span>
-						{/each}
-					</span>
-				</button>
-			{/each}
-		</div>
-
-		{#if sortedTasks.length === 0}
-			<div class="raised flex items-center gap-3 px-4 py-4">
-				<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/15 text-green"><Icon name="check" size={22} weight={2.8} /></span>
-				<p class="subhead text-label2">{selectedDay === today ? 'Rien à faire aujourd’hui. Profites-en.' : 'Rien de prévu ce jour-là.'}</p>
-			</div>
-		{:else}
-			<ul class="raised ios-tasks overflow-hidden">
-				{#each sortedTasks as task (task.id)}
-					{@const d = taskDetail(task)}
-					{@const tank = tankOf(task.aquariumId)}
-					<TaskItem
-						{task}
-						detail={d.text}
-						late={d.late}
-						tankName={tank?.name}
-						tankColor={tank ? TANK_TONE[tank.waterType] : undefined}
-						onpostpone={(t) => (postponing = t)}
-					/>
-				{/each}
-			</ul>
-			<p class="footnote mt-2 px-4 text-label2">Glisse une tâche vers la droite pour la cocher, vers la gauche pour la reporter.</p>
-		{/if}
-
-		{#if selectedDay === today && doneToday.length}
-			<p class="footnote mt-2 px-4 text-label2">
-				Fait aujourd’hui :
-				{#each doneToday as d, i (d.c.doneAt + d.task.id)}{i ? ', ' : ''}{d.task.title}{#if d.pending}<span class="text-label3"> (en attente d’envoi)</span>{/if}{/each}.
-			</p>
-		{/if}
-	</section>
 
 	<!-- Pour toi : conseils selon l'état des bacs, puis découvertes du jour -->
 	{#if advice.length}

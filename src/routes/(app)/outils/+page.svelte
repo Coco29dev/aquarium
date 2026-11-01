@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { store } from '$lib/client/store.svelte';
-	import { listResource } from '$lib/client/api';
-	import { dayInParis } from '$lib/domain/dates';
 	import type { IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import Section from '$lib/ios/Section.svelte';
@@ -61,19 +58,6 @@
 		if (tank?.volumeL) volume = String(tank.volumeL);
 	});
 
-	// Dépenses du mois, pour la ligne « Dépenses » (en ligne seulement).
-	let monthTotal = $state<number | null>(null);
-	onMount(async () => {
-		try {
-			const month = dayInParis().slice(0, 7);
-			const list = await listResource<{ amount: number; spentOn: string }>('expenses');
-			monthTotal = list.filter((e) => e.spentOn.slice(0, 7) === month).reduce((s, e) => s + e.amount, 0);
-		} catch {
-			monthTotal = null;
-		}
-	});
-	const eur = (v: number) => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-
 	// Volume réel
 	let L = $state('100'), W = $state('40'), H = $state('50'), glass = $state('8'), free = $state('3'), decor = $state('10');
 	const realV = $derived(run(() => realVolume({ lengthCm: n(L), widthCm: n(W), heightCm: n(H), glassMm: n(glass), freeboardCm: n(free), displacedL: n(decor) })));
@@ -113,7 +97,7 @@
 	const tool = $derived(tools.find((t) => t.id === open));
 </script>
 
-<svelte:head><title>Atelier · Biotope</title></svelte:head>
+<svelte:head><title>Calculateurs · Biotope</title></svelte:head>
 
 {#snippet hero(r: Result<unknown>, value: (v: any) => string, unit: string, label: string, color: string)}
 	<div class="mb-6 mt-2 px-1 text-center">
@@ -143,28 +127,9 @@
 	</li>
 {/snippet}
 
-<NavBar title="Atelier" />
+<NavBar title="Calculateurs" back={{ href: '/reglages', label: 'Plus' }} />
 
-<div class="mb-8 mt-2 grid grid-cols-2 gap-3">
-	<Tile href="/assistant" tone="var(--indigo)" variant="solid" mark="chat" class="rise col-span-2 min-h-[6rem]">
-		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Conseil</p>
-		<p class="title3 mt-1">Assistant</p>
-		<p class="footnote mt-0.5 text-white/85">Pose une question sur ton bac, note une mesure</p>
-	</Tile>
-	<Tile href="/depenses" tone="var(--green)" variant="solid" mark="euro" class="rise min-h-[7rem]">
-		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Dépenses</p>
-		<p class="rounded-num title2 mt-1">{monthTotal != null ? eur(monthTotal) : '–'}</p>
-		<p class="footnote mt-0.5 text-white/85">ce mois-ci</p>
-	</Tile>
-	<Tile href="/encyclopedie" tone="var(--teal)" variant="solid" mark="book" class="rise min-h-[7rem]">
-		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Savoir</p>
-		<p class="title3 mt-1">Encyclopédie</p>
-		<p class="footnote mt-0.5 text-white/85">Espèces, guides, maladies</p>
-	</Tile>
-</div>
-
-<section class="mb-8" aria-label="Calculateurs">
-	<h2 class="title3 mb-2.5 px-1 font-bold">Calculateurs</h2>
+<section class="mb-8 mt-2" aria-label="Calculateurs">
 	<div class="grid grid-cols-2 gap-3">
 		{#each tools as t, i (t.id)}
 			<Tile onclick={() => (open = t.id)} tone={t.color} variant={i === 0 ? 'solid' : 'soft'} mark={t.icon} class="reveal flex flex-col justify-between {i === 0 ? 'col-span-2 min-h-[7.5rem]' : 'min-h-[9rem]'}">

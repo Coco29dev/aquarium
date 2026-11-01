@@ -19,6 +19,7 @@
 	import Spark from '$lib/ios/Spark.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
+	import Tile from '$lib/relief/Tile.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import JourneyCard from '$lib/ios/JourneyCard.svelte';
 	import FeedButton from '$lib/ios/FeedButton.svelte';
@@ -327,6 +328,51 @@
 		<FeedButton aquariumId={id} compact />
 	</div>
 
+	<!-- Paramètres : les valeurs en alerte prennent toute la largeur, les autres se rangent par deux -->
+	<section class="mb-8">
+		<div class="mb-2 flex items-baseline justify-between px-1">
+			<h2 class="title3 font-bold">Paramètres</h2>
+			<a href="/aquariums/{id}/reglages" class="btn-plain subhead">Plages</a>
+		</div>
+		{#if tiles.length === 0}
+			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3.5 text-label2">Aucun paramètre suivi. Ajoute-en dans les réglages du bac.</p>
+		{:else}
+			<div class="grid grid-cols-2 gap-2.5">
+				{#each tiles as t (t.p.id)}
+					{@const state = t.alert?.level === 'hors_plage' ? 'bad' : t.alert?.level === 'derive' ? 'warn' : 'ok'}
+					{@const color = state === 'bad' ? 'var(--red)' : state === 'warn' ? 'var(--orange)' : tone}
+					<a href="/aquariums/{id}/parametre/{t.p.id}" class="pressable block rounded-[22px] bg-bg2 p-3.5 {state !== 'ok' ? 'col-span-2' : ''}">
+						<div class="flex items-center gap-1.5" style="color: {color}; --cut: var(--bg2)">
+							<Icon name={iconOf(t.p)} size={17} filled weight={1.8} />
+							<span class="subhead min-w-0 flex-1 truncate font-semibold">{t.p.name}</span>
+							{#if state !== 'ok' && t.last}<span class="footnote shrink-0 text-label2">{when(t.last.measuredAt)}</span>{/if}
+							{#if state !== 'ok'}<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>{/if}
+						</div>
+						<div class="mt-2 {state !== 'ok' ? 'flex items-end gap-3' : ''}">
+							<div class="min-w-0 flex-1">
+								{#if t.last}
+									<p class="rounded-num truncate">
+										<span class="text-[28px] font-semibold leading-9">{fmt(t.last.value, t.p.decimals)}</span>
+										{#if t.p.unit}<span class="subhead font-semibold text-label2"> {t.p.unit}</span>{/if}
+									</p>
+									<p class="footnote truncate text-label2">
+										{#if state === 'bad'}<span class="font-semibold text-red">Hors plage</span>
+										{:else if state === 'warn'}<span class="font-semibold text-orange">Dérive</span>
+										{:else if t.trend}{trendLabel[t.trend]}{:else}{when(t.last.measuredAt)}{/if}
+										{#if state !== 'ok' && t.p.min != null && t.p.max != null}<span> · plage {fmt(t.p.min, t.p.decimals)}–{fmt(t.p.max, t.p.decimals)}</span>{/if}
+									</p>
+								{:else}
+									<p class="subhead text-label3">Pas encore de mesure</p>
+								{/if}
+							</div>
+							<div class={state !== 'ok' ? '' : 'mt-2'}><Spark points={t.points} min={t.p.min} max={t.p.max} {color} /></div>
+						</div>
+					</a>
+				{/each}
+			</div>
+		{/if}
+	</section>
+
 	<!-- Entretien et stabilité -->
 	<Section header="Entretien">
 		<Row
@@ -356,55 +402,17 @@
 		{/if}
 	</Section>
 
-	<!-- Paramètres, façon cartes Santé -->
-	<section class="mb-8">
-		<div class="mb-2 flex items-baseline justify-between px-1">
-			<h2 class="title3 font-bold">Paramètres</h2>
-			<a href="/aquariums/{id}/reglages" class="btn-plain subhead">Plages</a>
-		</div>
-		{#if tiles.length === 0}
-			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3.5 text-label2">Aucun paramètre suivi. Ajoute-en dans les réglages du bac.</p>
-		{:else}
-			<div class="flex flex-col gap-2.5">
-				{#each tiles as t (t.p.id)}
-					{@const state = t.alert?.level === 'hors_plage' ? 'bad' : t.alert?.level === 'derive' ? 'warn' : 'ok'}
-					{@const color = state === 'bad' ? 'var(--red)' : state === 'warn' ? 'var(--orange)' : tone}
-					<a href="/aquariums/{id}/parametre/{t.p.id}" class="pressable block rounded-[22px] bg-bg2 p-4">
-						<div class="flex items-center gap-1.5" style="color: {color}; --cut: var(--bg2)">
-							<Icon name={iconOf(t.p)} size={17} filled weight={1.8} />
-							<span class="subhead min-w-0 flex-1 truncate font-semibold">{t.p.name}</span>
-							{#if t.last}<span class="footnote shrink-0 text-label2">{when(t.last.measuredAt)}</span>{/if}
-							<span class="text-label3"><Icon name="next" size={15} weight={2.4} /></span>
-						</div>
-						<div class="mt-2 flex items-end gap-3">
-							<div class="min-w-0 flex-1">
-								{#if t.last}
-									<p class="rounded-num truncate">
-										<span class="text-[30px] font-semibold leading-9">{fmt(t.last.value, t.p.decimals)}</span>
-										{#if t.p.unit}<span class="subhead font-semibold text-label2"> {t.p.unit}</span>{/if}
-									</p>
-									<p class="footnote text-label2">
-										{#if state === 'bad'}<span class="font-semibold text-red">Hors plage</span>
-										{:else if state === 'warn'}<span class="font-semibold text-orange">Dérive</span>
-										{:else if t.trend}{trendLabel[t.trend]}{/if}
-										{#if t.p.min != null && t.p.max != null}<span> · plage {fmt(t.p.min, t.p.decimals)}–{fmt(t.p.max, t.p.decimals)}</span>{/if}
-									</p>
-								{:else}
-									<p class="body text-label3">Pas encore de mesure</p>
-								{/if}
-							</div>
-							<Spark points={t.points} min={t.p.min} max={t.p.max} {color} />
-						</div>
-					</a>
-				{/each}
-			</div>
-		{/if}
-	</section>
-
-	<Section>
-		<Row href="/aquariums/{id}/journal" icon="book" iconColor="var(--brown)" title="Journal" subtitle="Événements, notes et photos du bac" />
-		<Row href="/aquariums/{id}/aide" icon="info" iconColor="var(--orange)" title="Demander de l’aide" subtitle="Un résumé du bac à coller sur un forum" />
-	</Section>
+	<!-- Aller plus loin -->
+	<div class="mb-4 grid grid-cols-2 gap-3">
+		<Tile href="/aquariums/{id}/journal" tone="var(--brown)" variant="soft" mark="book" class="min-h-[6rem]">
+			<p class="headline">Journal</p>
+			<p class="footnote mt-0.5 text-label2">Événements, notes, photos</p>
+		</Tile>
+		<Tile href="/aquariums/{id}/aide" tone="var(--orange)" variant="soft" mark="info" class="min-h-[6rem]">
+			<p class="headline">Demander de l’aide</p>
+			<p class="footnote mt-0.5 text-label2">Résumé à coller sur un forum</p>
+		</Tile>
+	</div>
 
 	<EventSheet
 		open={waterSheet}

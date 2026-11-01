@@ -59,7 +59,7 @@
 	const uploading = $derived(attachments.some((a) => a.id === null));
 	const ready = $derived((draft.trim() !== '' || attachments.length > 0) && !uploading && !working && pending.length === 0);
 
-	const back = $derived(aquariumId !== null && page.url.searchParams.has('bac') ? { href: `/aquariums/${aquariumId}`, label: 'Bac' } : { href: '/outils', label: 'Atelier' });
+	const back = $derived(aquariumId !== null && page.url.searchParams.has('bac') ? { href: `/aquariums/${aquariumId}`, label: 'Bac' } : { href: '/reglages', label: 'Plus' });
 
 	const lastTank = (): number | null => {
 		try {

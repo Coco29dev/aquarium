@@ -8,6 +8,8 @@
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Spinner from '$lib/ios/Spinner.svelte';
+	import Tile from '$lib/relief/Tile.svelte';
+	import { listResource } from '$lib/client/api';
 	import type { BackupStatus } from '$lib/types';
 
 	let notifications = $state('');
@@ -15,7 +17,16 @@
 	let online = $state(true);
 	let syncing = $state(false);
 
+	// Dépenses du mois pour la tuile « Dépenses » (en ligne seulement).
+	let monthTotal = $state<number | null>(null);
+	const eur = (v: number) => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
 	onMount(() => {
+		const month = dayInParis().slice(0, 7);
+		listResource<{ amount: number; spentOn: string }>('expenses')
+			.then((list) => (monthTotal = list.filter((e) => e.spentOn.slice(0, 7) === month).reduce((s, e) => s + e.amount, 0)))
+			.catch(() => (monthTotal = null));
+
 		const enabled = pushSupported() && isStandalone() && 'Notification' in window && Notification.permission === 'granted';
 		notifications = enabled ? 'Activées' : 'Désactivées';
 		online = navigator.onLine;
@@ -75,12 +86,35 @@
 	const pending = $derived(store.pending.length);
 </script>
 
-<svelte:head><title>Réglages · Biotope</title></svelte:head>
+<svelte:head><title>Plus · Biotope</title></svelte:head>
 
-<NavBar title="Réglages" />
+<NavBar title="Plus" />
+
+<!-- Outils : ce qui n'a pas sa place dans la barre d'onglets -->
+<section class="mb-6 mt-2 grid grid-cols-2 gap-3" aria-label="Outils">
+	<Tile href="/assistant" tone="var(--indigo)" variant="solid" mark="chat" class="rise col-span-2 min-h-[6rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-white/80">Conseil</p>
+		<p class="title3 mt-1">Assistant</p>
+		<p class="footnote mt-0.5 text-white/85">Pose une question sur ton bac, note une mesure</p>
+	</Tile>
+	<Tile href="/outils" tone="var(--purple)" variant="soft" mark="flask" class="rise min-h-[7rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-label2">Calculs</p>
+		<p class="title3 mt-1">Calculateurs</p>
+		<p class="footnote mt-0.5 text-label2">Eau, dosage, sel</p>
+	</Tile>
+	<Tile href="/depenses" tone="var(--green)" variant="soft" mark="euro" class="rise min-h-[7rem]">
+		<p class="caption1 font-semibold uppercase tracking-wide text-label2">Dépenses</p>
+		<p class="rounded-num title3 mt-1">{monthTotal != null ? eur(monthTotal) : '–'}</p>
+		<p class="footnote mt-0.5 text-label2">ce mois-ci</p>
+	</Tile>
+	<Tile href="/bilan" tone="var(--orange)" variant="soft" mark="chart" class="rise col-span-2 min-h-[5.5rem]">
+		<p class="title3">Bilan de la semaine</p>
+		<p class="footnote mt-0.5 text-label2">Ce qui a changé dans tes bacs depuis lundi</p>
+	</Tile>
+</section>
 
 <!-- Carte de l'appli, façon identifiant Apple -->
-<Section class="mt-2">
+<Section>
 	<li class="flex items-center gap-4 px-4 py-3">
 		<img src="/apple-touch-icon-180x180.png" alt="" class="h-[60px] w-[60px] rounded-[22%] shadow-[0_1px_3px_rgb(0_0_0/0.15)]" />
 		<div class="min-w-0 flex-1">

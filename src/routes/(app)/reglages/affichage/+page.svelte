@@ -34,7 +34,7 @@
 
 <svelte:head><title>Affichage · Biotope</title></svelte:head>
 
-<NavBar title="Affichage" back={{ href: '/reglages', label: 'Réglages' }} large={false} />
+<NavBar title="Affichage" back={{ href: '/reglages', label: 'Plus' }} large={false} />
 
 <Section
 	header="Apparence"

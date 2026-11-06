@@ -6,6 +6,7 @@
 	import { APP_NAME, APP_TAGLINE } from '$lib/brand';
 	import { enableReminders, isStandalone, pushSupported } from '$lib/push-client';
 	import { ui } from '$lib/client/ui.svelte';
+	import ProfileForm from '$lib/components/ProfileForm.svelte';
 
 	// Accueil du premier lancement, façon écrans de bienvenue d'Apple : quatre pages qu'on fait
 	// défiler, puis création du premier bac.
@@ -31,7 +32,7 @@
 		{ n: 2, title: 'Note une première mesure', text: 'Deux touches suffisent, les valeurs précédentes sont déjà là.' },
 		{ n: 3, title: 'Laisse Biotope veiller', text: 'Tâches, rappels et alertes de dérive s’occupent du reste.' }
 	];
-	const PAGES = 4;
+	const PAGES = 5;
 
 	function onScroll() {
 		if (!scroller) return;
@@ -83,7 +84,14 @@
 			<p class="body rise mt-3 text-label2" style="animation-delay: 80ms">{APP_TAGLINE} Mesures, tâches et conseils, réunis dans une appli pensée pour ton iPhone.</p>
 		</section>
 
-		<!-- 2. Ce que fait l'appli -->
+		<!-- 2. Faisons connaissance -->
+		<section class="flex w-full shrink-0 snap-center flex-col overflow-y-auto px-6 pb-4 pt-2">
+			<h1 class="title1 text-center">Faisons connaissance</h1>
+			<p class="subhead mb-5 mt-1.5 text-center text-label2">Quelques réponses pour que {APP_NAME} te ressemble. Tout se change plus tard dans Plus › Mon profil.</p>
+			<ProfileForm bare />
+		</section>
+
+		<!-- 3. Ce que fait l'appli -->
 		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
 			<h1 class="title1 mb-8 text-center">Ce que {APP_NAME} fait pour toi</h1>
 			<ul class="flex flex-col gap-6">
@@ -99,7 +107,7 @@
 			</ul>
 		</section>
 
-		<!-- 3. Rappels -->
+		<!-- 4. Rappels -->
 		<section class="flex w-full shrink-0 snap-center flex-col items-center justify-center px-8 text-center">
 			<span class="mb-8 grid h-[104px] w-[104px] place-items-center rounded-[26px] bg-red text-white shadow-[0_14px_34px_rgb(255_59_48/0.3)]" style="--cut: var(--red)">
 				<Icon name="bell" size={58} filled weight={1.6} />
@@ -123,7 +131,7 @@
 			{/if}
 		</section>
 
-		<!-- 4. Premier bac -->
+		<!-- 5. Premier bac -->
 		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
 			<h1 class="title1 mb-8 text-center">Prêt en trois étapes</h1>
 			<ol class="flex flex-col gap-6">

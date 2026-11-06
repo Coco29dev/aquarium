@@ -26,8 +26,8 @@ test('première ouverture : visite en quatre pages puis état vide', async ({ pa
 	await login(page);
 	await page.waitForURL('**/bienvenue');
 	await expect(page.getByRole('heading', { name: 'Bienvenue dans Biotope' })).toBeVisible();
-	await expect(page.getByRole('tab')).toHaveCount(4);
-	for (let i = 1; i <= 3; i++) {
+	await expect(page.getByRole('tab')).toHaveCount(5);
+	for (let i = 1; i <= 4; i++) {
 		await page.getByRole('button', { name: 'Continuer' }).click();
 		// Le défilement est animé : on attend d'être arrivé avant de recliquer.
 		await expect(page.getByRole('tab', { name: `Page ${i + 1}` })).toHaveAttribute('aria-selected', 'true');
@@ -140,4 +140,30 @@ test('fiche d’un bac : le bandeau reste en place d’un onglet à l’autre', 
 		// Même élément DOM : l'en-tête n'a pas été recréé.
 		expect(await handle!.evaluate((el) => el.isConnected)).toBe(true);
 	}
+});
+
+test('profil : prénom, niveau et couleur personnalisent l’accueil', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	await page.request.post('/api/aquariums', {
+		headers: { origin: 'http://localhost:5188' },
+		data: { name: 'Profil', waterType: 'douce', volumeL: 100, startedOn: day(-5), stage: 'actif', tasks: [], measurements: [], inhabitants: [], projectItems: [] }
+	});
+	await page.goto('/reglages/profil');
+	await page.getByPlaceholder('Ton prénom').fill('Corentin');
+	await page.getByRole('radio', { name: /Je suis confirmé/ }).click();
+	await page.getByRole('radio', { name: 'Corail' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-accent', 'corail');
+	await page.getByPlaceholder('Ton prénom').blur();
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Corentin');
+	// Parcours « confirmé » : jalons plus exigeants que ceux d'un débutant.
+	await expect(page.getByText('Prochain jalon')).toBeVisible();
+	await expect(page.getByText('Deux bacs suivis')).toBeVisible();
+	// Le profil est conservé côté serveur.
+	const saved = await (await page.request.get('/api/settings/profile')).json();
+	expect(saved).toMatchObject({ name: 'Corentin', level: 'confirme', accent: 'corail' });
+	await page.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/accueil.png` : 'test-results/accueil.png', fullPage: true });
+	await page.goto('/reglages/profil');
+	await page.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/profil.png` : 'test-results/profil.png', fullPage: true });
 });

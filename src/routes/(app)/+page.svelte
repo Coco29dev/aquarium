@@ -14,6 +14,7 @@
 	import { listResource } from '$lib/client/api';
 	import { SHORT_WATER, TANK_ICON, TANK_TONE, daysSinceWaterChange, fmt, lateBy, relativeDay, tankAge } from '$lib/ui';
 	import { contextualAdvice, dailyPicks, greeting } from '$lib/domain/advice';
+	import { milestones, nextMilestone, personalGreeting, rankPicks, type JourneyFacts } from '$lib/domain/profile';
 	import { ALL_GUIDES, resolveRelated } from '$lib/content';
 	import Scene from '$lib/relief/Scene.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
@@ -287,7 +288,7 @@
 
 	// --- Ambiance de l'accueil ---------------------------------------------------------------------
 	const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Paris' }).formatToParts(new Date()).find((x) => x.type === 'hour')?.value ?? 12);
-	const hello = greeting(hour);
+	const hello = $derived(personalGreeting(greeting(hour), ui.profile.name));
 	const mood = $derived<'ok' | 'warn' | 'bad'>(
 		attention.some((a) => a.color === 'var(--red)') ? 'bad' : attention.length ? 'warn' : 'ok'
 	);
@@ -316,12 +317,26 @@
 		});
 		const used = new Set(contextual.map((c) => c.guide.slug));
 		const picks = dailyPicks(
-			ALL_GUIDES.filter((g) => g.theme.slug !== 'lexique' && !used.has(g.guide.slug)),
+			rankPicks(ALL_GUIDES.filter((g) => g.theme.slug !== 'lexique' && !used.has(g.guide.slug)), ui.profile),
 			today,
 			4
 		).map((hit) => ({ ...hit, why: null as string | null }));
 		return [...contextual, ...picks].slice(0, 6);
 	});
+
+	// --- Ton parcours : jalons adaptés au niveau choisi dans Mon profil ------------------------------
+	const journeyFacts = $derived<JourneyFacts>({
+		tanks: aquariums.length,
+		measurements: view?.measurements.length ?? 0,
+		waterChanges: (view?.events ?? []).filter((e) => e.kind === 'changement_eau').length,
+		arrivals: (view?.events ?? []).filter((e) => e.kind === 'habitant_ajout').length,
+		daysTracked: Math.max(0, ...active.map((a) => tankAge(a) ?? 0)),
+		stability: rings?.stability.score ?? null,
+		covers: aquariums.filter((a) => a.coverPhotoId != null).length
+	});
+	const path = $derived(milestones(ui.profile.level, journeyFacts));
+	const pathDone = $derived(path.filter((m) => m.done).length);
+	const pathNext = $derived(nextMilestone(path));
 
 	const stageIndex = { demarrage: 0, pic_nitrites: 1, finalisation: 2, pret: 3, aucune_mesure: -1 } as const;
 	const stages = ['Ammoniac', 'Nitrites', 'Nitrates'];
@@ -487,6 +502,35 @@
 				Fait aujourd’hui :
 				{#each doneToday as d, i (d.c.doneAt + d.task.id)}{i ? ', ' : ''}{d.task.title}{#if d.pending}<span class="text-label3"> (en attente d’envoi)</span>{/if}{/each}.
 			</p>
+		{/if}
+	</section>
+
+	<!-- Ton parcours : prochain jalon, adapté au niveau -->
+	<section class="raised reveal mb-8 p-4" aria-label="Ton parcours">
+		<div class="mb-3 flex items-baseline justify-between">
+			<h2 class="title3 font-bold">Ton parcours</h2>
+			<span class="subhead rounded-num text-label2">{pathDone} sur {path.length}</span>
+		</div>
+		<ol class="mb-3 grid gap-1.5" style="grid-template-columns: repeat({path.length}, minmax(0, 1fr))" aria-hidden="true">
+			{#each path as m (m.id)}
+				<li class="h-1.5 rounded-full transition-colors duration-500 {m.done ? 'bg-tint' : m === pathNext ? 'bg-tint/40' : 'bg-fill'}"></li>
+			{/each}
+		</ol>
+		{#if pathNext}
+			<a href={pathNext.href} class="tappable -mx-1 flex items-center gap-3 rounded-xl px-1 py-1">
+				<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint/12 text-tint"><Icon name="check" size={20} weight={2.4} /></span>
+				<span class="min-w-0 flex-1">
+					<span class="caption1 block font-semibold uppercase tracking-wide text-label2">Prochain jalon</span>
+					<span class="headline block truncate">{pathNext.label}</span>
+					<span class="footnote block truncate text-label2">{pathNext.hint}</span>
+				</span>
+				<span class="shrink-0 text-label3"><Icon name="next" size={16} weight={2.4} /></span>
+			</a>
+		{:else}
+			<p class="subhead flex items-center gap-2 text-label2"><span class="text-green"><Icon name="check" size={18} weight={2.8} /></span>Parcours accompli{ui.profile.name ? `, ${ui.profile.name}` : ''}. Chaque jalon est derrière toi.</p>
+		{/if}
+		{#if !ui.profile.level}
+			<a href="/reglages/profil" class="footnote mt-3 block font-semibold text-tint">Dis-moi ton niveau pour un parcours à ta mesure</a>
 		{/if}
 	</section>
 

@@ -22,6 +22,7 @@
 		// Le service worker rend l'appli disponible hors ligne et reçoit les push.
 		if ('serviceWorker' in navigator) void registerServiceWorker().catch(() => {});
 		void store.init();
+		void ui.loadProfile();
 		// Une tâche cochée juste avant de quitter l'appli est envoyée sans attendre.
 		const flush = () => ui.flush();
 		addEventListener('pagehide', flush);

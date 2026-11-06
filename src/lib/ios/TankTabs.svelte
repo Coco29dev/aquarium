@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import Segmented from './Segmented.svelte';
 	import type { Aquarium } from '$lib/types';
 
@@ -8,10 +7,10 @@
 	interface Props {
 		aquarium: Pick<Aquarium, 'id'>;
 		tab: TankTab;
+		onselect: (tab: TankTab) => void;
 	}
-	let { aquarium, tab }: Props = $props();
+	let { aquarium: _aquarium, tab, onselect }: Props = $props();
 
-	const paths: Record<TankTab, string> = { suivi: '', taches: '/taches', vivants: '/inventaire', journal: '/journal' };
 	const options: { value: TankTab; label: string }[] = [
 		{ value: 'suivi', label: 'Suivi' },
 		{ value: 'taches', label: 'Tâches' },
@@ -26,6 +25,6 @@
 	{value}
 	label="Sections du bac"
 	onchange={(v) => {
-		if (v !== tab) void goto(`/aquariums/${aquarium.id}${paths[v]}`, { replaceState: true, noScroll: true });
+		if (v !== tab) onselect(v);
 	}}
 />

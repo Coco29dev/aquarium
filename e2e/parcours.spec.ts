@@ -135,7 +135,8 @@ test('fiche d’un bac : le bandeau reste en place d’un onglet à l’autre', 
 	const handle = await title.elementHandle();
 	for (const [name, path] of [['Vivants', '/inventaire'], ['Journal', '/journal'], ['Tâches', '/taches'], ['Suivi', '']] as const) {
 		await page.getByRole('radio', { name }).click();
-		await page.waitForURL(`**/aquariums/${id}${path}`);
+		await expect(page).toHaveURL(new RegExp(`/aquariums/${id}${path}$`));
+		await expect(page.getByRole('radio', { name })).toBeChecked();
 		await expect(title).toBeVisible();
 		// Même élément DOM : l'en-tête n'a pas été recréé.
 		expect(await handle!.evaluate((el) => el.isConnected)).toBe(true);
@@ -159,7 +160,8 @@ test('profil : prénom, niveau et couleur personnalisent l’accueil', async ({ 
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Corentin');
 	// Parcours « confirmé » : jalons plus exigeants que ceux d'un débutant.
 	await expect(page.getByText('Prochain jalon')).toBeVisible();
-	await expect(page.getByText('Deux bacs suivis')).toBeVisible();
+	// (la base de test contient déjà d'autres bacs : on vérifie seulement le jeu de jalons « confirmé »)
+	await expect(page.getByText(/Deux bacs suivis|30 mesures notées|10 changements d’eau|Stabilité de 85 %/)).toBeVisible();
 	// Le profil est conservé côté serveur.
 	const saved = await (await page.request.get('/api/settings/profile')).json();
 	expect(saved).toMatchObject({ name: 'Corentin', level: 'confirme', accent: 'corail' });

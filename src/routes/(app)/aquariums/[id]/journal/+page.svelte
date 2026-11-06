@@ -10,7 +10,7 @@
 	import { fmt, relativeDay } from '$lib/ui';
 	import Icon from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
-	import TankTabs from '$lib/ios/TankTabs.svelte';
+	import { setTankActions } from '$lib/ios/tankHeader.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import SwipeRow from '$lib/ios/SwipeRow.svelte';
 	import EventRow from '$lib/ios/EventRow.svelte';
@@ -237,27 +237,26 @@
 	let startY = 0;
 	let dragging = $state(false);
 	let photoInput = $state<HTMLInputElement>();
+	$effect(() => setTankActions(actions));
 </script>
+
+{#snippet actions()}
+	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={() => photoInput?.click()} disabled={uploading} aria-label="Ajouter une photo">
+		<Icon name="camera" size={20} />
+	</button>
+	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={() => (writing = true)} aria-label="Nouvelle note">
+		<Icon name="edit" size={19} />
+	</button>
+	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={newEvent} aria-label="Nouvel événement">
+		<Icon name="plus" size={20} weight={2.4} />
+	</button>
+{/snippet}
 
 <svelte:head><title>Journal · {aquarium?.name ?? 'Bac'}</title></svelte:head>
 
 {#if !aquarium}
 	<NavBar title="Bac introuvable" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />
 {:else}
-	<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }}>
-		{#snippet trailing()}
-			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={() => photoInput?.click()} disabled={uploading} aria-label="Ajouter une photo">
-				<Icon name="camera" size={24} />
-			</button>
-			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={() => (writing = true)} aria-label="Nouvelle note">
-				<Icon name="edit" size={23} />
-			</button>
-			<button class="btn-plain grid h-9 w-9 place-items-center" onclick={newEvent} aria-label="Nouvel événement">
-				<Icon name="plus" size={26} weight={2.2} />
-			</button>
-		{/snippet}
-		<TankTabs {aquarium} tab="journal" />
-	</NavBar>
 	<input bind:this={photoInput} type="file" accept="image/*" multiple class="hidden" onchange={upload} />
 
 	<div class="mt-4">

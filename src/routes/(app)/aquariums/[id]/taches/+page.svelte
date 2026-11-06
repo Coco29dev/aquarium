@@ -8,7 +8,7 @@
 	import { SHORT_WATER, fmt, lateBy, relativeDay, tankAge } from '$lib/ui';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
-	import TankTabs from '$lib/ios/TankTabs.svelte';
+	import { setTankActions } from '$lib/ios/tankHeader.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
@@ -141,6 +141,8 @@
 		if (ok) editing = null;
 	}
 
+	$effect(() => setTankActions(actions));
+
 	const kicker = $derived(
 		aquarium
 			? [SHORT_WATER[aquarium.waterType], aquarium.volumeL ? `${fmt(aquarium.volumeL, 0)} L` : null, tankAge(aquarium) != null ? `jour ${tankAge(aquarium)}` : null]
@@ -161,20 +163,18 @@
 	};
 </script>
 
+{#snippet actions()}
+	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={openAdd} aria-label="Nouvelle tâche">
+		<Icon name="plus" size={20} weight={2.4} />
+	</button>
+{/snippet}
+
 <svelte:head><title>Tâches · {aquarium?.name ?? 'Bac'} · Biotope</title></svelte:head>
 
 {#if !aquarium}
 	<NavBar title="Tâches" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />
 	<p class="subhead mt-10 text-center text-label2">Ce bac n’existe pas ou plus.</p>
 {:else}
-	<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }} {kicker}>
-		{#snippet trailing()}
-			<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={openAdd} aria-label="Nouvelle tâche">
-				<Icon name="plus" size={20} weight={2.4} />
-			</button>
-		{/snippet}
-		<TankTabs {aquarium} tab="taches" />
-	</NavBar>
 
 	<div class="mt-3"></div>
 

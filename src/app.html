@@ -21,6 +21,10 @@
 					var meta = document.querySelector('meta[name="theme-color"]');
 					if (meta) meta.setAttribute('content', scheme === 'dark' ? '#050b0e' : '#eef3f5');
 				}
+				try {
+					var accent = localStorage.getItem('accent');
+					if (accent) root.dataset.accent = accent;
+				} catch (e) {}
 				apply();
 				window.__applyTheme = apply;
 				media.addEventListener('change', apply);

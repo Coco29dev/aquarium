@@ -1,4 +1,5 @@
 import { store } from './store.svelte';
+import { DEFAULT_PROFILE, parseProfile, type Profile } from '$lib/domain/profile';
 
 interface Toast {
 	id: number;
@@ -32,6 +33,14 @@ function readTheme(): ThemePreference {
 	}
 }
 
+function readProfile(): Profile {
+	try {
+		return parseProfile(JSON.parse(localStorage.getItem('profile') ?? 'null'));
+	} catch {
+		return { ...DEFAULT_PROFILE };
+	}
+}
+
 /** État d'interface partagé : bannière avec « Annuler », alertes de confirmation, tâches cochées en sursis. */
 class Ui {
 	toast = $state<Toast | null>(null);
@@ -54,6 +63,54 @@ class Ui {
 		root.dataset.theme = theme;
 		root.dataset.scheme = dark ? 'dark' : 'light';
 		document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#050b0e' : '#eef3f5');
+	}
+
+	/** Profil personnel : copie locale (affichage immédiat, hors ligne), le serveur fait foi. */
+	profile = $state<Profile>(typeof window === 'undefined' ? { ...DEFAULT_PROFILE } : readProfile());
+
+	/** Récupère le profil du serveur (au lancement de l'appli) et l'applique. */
+	async loadProfile() {
+		try {
+			const res = await fetch('/api/settings/profile');
+			if (!res.ok) return;
+			const remote = parseProfile(await res.json());
+			// Un profil vide côté serveur ne doit pas effacer un profil local pas encore envoyé.
+			const hasRemote = remote.name || remote.level || remote.interest || remote.accent !== 'lagon';
+			if (hasRemote) this.#applyProfile(remote);
+			else if (this.profile.name || this.profile.level || this.profile.interest || this.profile.accent !== 'lagon') void this.#sendProfile();
+		} catch {
+			// Hors ligne : on garde la copie locale.
+		}
+	}
+
+	async setProfile(patch: Partial<Profile>) {
+		this.#applyProfile(parseProfile({ ...this.profile, ...patch }));
+		await this.#sendProfile();
+	}
+
+	#applyProfile(profile: Profile) {
+		this.profile = profile;
+		try {
+			localStorage.setItem('profile', JSON.stringify(profile));
+			if (profile.accent === 'lagon') localStorage.removeItem('accent');
+			else localStorage.setItem('accent', profile.accent);
+		} catch {
+			// Stockage indisponible : le profil vaut pour cette session.
+		}
+		if (profile.accent === 'lagon') delete document.documentElement.dataset.accent;
+		else document.documentElement.dataset.accent = profile.accent;
+	}
+
+	async #sendProfile() {
+		try {
+			await fetch('/api/settings/profile', {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(this.profile)
+			});
+		} catch {
+			// Renvoyé au prochain lancement tant que le serveur n'a rien.
+		}
 	}
 
 	#timer: ReturnType<typeof setTimeout> | undefined;

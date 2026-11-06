@@ -95,6 +95,20 @@
 		--dim: rgb(0 0 0 / 0.5);
 }
 
+/*
+ * Couleur d'accent choisie dans Mon profil (data-accent sur <html>, posé avant l'affichage par app.html).
+ * Le lagon est la couleur d'origine : aucun attribut. Chaque teinte garde un contraste AA en clair
+ * (texte et boutons) et reste lumineuse en sombre ; --on-tint est l'encre posée dessus.
+ */
+:root[data-accent='corail'] { --tint: #c93b2f; --blue: #c93b2f; }
+:root[data-accent='algue'] { --tint: #2a7448; --blue: #2a7448; }
+:root[data-accent='lilas'] { --tint: #7143c9; --blue: #7143c9; }
+:root[data-accent='ambre'] { --tint: #a85a05; --blue: #a85a05; }
+:root[data-scheme='dark'][data-accent='corail'] { --tint: #ff7a6b; --blue: #ff7a6b; }
+:root[data-scheme='dark'][data-accent='algue'] { --tint: #4ed07f; --blue: #4ed07f; }
+:root[data-scheme='dark'][data-accent='lilas'] { --tint: #b08cff; --blue: #b08cff; }
+:root[data-scheme='dark'][data-accent='ambre'] { --tint: #ffb04a; --blue: #ffb04a; }
+
 @theme inline {
 	--color-bg: var(--bg);
 	--color-bg2: var(--bg2);

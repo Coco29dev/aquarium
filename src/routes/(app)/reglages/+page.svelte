@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { LEVELS } from '$lib/domain/profile';
 	import { onMount } from 'svelte';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
@@ -113,17 +114,20 @@
 	</Tile>
 </section>
 
-<!-- Carte de l'appli, façon identifiant Apple -->
+<!-- Carte du profil, façon identifiant Apple -->
 <Section>
-	<li class="flex items-center gap-4 px-4 py-3">
-		<img src="/apple-touch-icon-180x180.png" alt="" class="h-[60px] w-[60px] rounded-[22%] shadow-[0_1px_3px_rgb(0_0_0/0.15)]" />
-		<div class="min-w-0 flex-1">
-			<p class="title3 font-semibold">Biotope</p>
-			<p class="subhead text-label2">
-				{tankCount} bac{tankCount > 1 ? 's' : ''}{store.lastSync ? ` · synchronisé à ${time(store.lastSync)}` : ''}
-			</p>
-		</div>
-	</li>
+	<Row href="/reglages/profil">
+		{#snippet leading()}
+			<span class="grid h-[60px] w-[60px] shrink-0 place-items-center rounded-full bg-tint text-[26px] font-bold text-on-tint" aria-hidden="true">
+				{ui.profile.name ? ui.profile.name.charAt(0).toUpperCase() : 'B'}
+			</span>
+		{/snippet}
+		<p class="title3 font-semibold">{ui.profile.name || 'Mon profil'}</p>
+		<p class="subhead text-label2">
+			{ui.profile.name || ui.profile.level ? (LEVELS.find((l) => l.value === ui.profile.level)?.label ?? 'Fais connaissance avec Biotope') : 'Prénom, niveau, couleur : fais connaissance'}
+			· {tankCount} bac{tankCount > 1 ? 's' : ''}{store.lastSync ? ` · synchronisé à ${time(store.lastSync)}` : ''}
+		</p>
+	</Row>
 </Section>
 
 <Section>

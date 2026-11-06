@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
+	import SpeciesBrowser from '$lib/components/SpeciesBrowser.svelte';
+	import SpeciesPreview from '$lib/components/SpeciesPreview.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import TankTabs from '$lib/ios/TankTabs.svelte';
@@ -14,7 +16,7 @@
 	import { ui } from '$lib/client/ui.svelte';
 	import { api, createResource, deleteResource, listResource, toNumber, toText, updateResource } from '$lib/client/api';
 	import { consumableLife } from '$lib/domain/consumables';
-	import { speciesName, type StockItem } from '$lib/domain/species';
+	import { speciesName, type StockItem, type TankContext } from '$lib/domain/species';
 	import { compareWithTank, stockRanges } from '$lib/domain/ranges';
 	import { dayInParis, daysBetween } from '$lib/domain/dates';
 	import { fmt } from '$lib/ui';
@@ -185,10 +187,28 @@
 	let quantity = $state(1);
 	let arrivedOn = $state(today);
 
+	let manual = $state(false);
+	let browserKind = $state<'tout' | 'poisson' | 'plante'>('tout');
+
+	const tankContext = $derived<TankContext | undefined>(
+		aquarium
+			? {
+					waterType: aquarium.waterType,
+					volumeL: aquarium.volumeL,
+					tempMin: tankParameters.find((p) => p.key === 'temp')?.min,
+					tempMax: tankParameters.find((p) => p.key === 'temp')?.max,
+					phMin: tankParameters.find((p) => p.key === 'ph')?.min,
+					phMax: tankParameters.find((p) => p.key === 'ph')?.max
+				}
+			: undefined
+	);
+
 	function openAdd(k: 'faune' | 'flore') {
 		kind = k;
+		browserKind = k === 'flore' ? 'plante' : 'tout';
 		speciesText = '';
 		pickedSpecies = null;
+		manual = false;
 		quantity = 1;
 		arrivedOn = today;
 		adding = true;
@@ -196,7 +216,13 @@
 	function pick(species: Species) {
 		pickedSpecies = species;
 		speciesText = speciesName(species);
-		if (species.kind === 'plante') kind = 'flore';
+		kind = species.kind === 'plante' ? 'flore' : 'faune';
+		quantity = species.groupMin && species.groupMin > 1 && species.kind === 'poisson' ? species.groupMin : 1;
+	}
+	function backToBrowse() {
+		browserKind = kind === 'flore' ? 'plante' : 'tout';
+		pickedSpecies = null;
+		manual = false;
 	}
 	async function addInhabitant() {
 		if (!speciesText.trim()) return;
@@ -445,42 +471,74 @@
 		{/if}
 	</Sheet>
 
-	<!-- Ajout d'un habitant -->
+	<!-- Ajout d'un habitant : parcours de la base, fiche, puis quantité -->
 	<Sheet
 		open={adding}
-		title={kind === 'flore' ? 'Nouvelle plante' : 'Nouvel animal'}
+		title={pickedSpecies || manual ? (kind === 'flore' ? 'Nouvelle plante' : 'Nouvel animal') : 'Choisir une espèce'}
 		onclose={() => (adding = false)}
-		action={{ label: 'Ajouter', onclick: addInhabitant, disabled: !speciesText.trim() }}
+		action={pickedSpecies || manual ? { label: 'Ajouter', onclick: addInhabitant, disabled: !speciesText.trim() } : undefined}
 	>
-		<div class="mb-6">
-			<Segmented
-				label="Type"
-				options={[
-					{ value: 'faune', label: 'Animal' },
-					{ value: 'flore', label: 'Plante' }
-				]}
-				bind:value={kind}
+		{#if pickedSpecies}
+			<button type="button" class="btn-plain mb-3 -ml-2 inline-flex items-center gap-1" onclick={backToBrowse}>
+				<Icon name="back" size={18} weight={2.2} /> Autre espèce
+			</button>
+			<div class="mb-6"><SpeciesPreview species={pickedSpecies} tank={tankContext} /></div>
+			<Section>
+				<Row title="Quantité" subtitle={pickedSpecies.groupMin && pickedSpecies.groupMin > 1 ? `Banc de ${pickedSpecies.groupMin} minimum conseillé` : undefined}>
+					{#snippet trailing()}
+						<span class="rounded-num headline w-10 text-right">{quantity}</span>
+						<StepButtons label="Quantité" onminus={() => (quantity = Math.max(1, quantity - 1))} onplus={() => (quantity += 1)} minusDisabled={quantity <= 1} />
+					{/snippet}
+				</Row>
+				<Row title="Arrivée">
+					{#snippet trailing()}
+						<input type="date" bind:value={arrivedOn} max={today} class="body rounded-lg bg-fill3 px-2 py-1 outline-none" aria-label="Date d’arrivée" />
+					{/snippet}
+				</Row>
+			</Section>
+		{:else if manual}
+			<button type="button" class="btn-plain mb-3 -ml-2 inline-flex items-center gap-1" onclick={backToBrowse}>
+				<Icon name="back" size={18} weight={2.2} /> Parcourir la base
+			</button>
+			<div class="mb-6">
+				<Segmented
+					label="Type"
+					options={[
+						{ value: 'faune', label: 'Animal' },
+						{ value: 'flore', label: 'Plante' }
+					]}
+					bind:value={kind}
+				/>
+			</div>
+			<Section header="Nom" footer="Sans fiche reliée, pas de contrôle de compatibilité : tu pourras la relier plus tard.">
+				<li class="flex min-h-11 items-center px-4">
+					<input class="body min-w-0 flex-1 bg-transparent py-2.5 outline-none placeholder:text-label3" placeholder="Nom de l’espèce" bind:value={speciesText} aria-label="Nom de l’espèce" />
+				</li>
+			</Section>
+			<Section>
+				<Row title="Quantité">
+					{#snippet trailing()}
+						<span class="rounded-num headline w-10 text-right">{quantity}</span>
+						<StepButtons label="Quantité" onminus={() => (quantity = Math.max(1, quantity - 1))} onplus={() => (quantity += 1)} minusDisabled={quantity <= 1} />
+					{/snippet}
+				</Row>
+				<Row title="Arrivée">
+					{#snippet trailing()}
+						<input type="date" bind:value={arrivedOn} max={today} class="body rounded-lg bg-fill3 px-2 py-1 outline-none" aria-label="Date d’arrivée" />
+					{/snippet}
+				</Row>
+			</Section>
+		{:else if adding}
+			<SpeciesBrowser
+				onpick={pick}
+				onmanual={(text) => {
+					speciesText = text;
+					manual = true;
+				}}
+				tank={tankContext}
+				initialKind={browserKind}
 			/>
-		</div>
-		<Section header="Espèce" footer={pickedSpecies ? 'Fiche reliée : elle servira aux compatibilités et à la charge biologique.' : 'Cherche dans la base, ou écris simplement un nom.'}>
-			<li class="flex min-h-11 items-center px-4">
-				<input class="body min-w-0 flex-1 bg-transparent py-2.5 outline-none placeholder:text-label3" placeholder="Nom" bind:value={speciesText} oninput={() => (pickedSpecies = null)} aria-label="Nom de l’espèce" />
-			</li>
-		</Section>
-		<div class="mb-8"><SpeciesPicker onpick={pick} placeholder="Chercher dans la base d’espèces" /></div>
-		<Section>
-			<Row title="Quantité">
-				{#snippet trailing()}
-					<span class="rounded-num headline w-10 text-right">{quantity}</span>
-					<StepButtons label="Quantité" onminus={() => (quantity = Math.max(1, quantity - 1))} onplus={() => (quantity += 1)} minusDisabled={quantity <= 1} />
-				{/snippet}
-			</Row>
-			<Row title="Arrivée">
-				{#snippet trailing()}
-					<input type="date" bind:value={arrivedOn} max={today} class="body rounded-lg bg-fill3 px-2 py-1 outline-none" aria-label="Date d’arrivée" />
-				{/snippet}
-			</Row>
-		</Section>
+		{/if}
 	</Sheet>
 
 	<!-- Ajout de matériel -->

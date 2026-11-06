@@ -295,3 +295,11 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - Liste des bacs : section « En eau », bac à ajouter en ligne pointillée (la tuile Encyclopédie, redondante avec l'onglet Savoir, est retirée).
 - Fiche d'un bac : paramètres juste après l'état et la saisie, rangés par deux (les valeurs en alerte prennent toute la largeur), puis entretien, puis tuiles Journal et Aide.
 - Savoir : bascule Guides / Espèces ; Guides = pour commencer, dépannage, thèmes ; Espèces = mosaïque et idées de peuplement.
+
+## V2, lot 9 : encyclopédie enrichie et ajout d'un habitant depuis la base
+
+- **Formulaire d'ajout refait** (fiche d'un bac › Vivants › Ajouter un animal / une plante) : plus de saisie obligatoire d'un nom. `components/SpeciesBrowser.svelte` parcourt la base (catégories Tout / Poissons / Invertébrés / Coraux ou Plantes selon l'eau du bac, recherche sans accents, pagination « Voir plus », base complète FishBase en option), avec vignette photo et pastille d'adéquation au bac (« Convient », « Bac juste », « À régler », « Autre eau »…). Un appui ouvre `SpeciesPreview.svelte` : photo, repères, adéquation détaillée, description, conseils, puis quantité (préremplie avec la taille de groupe conseillée) et date d'arrivée. La saisie à la main reste possible en dernier recours.
+- `domain/species.ts › speciesFit` : volume, température, pH et eau du bac comparés à la fiche (6 tests). N'avertit que si les données existent.
+- `/api/species` : paramètres `limit` (60 au plus) et `offset` ; tri de parcours = fiches illustrées, faciles puis alphabétique ; en recherche, nom commençant par la saisie d'abord.
+- **Noyau** : fichiers `data/core/patch-*.jsonl` (fusion par nom latin avec la fiche de base, `readCore` et `check-core.mjs`) pour enrichir sans réécrire ; les 260 fiches marines qui n'avaient ni provenance ni conseils en ont maintenant, avec des descriptions plus complètes. Nouveaux fichiers `14` à `17` : ~130 espèces (poissons et invertébrés marins, coraux, macroalgues, plantes d'eau froide et de bassin, invertébrés et poissons d'eau douce). Noms latins contrôlés avec `scripts/verify-names.mjs` (synonymes remplacés par le nom accepté, doublons écartés). Espèces sur la liste de l'Union européenne des espèces exotiques envahissantes volontairement absentes.
+- Toutes les fiches restent `data_quality = 'claude'` : à relire.

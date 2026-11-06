@@ -71,3 +71,20 @@ test('l’écran de l’assistant s’ouvre', async ({ page }) => {
 	await page.goto('/assistant');
 	await expect(page.getByRole('log')).toBeVisible();
 });
+
+test('ajouter un poisson depuis la base : recherche, fiche, ajout', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	const res = await page.request.post('/api/aquariums', {
+		headers: { origin: 'http://localhost:5188' },
+		data: { name: 'Base', waterType: 'douce', volumeL: 200, startedOn: day(-60), stage: 'actif', tasks: [], measurements: [], inhabitants: [], projectItems: [] }
+	});
+	const { id } = await res.json();
+	await page.goto(`/aquariums/${id}/inventaire`);
+	await page.getByRole('button', { name: 'Ajouter un animal' }).click();
+	await page.getByPlaceholder('Nom commun ou latin').fill('neon bleu');
+	await page.getByRole('button', { name: /Néon bleu/ }).first().click();
+	await expect(page.getByText('Conseils d’élevage')).toBeVisible();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(page.getByText('Néon bleu').first()).toBeVisible();
+});

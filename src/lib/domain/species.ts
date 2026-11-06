@@ -210,3 +210,66 @@ export const BIOLOAD_LABELS: Record<BioloadLevel, string> = {
 	limite: 'À la limite',
 	surcharge: 'Surcharge'
 };
+
+// --- Adéquation d'une espèce avec un bac (sélecteur d'ajout) -------------------------------
+
+export interface FitNote {
+	level: 'ok' | 'attention' | 'bloquant';
+	text: string;
+}
+
+export interface TankFit {
+	level: 'ok' | 'attention' | 'bloquant' | 'inconnu';
+	/** Courte étiquette pour une pastille : « Convient », « Bac petit »… */
+	label: string;
+	notes: FitNote[];
+}
+
+const fmtNum = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+
+/**
+ * Premier filtre rapide : l'espèce convient-elle à l'eau, au volume, à la température et au pH du bac ?
+ * Ne remplace pas `checkCompatibility` (qui compare les habitants entre eux) : sert à guider le choix.
+ */
+export function speciesFit(
+	s: Pick<Species, 'fresh' | 'salt' | 'brackish' | 'minTankL' | 'maxLengthCm' | 'tempMin' | 'tempMax' | 'phMin' | 'phMax' | 'reefSafe' | 'kind'>,
+	tank: TankContext
+): TankFit {
+	const notes: FitNote[] = [];
+	const salt = isSaltTank(tank.waterType);
+	if (salt && !s.salt && (s.fresh || s.brackish)) notes.push({ level: 'bloquant', text: 'Espèce d’eau douce : elle ne supporte pas l’eau de mer.' });
+	if (!salt && !(s.fresh || s.brackish) && s.salt) notes.push({ level: 'bloquant', text: 'Espèce d’eau de mer : elle ne vit pas en eau douce.' });
+	if (tank.waterType === 'recif' && s.reefSafe === false) notes.push({ level: 'attention', text: 'Pas sûr pour un récif : peut s’attaquer aux coraux ou aux invertébrés.' });
+
+	const need = s.kind === 'plante' ? null : (s.minTankL ?? estimateMinTankL(s.maxLengthCm));
+	if (need && tank.volumeL) {
+		if (tank.volumeL < need * 0.7) notes.push({ level: 'bloquant', text: `Trop petit : il lui faut au moins ${fmtNum(need)} L (bac de ${fmtNum(tank.volumeL)} L).` });
+		else if (tank.volumeL < need) notes.push({ level: 'attention', text: `Un peu juste : ${fmtNum(need)} L conseillés (bac de ${fmtNum(tank.volumeL)} L).` });
+	}
+
+	const tankTemp = range(tank.tempMin, tank.tempMax);
+	const sTemp = range(s.tempMin, s.tempMax);
+	if (tankTemp && sTemp) {
+		const o = overlap(tankTemp[0], tankTemp[1], sTemp[0], sTemp[1]);
+		if (o < 0) notes.push({ level: 'bloquant', text: `Température : elle préfère ${fmtNum(sTemp[0])}–${fmtNum(sTemp[1])} °C, le bac vise ${fmtNum(tankTemp[0])}–${fmtNum(tankTemp[1])} °C.` });
+		else if (tankTemp[0] < sTemp[0] || tankTemp[1] > sTemp[1]) notes.push({ level: 'attention', text: `Température à régler sur ${fmtNum(Math.max(tankTemp[0], sTemp[0]))}–${fmtNum(Math.min(tankTemp[1], sTemp[1]))} °C.` });
+	}
+	const tankPh = range(tank.phMin, tank.phMax);
+	const sPh = range(s.phMin, s.phMax);
+	if (tankPh && sPh && s.kind !== 'corail') {
+		const o = overlap(tankPh[0], tankPh[1], sPh[0], sPh[1]);
+		if (o < 0) notes.push({ level: 'bloquant', text: `pH : elle préfère ${fmtNum(sPh[0])}–${fmtNum(sPh[1])}, le bac vise ${fmtNum(tankPh[0])}–${fmtNum(tankPh[1])}.` });
+		else if (tankPh[0] < sPh[0] || tankPh[1] > sPh[1]) notes.push({ level: 'attention', text: `pH à garder entre ${fmtNum(Math.max(tankPh[0], sPh[0]))} et ${fmtNum(Math.min(tankPh[1], sPh[1]))}.` });
+	}
+
+	if (notes.some((n) => n.level === 'bloquant')) {
+		const first = notes.find((n) => n.level === 'bloquant')!;
+		const label = /Trop petit/.test(first.text) ? 'Bac trop petit' : /eau/i.test(first.text) && /Espèce/.test(first.text) ? 'Autre eau' : 'Incompatible';
+		return { level: 'bloquant', label, notes };
+	}
+	if (notes.length) return { level: 'attention', label: /Un peu juste/.test(notes[0].text) ? 'Bac juste' : 'À régler', notes };
+	const informed = Boolean((need && tank.volumeL) || (tankTemp && sTemp) || (tankPh && sPh));
+	if (!informed) return { level: 'inconnu', label: '', notes };
+	notes.push({ level: 'ok', text: 'Volume, température et pH compatibles avec ce bac.' });
+	return { level: 'ok', label: 'Convient', notes };
+}

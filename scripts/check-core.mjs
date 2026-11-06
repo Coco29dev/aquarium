@@ -20,6 +20,8 @@ const unmatched = [];
 let total = 0;
 const byKind = {};
 
+// Lecture : les fichiers « patch-*.jsonl » enrichissent une fiche existante (fusion par nom latin).
+const items = [];
 for (const file of files) {
 	const lines = (await readFile(`data/core/${file}`, 'utf8')).split('\n');
 	lines.forEach((line, i) => {
@@ -32,6 +34,18 @@ for (const file of files) {
 			errors.push(`${where} JSON invalide`);
 			return;
 		}
+		if (file.startsWith('patch-')) {
+			const base = items.find((x) => x.e.s?.toLowerCase() === e.s?.toLowerCase());
+			if (!base) errors.push(`${where} ${e.s ?? '?'} : patch sans fiche de base`);
+			else Object.assign(base.e, e);
+			return;
+		}
+		items.push({ e, where, file });
+	});
+}
+
+for (const { e, where, file } of items) {
+	{
 		total++;
 		const bad = (msg) => errors.push(`${where} ${e.s ?? '?'} : ${msg}`);
 		for (const k of Object.keys(e)) if (!KEYS.has(k)) bad(`clé inconnue « ${k} »`);
@@ -62,7 +76,7 @@ for (const file of files) {
 		else seen.set(key, where);
 		byKind[e.k] = (byKind[e.k] ?? 0) + 1;
 		if (e.k !== 'plante' && !known.has(key)) unmatched.push(`${e.s} (${file})`);
-	});
+	}
 }
 
 console.log(`${total} fiches`, byKind);

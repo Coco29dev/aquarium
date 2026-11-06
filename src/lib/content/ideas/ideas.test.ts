@@ -17,7 +17,7 @@ for (const file of readdirSync('data/core').filter((f) => f.endsWith('.jsonl')))
 	for (const line of readFileSync(`data/core/${file}`, 'utf8').split('\n')) {
 		if (line.trim()) {
 			const e = JSON.parse(line) as Core;
-			core.set(e.s.toLowerCase(), e);
+			core.set(e.s.toLowerCase(), file.startsWith('patch-') ? { ...core.get(e.s.toLowerCase()), ...e } : e);
 		}
 	}
 }

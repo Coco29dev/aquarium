@@ -77,6 +77,7 @@ export async function searchSpecies(opts: {
 	/** Noms latins exacts (insensible à la casse) : sert aux idées de peuplement. */
 	names?: string[];
 	limit?: number;
+	offset?: number;
 	/** Inclut la base brute (espèces hors noyau). */
 	all?: boolean;
 }) {
@@ -102,10 +103,22 @@ export async function searchSpecies(opts: {
 	if (opts.water === 'douce') where.push('fresh');
 	if (opts.water === 'mer') where.push('salt');
 	const limit = Math.min(opts.limit ?? 40, 200);
+	const offset = Math.max(0, Math.floor(opts.offset ?? 0));
+	// Parcours : fiches illustrées et faciles d'abord. Recherche : le nom qui commence par la saisie d'abord.
+	let rank = '';
+	if (opts.q) {
+		const start = opts.q.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[%_\\]/g, '\\$&');
+		params.push(`${start}%`);
+		const n = params.length;
+		const fold = (column: string) =>
+			`translate(lower(coalesce(${column}, '')), 'àâäáãéèêëíìîïóòôöõúùûüýÿçñœ', 'aaaaaeeeeiiiiooooouuuuyycno')`;
+		rank = `(${fold('name_fr')} ILIKE $${n} OR ${fold('scientific_name')} ILIKE $${n}) DESC, `;
+	}
 	const { rows } = await db().query<Species>(
 		`SELECT ${SELECT} FROM species ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-		 ORDER BY curated DESC, (source = 'maison') DESC, (name_fr IS NOT NULL) DESC, (name_en IS NOT NULL) DESC, scientific_name
-		 LIMIT ${limit}`,
+		 ORDER BY curated DESC, ${rank}(source = 'maison') DESC, (photo_key IS NOT NULL) DESC, (name_fr IS NOT NULL) DESC,
+		   COALESCE(difficulty, 4), (name_en IS NOT NULL) DESC, COALESCE(name_fr, name_en, scientific_name), scientific_name
+		 LIMIT ${limit} OFFSET ${offset}`,
 		params
 	);
 	return rows;
@@ -272,8 +285,18 @@ export async function readCore(): Promise<{ version: string; entries: CoreEntry[
 	for (const file of files) {
 		const raw = await readFile(path.join(dir, file), 'utf8');
 		hash.update(file).update(raw);
+		// Fichiers « patch-*.jsonl » : enrichissent une fiche existante (même nom latin, champs partiels).
+		const isPatch = file.startsWith('patch-');
 		for (const line of raw.split('\n')) {
-			if (line.trim()) entries.push(JSON.parse(line) as CoreEntry);
+			if (!line.trim()) continue;
+			const entry = JSON.parse(line) as CoreEntry;
+			if (!isPatch) {
+				entries.push(entry);
+				continue;
+			}
+			const base = entries.find((e) => e.s.toLowerCase() === entry.s.toLowerCase());
+			if (base) Object.assign(base, entry);
+			else console.warn(`[espèces] patch sans fiche de base : ${entry.s}`);
 		}
 	}
 	return { version: hash.digest('hex').slice(0, 12), entries };

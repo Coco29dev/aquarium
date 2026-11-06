@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bioload, checkCompatibility, estimateMinTankL, speciesBioloadG, type TankContext } from './species';
+import { bioload, checkCompatibility, estimateMinTankL, speciesBioloadG, speciesFit, type TankContext } from './species';
 import { consumableLife } from './consumables';
 import type { Species } from '../types';
 
@@ -220,5 +220,31 @@ describe('durée de vie des consommables', () => {
 
 	it('statut inconnu sans date ni fréquence', () => {
 		expect(consumableLife({ installedOn: null, replaceEveryDays: null, unitPrice: null }, [], '2026-10-30').status).toBe('inconnu');
+	});
+});
+
+describe('speciesFit', () => {
+	const tank: TankContext = { waterType: 'douce', volumeL: 100, tempMin: 24, tempMax: 26, phMin: 6.5, phMax: 7.5 };
+	it('convient quand tout correspond', () => {
+		const f = speciesFit(species({ minTankL: 60, tempMin: 22, tempMax: 28, phMin: 6, phMax: 7.8 }), tank);
+		expect(f.level).toBe('ok');
+	});
+	it('refuse une espèce de mer en eau douce', () => {
+		const f = speciesFit(species({ fresh: false, salt: true }), tank);
+		expect(f.level).toBe('bloquant');
+	});
+	it('signale un bac trop petit ou juste', () => {
+		expect(speciesFit(species({ minTankL: 300 }), tank).label).toBe('Bac trop petit');
+		expect(speciesFit(species({ minTankL: 120 }), tank).label).toBe('Bac juste');
+	});
+	it('signale une température à régler', () => {
+		const f = speciesFit(species({ tempMin: 20, tempMax: 25 }), tank);
+		expect(f.level).toBe('attention');
+	});
+	it('ignore le volume pour une plante', () => {
+		expect(speciesFit(species({ kind: 'plante', maxLengthCm: 80, minTankL: null }), tank).level).not.toBe('bloquant');
+	});
+	it('reste muet sans données', () => {
+		expect(speciesFit(species({ maxLengthCm: null }), { waterType: 'douce', volumeL: null }).level).toBe('inconnu');
 	});
 });

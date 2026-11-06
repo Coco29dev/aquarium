@@ -25,7 +25,12 @@ export const GET: RequestHandler = async ({ url }) => {
 			names: names.length ? names : undefined,
 			all: url.searchParams.get('all') === '1',
 			// Sans critère, ne renvoie que les espèces maison pour ne pas lister 9 000 lignes.
-			limit: ids.length ? ids.length : names.length ? names.length * 2 : 40
+			offset: Number(url.searchParams.get('offset')) || 0,
+			limit: ids.length
+				? ids.length
+				: names.length
+					? names.length * 2
+					: Math.min(Math.max(Number(url.searchParams.get('limit')) || 40, 1), 60)
 		})
 	);
 };

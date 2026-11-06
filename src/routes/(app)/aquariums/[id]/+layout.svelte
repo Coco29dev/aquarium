@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { goBack } from '$lib/client/nav';
@@ -8,6 +10,10 @@
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import TankTabs, { type TankTab } from '$lib/ios/TankTabs.svelte';
 	import { tankHeader } from '$lib/ios/tankHeader.svelte';
+	import Overview from '$lib/tank/Overview.svelte';
+	import Tasks from '$lib/tank/Tasks.svelte';
+	import Living from '$lib/tank/Living.svelte';
+	import Journal from '$lib/tank/Journal.svelte';
 
 	let { children } = $props();
 
@@ -17,10 +23,32 @@
 	 * Les sous-écrans (réglages, projet, paramètre…) gardent leur propre barre.
 	 */
 	const id = $derived(Number(page.params.id));
-	const tab = $derived.by((): TankTab | null => {
-		const sub = page.url.pathname.replace(/\/$/, '').slice(`/aquariums/${id}`.length);
-		return ({ '': 'suivi', '/taches': 'taches', '/inventaire': 'vivants', '/journal': 'journal' } as Record<string, TankTab>)[sub] ?? null;
+	const PATHS: Record<TankTab, string> = { suivi: '', taches: '/taches', vivants: '/inventaire', journal: '/journal' };
+	const TITLES: Record<TankTab, string> = { suivi: 'Suivi', taches: 'Tâches', vivants: 'Vivants', journal: 'Journal' };
+	const tabOfPath = (pathname: string): TankTab | null => {
+		const sub = pathname.replace(/\/$/, '').slice(`/aquariums/${id}`.length);
+		return (Object.keys(PATHS) as TankTab[]).find((t) => PATHS[t] === sub) ?? null;
+	};
+
+	// Un seul écran : changer d'onglet ne navigue pas, il remplace le contenu sous le bandeau.
+	// L'adresse suit (replaceState) pour que le lien, l'actualisation et les notifications retombent au bon endroit.
+	let tab = $state<TankTab | null>(tabOfPath(page.url.pathname));
+	/** Onglets déjà ouverts : gardés en vie (masqués) pour un retour instantané, sans recharger. */
+	let opened = $state<TankTab[]>([]);
+	$effect(() => {
+		// Navigation classique vers un onglet (lien, bouton retour, notification) : on s'aligne sur l'adresse.
+		const next = tabOfPath(page.url.pathname);
+		// untrack : seul un changement d'adresse réaligne l'onglet (pas le choix qu'on vient de faire).
+		if (next !== untrack(() => tab)) tab = next;
 	});
+	$effect(() => {
+		if (tab && !opened.includes(tab)) opened = [...opened, tab];
+	});
+	function select(next: TankTab) {
+		tab = next;
+		replaceState(`/aquariums/${id}${PATHS[next]}`, page.state);
+		if (scrollY > 0) window.scrollTo({ top: 0 });
+	}
 	const aquarium = $derived(store.view?.aquariums.find((a) => a.id === id));
 	// Un bac en projet n'a pas de suivi : l'écran de projet prend le relais.
 	const shown = $derived(Boolean(aquarium && tab && stageOf(aquarium) !== 'projet'));
@@ -35,6 +63,11 @@
 		return () => removeEventListener('scroll', update);
 	});
 	const past = $derived(heroH > 0 && scrollY > heroH - 100);
+
+	// Un bac en projet n'a pas de suivi : l'écran de projet prend le relais.
+	$effect(() => {
+		if (aquarium && tab && stageOf(aquarium) === 'projet') void goto(`/aquariums/${id}/projet`, { replaceState: true });
+	});
 
 	const kicker = $derived(
 		aquarium
@@ -92,7 +125,7 @@
 				<h1 class="large-title break-words drop-shadow-[0_1px_8px_rgb(0_0_0/0.35)]">{aquarium.name}</h1>
 			</div>
 		</div>
-		<div class="mt-3"><TankTabs {aquarium} {tab} /></div>
+		<div class="mt-3"><TankTabs {aquarium} {tab} onselect={select} /></div>
 	{:else}
 		<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }} {kicker}>
 			{#snippet trailing()}
@@ -105,7 +138,7 @@
 					</a>
 				</div>
 			{/snippet}
-			<TankTabs {aquarium} {tab} />
+			<TankTabs {aquarium} {tab} onselect={select} />
 		</NavBar>
 	{/if}
 
@@ -114,4 +147,29 @@
 	{/if}
 {/if}
 
-{@render children()}
+<svelte:head><title>{tab ? `${TITLES[tab]} · ${aquarium?.name ?? 'Bac'} · Biotope` : 'Bac · Biotope'}</title></svelte:head>
+
+{#if tab}
+	{#key id}
+	{#each opened as t (t)}
+		<div class="tank-panel" hidden={t !== tab}>
+			{#if t === 'suivi'}<Overview />{:else if t === 'taches'}<Tasks active={tab === 'taches'} />{:else if t === 'vivants'}<Living />{:else}<Journal active={tab === 'journal'} />{/if}
+		</div>
+	{/each}
+	{/key}
+{:else}
+	{@render children()}
+{/if}
+
+<style>
+	.tank-panel:not([hidden]) {
+		/* « backwards » seulement : une animation qui reste active crée un contexte d'empilement et
+		   passerait les feuilles (Sheet) de l'onglet sous la barre de navigation. */
+		animation: fade-in 180ms ease-out backwards;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.tank-panel:not([hidden]) {
+			animation: none;
+		}
+	}
+</style>

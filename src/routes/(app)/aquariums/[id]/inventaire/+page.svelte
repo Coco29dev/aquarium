@@ -8,7 +8,6 @@
 	import SpeciesThumb from '$lib/components/SpeciesThumb.svelte';
 	import { shrinkImage } from '$lib/client/image';
 	import NavBar from '$lib/ios/NavBar.svelte';
-	import TankTabs from '$lib/ios/TankTabs.svelte';
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Sheet from '$lib/ios/Sheet.svelte';
@@ -340,10 +339,6 @@
 {#if !aquarium}
 	<NavBar title="Bac introuvable" back={{ href: '/aquariums', label: 'Bacs' }} large={false} />
 {:else}
-	<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }}>
-		<TankTabs {aquarium} tab="vivants" />
-	</NavBar>
-
 	<div class="mt-4">
 		{#if message}
 			<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>

@@ -120,3 +120,24 @@ test('habitant : photo perso, puis retour depuis la fiche d’espèce vers le ba
 	await page.getByRole('button', { name: /Retour/ }).click();
 	await page.waitForURL(`**/aquariums/${id}/inventaire`);
 });
+
+test('fiche d’un bac : le bandeau reste en place d’un onglet à l’autre', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	const res = await page.request.post('/api/aquariums', {
+		headers: { origin: 'http://localhost:5188' },
+		data: { name: 'Bandeau', waterType: 'douce', volumeL: 100, startedOn: day(-60), stage: 'actif', tasks: [], measurements: [], inhabitants: [], projectItems: [] }
+	});
+	const { id } = await res.json();
+	await page.goto(`/aquariums/${id}`);
+	const title = page.getByRole('heading', { name: 'Bandeau', level: 1 });
+	await expect(title).toBeVisible();
+	const handle = await title.elementHandle();
+	for (const [name, path] of [['Vivants', '/inventaire'], ['Journal', '/journal'], ['Tâches', '/taches'], ['Suivi', '']] as const) {
+		await page.getByRole('radio', { name }).click();
+		await page.waitForURL(`**/aquariums/${id}${path}`);
+		await expect(title).toBeVisible();
+		// Même élément DOM : l'en-tête n'a pas été recréé.
+		expect(await handle!.evaluate((el) => el.isConnected)).toBe(true);
+	}
+});

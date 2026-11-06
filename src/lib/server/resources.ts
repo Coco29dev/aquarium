@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { db } from './db';
+import { deleteObject } from './storage';
 import { onInhabitantCreated, onInhabitantUpdated, parseDepartureCause, readInhabitant } from './events';
 
 // CRUD déclaratif pour l'inventaire, les dépenses et les notes. Les noms de tables et de colonnes
@@ -13,6 +14,8 @@ interface Field {
 	required?: boolean;
 	values?: string[];
 	max?: number;
+	/** Lu seulement : jamais écrit par la ressource (géré par une route dédiée). */
+	readonly?: boolean;
 }
 
 export interface Resource {
@@ -40,7 +43,8 @@ export const RESOURCES: Record<string, Resource> = {
 			speciesId: { column: 'species_id', type: 'int' },
 			arrivedOn: date('arrived_on'),
 			leftOn: date('left_on'),
-			notes: text('notes', false, 1000)
+			notes: text('notes', false, 1000),
+			photoKey: { column: 'photo_key', type: 'text', readonly: true }
 		}
 	},
 	equipment: {
@@ -122,6 +126,7 @@ type Body = Record<string, unknown>;
 function parse(resource: Resource, body: Body, creating: boolean): Map<string, unknown> {
 	const out = new Map<string, unknown>();
 	for (const [key, field] of Object.entries(resource.fields)) {
+		if (field.readonly) continue;
 		const present = key in body;
 		const raw = body[key];
 		const empty = raw === undefined || raw === null || raw === '';
@@ -215,5 +220,10 @@ export async function updateResource(name: string, id: number, body: Body): Prom
 
 export async function deleteResource(name: string, id: number): Promise<void> {
 	const r = resourceOf(name);
-	await db().query(`DELETE FROM ${r.table} WHERE id = $1`, [id]);
+	const { rows } = await db().query<{ photo_key?: string | null }>(
+		`DELETE FROM ${r.table} WHERE id = $1 RETURNING ${name === 'inhabitants' ? 'photo_key' : 'id'}`,
+		[id]
+	);
+	// La photo personnelle d'un habitant vit dans le bucket : on la retire avec lui.
+	if (rows[0]?.photo_key) await deleteObject(rows[0].photo_key).catch(() => {});
 }

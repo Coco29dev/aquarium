@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goBack } from '$lib/client/nav';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -260,8 +261,7 @@
 
 	const dirty = $derived(d.stage !== null && (d.name.trim() !== '' || d.habitants.length > 0 || d.wishes.length > 0 || d.custom.length > 0 || equipChosen));
 	function leave() {
-		if (history.length > 1) history.back();
-		else void goto('/aquariums', { replaceState: true });
+		goBack('/aquariums');
 	}
 	async function cancel() {
 		if (dirty) {

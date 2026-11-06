@@ -11,6 +11,7 @@
 	import SearchField from '$lib/ios/SearchField.svelte';
 	import Switch from '$lib/ios/Switch.svelte';
 	import { api } from '$lib/client/api';
+	import { canGoBack } from '$lib/client/nav';
 	import { ui } from '$lib/client/ui.svelte';
 	import { speciesName } from '$lib/domain/species';
 	import { IDEAS } from '$lib/content/ideas';
@@ -24,6 +25,8 @@
 	let results = $state<Species[]>([]);
 	let loading = $state(false);
 	let selected = $state<Species | null>(null);
+	/** Fiche ouverte par un lien (?id=) depuis un autre écran : « retour » y revient au lieu d'afficher la liste. */
+	let deepLinked = $state(false);
 	let editing = $state(false);
 	let adding = $state(false);
 	let busy = $state(false);
@@ -61,7 +64,10 @@
 		if (w === 'douce' || w === 'mer') water = w;
 		void search();
 		const id = Number(params.get('id'));
-		if (Number.isInteger(id) && id > 0) void open(id);
+		if (Number.isInteger(id) && id > 0) {
+			deepLinked = canGoBack();
+			void open(id);
+		}
 	});
 
 	async function open(id: number) {
@@ -73,6 +79,11 @@
 		} catch (e) {
 			message = (e as Error).message;
 		}
+	}
+
+	function closeSheet() {
+		if (deepLinked) history.back();
+		else selected = null;
 	}
 
 	async function saved(id: number) {
@@ -161,8 +172,8 @@
 	{@const rows = facts(s)}
 	<NavBar title={speciesName(s)} large={false}>
 		{#snippet leading()}
-			<button class="btn-plain -ml-0.5 flex items-center gap-0.5 pr-2" onclick={() => (selected = null)}>
-				<Icon name="back" size={26} weight={2.4} />Espèces
+			<button class="btn-plain -ml-0.5 flex items-center gap-0.5 pr-2" onclick={closeSheet}>
+				<Icon name="back" size={26} weight={2.4} />{deepLinked ? 'Retour' : 'Espèces'}
 			</button>
 		{/snippet}
 		{#snippet trailing()}

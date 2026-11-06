@@ -88,3 +88,35 @@ test('ajouter un poisson depuis la base : recherche, fiche, ajout', async ({ pag
 	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
 	await expect(page.getByText('Néon bleu').first()).toBeVisible();
 });
+
+// PNG 1×1 : suffisant pour passer la validation du type d'image côté serveur.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+test('habitant : photo perso, puis retour depuis la fiche d’espèce vers le bac', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	const res = await page.request.post('/api/aquariums', {
+		headers: { origin: 'http://localhost:5188' },
+		data: { name: 'Photos', waterType: 'douce', volumeL: 200, startedOn: day(-60), stage: 'actif', tasks: [], measurements: [], inhabitants: [], projectItems: [] }
+	});
+	const { id } = await res.json();
+	await page.goto(`/aquariums/${id}/inventaire`);
+	await page.getByRole('button', { name: 'Ajouter un animal' }).click();
+	await page.getByPlaceholder('Nom commun ou latin').fill('neon bleu');
+	await page.getByRole('button', { name: /Néon bleu/ }).first().click();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+
+	// La carte de l'habitant s'ouvre sur sa fiche, avec la description de l'espèce.
+	await page.getByRole('button', { name: /Néon bleu/ }).first().click();
+	await expect(page.getByText('Ajouter ma propre photo')).toBeVisible();
+
+	// Photo personnelle : envoyée, puis servie par la route dédiée.
+	await page.locator('input[type=file]').setInputFiles({ name: 'perso.png', mimeType: 'image/png', buffer: PNG });
+	await expect(page.getByText('Photo personnelle ·')).toBeVisible();
+
+	// Fiche complète de l'espèce, puis retour : on retrouve le bac, pas l'encyclopédie.
+	await page.getByRole('link', { name: 'Voir la fiche complète' }).click();
+	await page.waitForURL('**/encyclopedie/especes?id=*');
+	await page.getByRole('button', { name: /Retour/ }).click();
+	await page.waitForURL(`**/aquariums/${id}/inventaire`);
+});

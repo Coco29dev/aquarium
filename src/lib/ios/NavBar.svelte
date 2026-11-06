@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { page } from '$app/state';
+	import { canGoBack, previousScreen, screenLabel } from '$lib/client/nav';
 
 	/**
 	 * Barre de navigation iOS : grand titre dans le contenu qui, au défilement, se replie
@@ -22,6 +24,18 @@
 		kicker?: string;
 	}
 	let { title, back, large = true, leading, trailing, children, tone, kicker }: Props = $props();
+
+	// Retour : vers l'écran réellement précédent quand il existe, sinon vers le lien de repli.
+	const previous = $derived.by(() => {
+		void page.url;
+		return canGoBack() ? previousScreen() : null;
+	});
+	const backLabel = $derived(back ? (canGoBack() ? (previous ? screenLabel(previous) : 'Retour') : back.label) : '');
+	function goBack(e: MouseEvent) {
+		if (!canGoBack() || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+		e.preventDefault();
+		history.back();
+	}
 
 	let heading = $state<HTMLElement>();
 	let bar = $state<HTMLElement>();
@@ -52,9 +66,9 @@
 	<div class="grid h-11 grid-cols-[1fr_auto_1fr] items-center px-2">
 		<div class="flex min-w-0 items-center">
 			{#if back}
-				<a href={back.href} data-nav="pop" class="btn-plain -ml-0.5 flex min-w-0 items-center gap-0.5 pr-2">
+				<a href={back.href} data-nav="pop" onclick={goBack} class="btn-plain -ml-0.5 flex min-w-0 items-center gap-0.5 pr-2">
 					<Icon name="back" size={26} weight={2.4} />
-					<span class="truncate">{back.label}</span>
+					<span class="truncate">{backLabel}</span>
 				</a>
 			{/if}
 			{#if leading}{@render leading()}{/if}

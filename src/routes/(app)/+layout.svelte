@@ -3,6 +3,7 @@
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
+	import { recordScreen } from '$lib/client/nav';
 	import { ui } from '$lib/client/ui.svelte';
 	import { registerServiceWorker } from '$lib/push-client';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
@@ -270,6 +271,7 @@
 
 	// Nouvel écran affiché : remet en place celui qu'on avait fait glisser.
 	afterNavigate(() => {
+		recordScreen(location.pathname + location.search);
 		edging = true;
 		edge = 0;
 		requestAnimationFrame(() => (edging = false));

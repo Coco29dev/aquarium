@@ -5,6 +5,8 @@
 	import SpeciesBrowser from '$lib/components/SpeciesBrowser.svelte';
 	import SpeciesPreview from '$lib/components/SpeciesPreview.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import SpeciesThumb from '$lib/components/SpeciesThumb.svelte';
+	import { shrinkImage } from '$lib/client/image';
 	import NavBar from '$lib/ios/NavBar.svelte';
 	import TankTabs from '$lib/ios/TankTabs.svelte';
 	import Section from '$lib/ios/Section.svelte';
@@ -22,7 +24,7 @@
 	import { fmt } from '$lib/ui';
 	import type { Species } from '$lib/types';
 
-	interface Inhabitant { id: number; kind: 'faune' | 'flore'; species: string; speciesId: number | null; quantity: number; arrivedOn: string | null; leftOn: string | null; notes: string | null }
+	interface Inhabitant { id: number; kind: 'faune' | 'flore'; species: string; speciesId: number | null; quantity: number; arrivedOn: string | null; leftOn: string | null; notes: string | null; photoKey?: string | null }
 	interface Equipment { id: number; name: string; category: string | null; purchasedOn: string | null; price: number | null; warrantyUntil: string | null; notes: string | null }
 	interface Consumable { id: number; scopeId: number; name: string; installedOn: string | null; replaceEveryDays: number | null; unitPrice: number | null }
 
@@ -141,6 +143,35 @@
 		if (life.daysLeft < 0) return { label: `En retard de ${-life.daysLeft} j`, cls: 'text-red' };
 		if (life.status === 'bientot') return { label: `Dans ${life.daysLeft} j`, cls: 'text-orange' };
 		return { label: `Dans ${life.daysLeft} j`, cls: 'text-label2' };
+	}
+
+	// --- Photo d'un habitant : la sienne si elle existe, sinon celle de la fiche d'espèce ---
+	const customPhoto = (i: Inhabitant) => (i.photoKey ? `/api/inhabitants/${i.id}/photo?v=${encodeURIComponent(i.photoKey)}` : null);
+	const speciesOf = (i: Inhabitant) => (i.speciesId != null ? speciesById[i.speciesId] : undefined);
+	let photoInput = $state<HTMLInputElement>();
+	let photoBusy = $state(false);
+	async function setCustomPhoto(i: Inhabitant, file: File | undefined) {
+		if (!file) return;
+		photoBusy = true;
+		try {
+			const body = new FormData();
+			body.append('file', await shrinkImage(file), 'photo.jpg');
+			const res = await fetch(`/api/inhabitants/${i.id}/photo`, { method: 'PUT', body });
+			if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? 'Envoi impossible');
+			await load();
+			ui.show('Photo enregistrée', undefined, 'check');
+		} catch (e) {
+			ui.show((e as Error).message);
+		} finally {
+			photoBusy = false;
+			if (photoInput) photoInput.value = '';
+		}
+	}
+	async function removeCustomPhoto(i: Inhabitant) {
+		await act(async () => {
+			const res = await fetch(`/api/inhabitants/${i.id}/photo`, { method: 'DELETE' });
+			if (!res.ok) throw new Error('Suppression impossible');
+		}, 'Photo personnelle retirée');
 	}
 
 	// --- Habitant : détail ---------------------------------------------------
@@ -362,27 +393,51 @@
 			</Section>
 		{/if}
 
-		<Section header="Faune" footer={loading ? undefined : animals ? `${animals} ${animals > 1 ? 'animaux' : 'animal'} de ${fauna.length} espèce${fauna.length > 1 ? 's' : ''}.` : undefined}>
-			{#each fauna as i (i.id)}
-				{@const n = splitName(i.species)}
-				<Row icon="fish" iconColor="var(--orange)" onclick={() => ((detailId = i.id), (linking = false))} chevron>
-					<p class="body truncate">{n.name}</p>
-					<p class="subhead truncate text-label2">{#if n.latin}<i>{n.latin}</i>{' · '}{/if}{since(i.arrivedOn)}</p>
-					{#snippet trailing()}<span class="rounded-num body text-label2">{i.quantity}</span>{/snippet}
-				</Row>
-			{/each}
+		{#snippet habitantCard(i: Inhabitant)}
+			{@const n = splitName(i.species)}
+			{@const sp = speciesOf(i)}
+			{@const own = customPhoto(i)}
+			<button
+				type="button"
+				class="group-card relative overflow-hidden rounded-[18px] bg-bg2 text-left active:opacity-70"
+				onclick={() => ((detailId = i.id), (linking = false))}
+			>
+				{#if own}
+					<div class="aspect-[4/3] w-full bg-fill3"><img src={own} alt={n.name} loading="lazy" class="h-full w-full object-cover" /></div>
+				{:else if sp}
+					<SpeciesThumb species={sp} class="aspect-[4/3] w-full" iconSize={40} alt={n.name} />
+				{:else}
+					<div class="grid aspect-[4/3] w-full place-items-center text-white" style="background: linear-gradient(160deg, {i.kind === 'flore' ? 'var(--mint), var(--green)' : 'var(--orange), var(--pink)'}); --cut: transparent">
+						<Icon name={i.kind === 'flore' ? 'leaf' : 'fish'} size={40} weight={1.6} />
+					</div>
+				{/if}
+				<span class="rounded-num caption1 absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 font-semibold text-white backdrop-blur">× {i.quantity}</span>
+				<div class="px-3 py-2.5">
+					<p class="subhead truncate font-semibold">{n.name}</p>
+					<p class="caption1 truncate text-label2">{#if n.latin}<i>{n.latin}</i>{:else}{since(i.arrivedOn)}{/if}</p>
+				</div>
+			</button>
+		{/snippet}
+
+		<div class="mb-2 mt-6 px-4">
+			<h2 class="footnote uppercase tracking-wide text-label2">Faune</h2>
+		</div>
+		<div class="grid grid-cols-2 gap-3">
+			{#each fauna as i (i.id)}{@render habitantCard(i)}{/each}
+		</div>
+		<Section footer={loading ? undefined : animals ? `${animals} ${animals > 1 ? 'animaux' : 'animal'} de ${fauna.length} espèce${fauna.length > 1 ? 's' : ''}.` : undefined}>
 			<Row icon="plus" title="Ajouter un animal" action onclick={() => openAdd('faune')} />
 		</Section>
 
-		<Section header="Flore">
-			{#each flora as i (i.id)}
-				{@const n = splitName(i.species)}
-				<Row icon="leaf" iconColor="var(--green)" onclick={() => ((detailId = i.id), (linking = false))} chevron>
-					<p class="body truncate">{n.name}</p>
-					<p class="subhead truncate text-label2">{#if n.latin}<i>{n.latin}</i>{' · '}{/if}{since(i.arrivedOn)}</p>
-					{#snippet trailing()}<span class="rounded-num body text-label2">{i.quantity}</span>{/snippet}
-				</Row>
-			{/each}
+		{#if flora.length}
+			<div class="mb-2 mt-6 px-4">
+				<h2 class="footnote uppercase tracking-wide text-label2">Flore</h2>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				{#each flora as i (i.id)}{@render habitantCard(i)}{/each}
+			</div>
+		{/if}
+		<Section header={flora.length ? undefined : 'Flore'}>
 			<Row icon="plus" title="Ajouter une plante" action onclick={() => openAdd('flore')} />
 		</Section>
 
@@ -430,17 +485,41 @@
 		{/if}
 	</div>
 
+	<input
+		bind:this={photoInput}
+		type="file"
+		accept="image/*"
+		class="hidden"
+		onchange={(e) => detail && setCustomPhoto(detail, e.currentTarget.files?.[0])}
+	/>
+
 	<!-- Détail d'un habitant -->
 	<Sheet open={Boolean(detail)} title={detail ? splitName(detail.species).name : ''} cancelLabel="OK" onclose={() => (detailId = null)} detent="large">
 		{#if detail}
 			{@const n = splitName(detail.species)}
-			<div class="mb-6 flex flex-col items-center text-center">
-				<span class="mb-3 grid h-16 w-16 place-items-center rounded-full text-white" style="background: {detail.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}; --cut: {detail.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}">
-					<Icon name={detail.kind === 'flore' ? 'leaf' : 'fish'} size={34} filled weight={1.6} />
-				</span>
-				<h2 class="title2">{n.name}</h2>
-				{#if n.latin}<p class="subhead italic text-label2">{n.latin}</p>{/if}
+			{@const sp = speciesOf(detail)}
+			{@const own = customPhoto(detail)}
+			<div class="relative mb-5 overflow-hidden rounded-[22px]">
+				{#if own}
+					<div class="aspect-[16/10] w-full bg-fill3"><img src={own} alt={n.name} class="h-full w-full object-cover" /></div>
+				{:else if sp}
+					<SpeciesThumb species={sp} class="aspect-[16/10] w-full" iconSize={56} alt={n.name} />
+				{:else}
+					<div class="grid aspect-[16/10] w-full place-items-center text-white" style="background: linear-gradient(160deg, {detail.kind === 'flore' ? 'var(--mint), var(--green)' : 'var(--orange), var(--pink)'}); --cut: transparent">
+						<Icon name={detail.kind === 'flore' ? 'leaf' : 'fish'} size={56} weight={1.6} />
+					</div>
+				{/if}
+				<div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3 pt-10 text-white">
+					<h2 class="title2 leading-tight">{n.name}</h2>
+					{#if n.latin}<p class="subhead italic opacity-85">{n.latin}</p>{/if}
+				</div>
 			</div>
+			{#if own}
+				<p class="caption1 -mt-3 mb-4 px-1 text-label2">Photo personnelle · la fiche de l’espèce n’est pas modifiée.</p>
+			{:else if sp?.description}
+				<p class="body mb-5">{sp.description}</p>
+			{/if}
+			{#if own && sp?.description}<p class="body mb-5">{sp.description}</p>{/if}
 			<Section>
 				<Row title="Quantité">
 					{#snippet trailing()}
@@ -451,7 +530,16 @@
 				<Row title="Arrivée" value={detail.arrivedOn ? date(detail.arrivedOn) : 'Inconnue'} />
 				<Row title="Fiche espèce" value={detail.speciesId ? 'Reliée' : 'Aucune'} />
 			</Section>
+			<Section footer="Une photo personnelle remplace celle de la fiche d’espèce, pour ce bac uniquement.">
+				<Row icon="camera" title={photoBusy ? 'Envoi…' : customPhoto(detail) ? 'Changer la photo personnelle' : 'Ajouter ma propre photo'} action disabled={photoBusy} onclick={() => photoInput?.click()} />
+				{#if customPhoto(detail)}
+					<Row icon="trash" title="Revenir à la photo de la fiche" destructive onclick={() => removeCustomPhoto(detail)} />
+				{/if}
+			</Section>
 			<Section>
+				{#if detail.speciesId}
+					<Row icon="book" title="Voir la fiche complète" href="/encyclopedie/especes?id={detail.speciesId}" />
+				{/if}
 				<Row icon="book" title={detail.speciesId ? 'Changer de fiche' : 'Relier à une fiche'} action onclick={() => (linking = !linking)} />
 				{#if detail.kind === 'faune'}
 					<Row icon="person" title="Noter comme parti" action onclick={() => markGone(detail)} />

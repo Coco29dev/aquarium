@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goBack } from '$lib/client/nav';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
@@ -137,8 +138,7 @@
 
 	let saving = $state(false);
 	function close() {
-		if (history.length > 1) history.back();
-		else void goto('/');
+		goBack('/');
 	}
 	async function cancel() {
 		if (

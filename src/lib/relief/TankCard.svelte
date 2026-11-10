@@ -39,7 +39,7 @@
 </script>
 
 <a {href} class="pressable lifted relative flex shrink-0 flex-col overflow-hidden {wide ? 'w-full' : 'w-[72%] max-w-[17.5rem] snap-start'}" use:contextMenu={menu ?? { items: [] }}>
-	<div class="relative isolate flex min-h-[15.5rem] flex-col p-4 text-white" style="--tone: {tone}; background: linear-gradient(165deg, color-mix(in srgb, {tone} 92%, white) 0%, color-mix(in srgb, {tone} 62%, black) 100%)">
+	<div class="vivid relative isolate flex min-h-[15.5rem] flex-col p-4 text-white" style="--tone: {tone}; background: linear-gradient(165deg, color-mix(in srgb, {tone} 92%, white) 0%, color-mix(in srgb, {tone} 62%, black) 100%)">
 		{#if coverPhotoId && photoOk}
 			<img src="/api/photos/{coverPhotoId}" alt="" class="absolute inset-0 -z-10 h-full w-full object-cover" onerror={() => (photoOk = false)} loading="lazy" />
 			<div class="absolute inset-0 -z-10" style="background: linear-gradient(180deg, rgb(0 0 0 / 0.28) 0%, rgb(0 0 0 / 0.05) 38%, rgb(0 0 0 / 0.72) 100%)"></div>

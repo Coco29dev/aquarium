@@ -86,6 +86,6 @@
 	{/if}
 
 	{#if s.hasPhoto && s.photoAuthor}
-		<p class="caption2 px-1 text-label3">Photo : {s.photoAuthor}{s.photoLicense ? ` · ${s.photoLicense}` : ''}</p>
+		<p class="caption2 px-1 text-label2">Photo : {s.photoAuthor}{s.photoLicense ? ` · ${s.photoLicense}` : ''}</p>
 	{/if}
 </div>

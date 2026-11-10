@@ -307,8 +307,8 @@
 <NavBar title={title ?? 'Assistant'} {back} large={false}>
 	{#snippet trailing()}
 		<div class="flex items-center gap-1 pr-2">
-			<a href="/assistant/historique" class="btn-plain grid h-9 w-9 place-items-center" aria-label="Historique des conversations"><Icon name="history" size={23} /></a>
-			<button class="btn-plain grid h-9 w-9 place-items-center disabled:opacity-40" onclick={newConversation} disabled={working || (!items.length && threadId === null)} aria-label="Nouvelle conversation">
+			<a href="/assistant/historique" class="btn-plain grid h-11 w-11 place-items-center" aria-label="Historique des conversations"><Icon name="history" size={23} /></a>
+			<button class="btn-plain grid h-11 w-11 place-items-center disabled:opacity-40" onclick={newConversation} disabled={working || (!items.length && threadId === null)} aria-label="Nouvelle conversation">
 				<Icon name="edit" size={22} />
 			</button>
 		</div>
@@ -360,10 +360,10 @@
 							{/each}
 						</div>
 					{/if}
-					{#if item.text}<div class="rounded-[20px] rounded-br-md px-3.5 py-2 text-white" style="background: var(--tint)"><p class="body whitespace-pre-wrap break-words">{item.text}</p></div>{/if}
+					{#if item.text}<div class="rounded-[20px] rounded-br-md px-3.5 py-2 text-white" style="background: var(--tint)"><p class="body selectable whitespace-pre-wrap break-words">{item.text}</p></div>{/if}
 				</div>
 			{:else if item.kind === 'assistant'}
-				<div class="pop md mr-8 self-start rounded-[20px] rounded-bl-md bg-bg2 px-3.5 py-2.5"><div class="body break-words">{@html renderMarkdown(item.text)}</div></div>
+				<div class="pop md selectable mr-8 self-start rounded-[20px] rounded-bl-md bg-bg2 px-3.5 py-2.5"><div class="body break-words">{@html renderMarkdown(item.text)}</div></div>
 			{:else}
 				<div class="pop mr-8 self-start rounded-[18px] border border-sep bg-bg2 px-3.5 py-3">
 					<div class="flex items-start gap-2.5">

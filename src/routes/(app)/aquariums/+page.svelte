@@ -87,7 +87,7 @@
 
 <NavBar title="Bacs" kicker={aquariums.length ? `${aquariums.length} bac${aquariums.length > 1 ? 's' : ''}${totalL ? ` · ${fmt(totalL, 0)} L` : ''}` : undefined}>
 	{#snippet trailing()}
-		<a href="/aquariums/nouveau" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Ajouter un bac">
+		<a href="/aquariums/nouveau" class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" aria-label="Ajouter un bac">
 			<Icon name="plus" size={20} weight={2.4} />
 		</a>
 	{/snippet}
@@ -164,7 +164,7 @@
 						class="pressable raised block border-[1.5px] border-dashed border-label3 p-4"
 						use:contextMenu={tankMenu(aquarium)}
 					>
-						<div class="flex items-center gap-2" style="color: {tone}">
+						<div class="flex items-center gap-2" style="color: color-mix(in srgb, {tone} 62%, var(--label))">
 							<Icon name="outils" size={20} weight={1.9} />
 							<span class="headline min-w-0 flex-1 truncate text-label">{aquarium.name}</span>
 							<span class="footnote shrink-0 rounded-full bg-orange/15 px-2 py-0.5 font-semibold text-orange">En projet</span>

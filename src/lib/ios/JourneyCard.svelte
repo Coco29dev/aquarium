@@ -110,7 +110,7 @@
 		<div class="flex items-center gap-3">
 			{@render ring(52)}
 			<div class="min-w-0 flex-1">
-				<p class="footnote font-semibold uppercase" style="color: {tone}">{TITLES[stage]}</p>
+				<p class="footnote font-semibold uppercase" style="color: color-mix(in srgb, {tone} 62%, var(--label))">{TITLES[stage]}</p>
 				<p class="rounded-num subhead text-label2">{progress.done} étape{progress.done > 1 ? 's' : ''} sur {progress.total}</p>
 			</div>
 		</div>

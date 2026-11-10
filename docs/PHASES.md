@@ -318,3 +318,15 @@ Reste à faire : modifications hors ligne (corriger une mesure, reporter une tâ
 - **Accueil** : « Bonsoir Corentin » ; conseils « Pour toi » classés selon le niveau (bases d'abord pour un débutant, écartées pour un confirmé) et le centre d'intérêt ; carte **Ton parcours** avec six jalons adaptés au niveau (premier bac, première mesure… jusqu'à stabilité de 85 % et six mois de suivi) et le prochain jalon à un appui.
 - Tests : `profile.test.ts` (10) et un parcours Playwright.
 - **Fiche d'un bac sur un seul écran** : Suivi, Tâches, Vivants et Journal sont des composants (`lib/tank/*.svelte`) rendus par `aquariums/[id]/+layout.svelte` sous le bandeau commun. Changer d'onglet ne navigue plus : le contenu se remplace avec un fondu, l'adresse suit (`replaceState`), les onglets déjà ouverts restent en vie (retour instantané, rien ne recharge). Les routes `/taches`, `/inventaire` et `/journal` existent toujours (liens, notifications) et ouvrent le bon onglet.
+
+## V2, lot 12 : audit UX mobile
+
+Audit de l'interface sur un viewport iPhone (390 px, clair et sombre), puis corrections. Pas de changement de données ni de migration.
+
+- **Bulle de l'assistant** : elle recouvrait des valeurs et des boutons (chevrons, nom du bac, carte de paramètre) et doublait des accès déjà présents. Elle n'apparaît plus dans l'en-tête d'un bac (Suivi, Tâches, Vivants, Journal) ni sur « Plus » ; ailleurs elle se range sur le bord pendant le défilement.
+- **Cibles tactiles ≥ 44 pt** : boutons ronds des barres (36 → 44 px), stepper ± de la saisie de mesures (32 → 44 px), `Stepper`, contrôles segmentés (32 → 40 px), Annuler et Ajouter de la saisie.
+- **Saisie de mesures** : « Suivant » du clavier passe au paramètre suivant (le dernier referme le clavier) sans confirmer l'ancienne valeur grise ; bouton « Ajouter N mesures » collé en bas, à portée du pouce.
+- **Contraste** (AA) : `--label2` à 0,72 ; vert, orange et rouge assombris en thème clair (texte posé sur blanc), teintes vives conservées sur les surfaces sombres ou colorées (classe `.vivid`, `tone-card`, scène d'accueil, cartes de bac) et en thème sombre. Noms de bac et de paramètre teintés assombris.
+- **Honnêteté de l'état d'un bac** : « Tout est dans la plage » devient « Valeurs mesurées dans la plage » avec la liste des paramètres jamais mesurés ou sans mesure depuis plus de 14 jours.
+- **Divers** : texte des réponses de l'assistant et des guides sélectionnable (`selectable`) ; écran d'un paramètre sans mesure : invitation à saisir au lieu d'un grand cadre vide ; périodes « 7 j · 30 j · 3 mois · 1 an » au lieu de « S · M · 3 M » ; alertes de l'accueil avec le bac sous le message ; apostrophe typographique dans la barre d'onglets.
+- Tests : 2 parcours Playwright ajoutés (saisie au clavier, bulle de l'assistant).

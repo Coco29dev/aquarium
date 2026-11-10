@@ -32,9 +32,9 @@
 
 	let days = $state(30);
 	const periods = [
-		{ value: 7, label: 'S' },
-		{ value: 30, label: 'M' },
-		{ value: 90, label: '3 M' },
+		{ value: 7, label: '7 j' },
+		{ value: 30, label: '30 j' },
+		{ value: 90, label: '3 mois' },
 		{ value: 365, label: '1 an' }
 	];
 	const inPeriod = $derived(list.filter((m) => new Date(m.measuredAt).getTime() >= Date.now() - days * DAY_MS));
@@ -209,9 +209,18 @@
 		</div>
 	{/if}
 
-	<div class="mb-3 rounded-[22px] bg-bg2 px-2 pb-2 pt-3">
-		<Chart {points} min={parameter.min} max={parameter.max} decimals={parameter.decimals} height={220} {compare} {markers} />
-	</div>
+	{#if list.length === 0}
+		<!-- Aucune mesure du tout : une invitation plutôt qu'un grand cadre vide. -->
+		<div class="mb-3 rounded-[22px] bg-bg2 px-4 py-6 text-center">
+			<p class="headline">Pas encore de mesure</p>
+			<p class="subhead mt-1 text-label2">Saisis une première valeur : la courbe apparaît dès la deuxième.</p>
+			<a href="/mesurer?bac={id}" class="btn-tinted mt-4">Saisir une mesure</a>
+		</div>
+	{:else}
+		<div class="mb-3 rounded-[22px] bg-bg2 px-2 pb-2 pt-3">
+			<Chart {points} min={parameter.min} max={parameter.max} decimals={parameter.decimals} height={220} {compare} {markers} />
+		</div>
+	{/if}
 	{#if markers.length}
 		<p class="footnote mb-5 flex items-center gap-1.5 px-1 text-label2">
 			<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M5 0.5S1 4.9 1 7.7a4 4 0 0 0 8 0C9 4.9 5 .5 5 .5z" fill="var(--cyan)" /></svg>

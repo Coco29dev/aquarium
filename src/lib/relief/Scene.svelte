@@ -34,7 +34,7 @@
 	const WAVE = 'M0 30 C 100 8 200 8 300 30 S 500 52 600 30 C 700 8 800 8 900 30 S 1100 52 1200 30 V80 H0 Z';
 </script>
 
-<div class="relative isolate overflow-hidden rounded-[32px] text-white {cls}" style="background: {sky}; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 22px 40px -18px rgb(6 50 63 / 0.55)">
+<div class="vivid relative isolate overflow-hidden rounded-[32px] text-white {cls}" style="background: {sky}; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 22px 40px -18px rgb(6 50 63 / 0.55)">
 	<!-- Lumière du haut -->
 	<div class="pointer-events-none absolute inset-0" style="background: radial-gradient(90% 60% at 15% 0%, rgb(255 255 255 / 0.28), transparent 60%)"></div>
 

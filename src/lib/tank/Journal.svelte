@@ -243,13 +243,13 @@
 </script>
 
 {#snippet actions()}
-	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={() => photoInput?.click()} disabled={uploading} aria-label="Ajouter une photo">
+	<button class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" onclick={() => photoInput?.click()} disabled={uploading} aria-label="Ajouter une photo">
 		<Icon name="camera" size={20} />
 	</button>
-	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={() => (writing = true)} aria-label="Nouvelle note">
+	<button class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" onclick={() => (writing = true)} aria-label="Nouvelle note">
 		<Icon name="edit" size={19} />
 	</button>
-	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={newEvent} aria-label="Nouvel événement">
+	<button class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" onclick={newEvent} aria-label="Nouvel événement">
 		<Icon name="plus" size={20} weight={2.4} />
 	</button>
 {/snippet}

@@ -188,7 +188,7 @@
 {#if !idea || !plan}
 	<p class="body px-4 py-8 text-label2">Cette idée n’existe pas. <a class="btn-plain" href="/encyclopedie/idees">Voir toutes les idées</a></p>
 {:else}
-	<article class="pb-4">
+	<article class="selectable pb-4">
 		<header class="mb-4 px-1 pt-3">
 			<p class="footnote font-semibold uppercase" style="color: {salt ? 'var(--cyan)' : 'var(--green)'}">{idea.region} · {SHORT_WATER[idea.water]}</p>
 			<h1 class="title1 mt-0.5">{idea.title}</h1>

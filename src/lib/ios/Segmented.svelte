@@ -22,7 +22,7 @@
 			type="button"
 			role="radio"
 			aria-checked={o.value === value}
-			class="footnote relative z-[1] h-8 truncate px-2 font-semibold transition-opacity active:opacity-60"
+			class="footnote relative z-[1] h-10 truncate px-2 font-semibold transition-opacity active:opacity-60"
 			onclick={() => {
 				value = o.value;
 				onchange?.(o.value);

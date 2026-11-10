@@ -166,7 +166,7 @@
 </script>
 
 {#snippet actions()}
-	<button class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" onclick={openAdd} aria-label="Nouvelle tâche">
+	<button class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" onclick={openAdd} aria-label="Nouvelle tâche">
 		<Icon name="plus" size={20} weight={2.4} />
 	</button>
 {/snippet}

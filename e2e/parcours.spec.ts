@@ -169,3 +169,33 @@ test('profil : prénom, niveau et couleur personnalisent l’accueil', async ({ 
 	await page.goto('/reglages/profil');
 	await page.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/profil.png` : 'test-results/profil.png', fullPage: true });
 });
+
+test('saisie de mesures : « Suivant » change de champ sans reprendre l’ancienne valeur, bouton d’ajout à portée du pouce', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	await page.goto('/mesurer');
+	const fields = page.locator('.measure-list input');
+	await expect(fields.first()).toBeVisible();
+	await fields.first().click();
+	await page.keyboard.type('7,4');
+	await page.keyboard.press('Enter');
+	await expect(fields.nth(1)).toBeFocused();
+	// Une seule valeur confirmée : celle qu'on vient de taper.
+	await expect(page.getByRole('button', { name: 'Ajouter 1 mesure' })).toBeVisible();
+});
+
+test('la bulle de l’assistant ne double pas les accès déjà présents', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	const bubble = page.getByRole('link', { name: 'Ouvrir l’assistant' });
+	await page.goto('/');
+	await expect(bubble).toHaveCount(1);
+	await page.goto('/aquariums');
+	await expect(bubble).toHaveCount(1);
+	// L'en-tête d'un bac et l'écran « Plus » ont déjà leur bouton : pas de bulle par-dessus les valeurs.
+	await page.goto('/aquariums/1');
+	await expect(page.getByRole('link', { name: 'Assistant' })).toBeVisible();
+	await expect(bubble).toHaveCount(0);
+	await page.goto('/reglages');
+	await expect(bubble).toHaveCount(0);
+});

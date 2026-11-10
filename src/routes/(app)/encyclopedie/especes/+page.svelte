@@ -196,7 +196,7 @@
 			<p class="footnote font-semibold uppercase text-label2">{KIND_LABELS[s.kind]}</p>
 			<h1 class="title1 mt-0.5 break-words">{speciesName(s)}</h1>
 			<p class="body mt-0.5 italic text-label2">{s.scientificName}</p>
-			{#if s.nameEn && s.nameEn !== speciesName(s)}<p class="subhead text-label3">{s.nameEn}</p>{/if}
+			{#if s.nameEn && s.nameEn !== speciesName(s)}<p class="subhead text-label2">{s.nameEn}</p>{/if}
 		</div>
 
 		{#if s.dataQuality === 'claude'}
@@ -290,7 +290,7 @@
 					{/snippet}
 					<p class="body truncate font-semibold">{speciesName(s)}</p>
 					<p class="subhead truncate italic text-label2">{s.scientificName}</p>
-					<p class="caption1 mt-0.5 flex items-center gap-1.5 text-label3">
+					<p class="caption1 mt-0.5 flex items-center gap-1.5 text-label2">
 						{KIND_LABELS[s.kind]}{s.maxLengthCm ? ` · ${s.maxLengthCm.toLocaleString('fr-FR')} cm` : ''}{!s.curated ? ' · base brute' : ''}
 						{#if s.difficulty}<span class="font-semibold {DIFFICULTY_COLOR[s.difficulty]}">· {DIFFICULTY[s.difficulty]}</span>{/if}
 						{#if s.dataQuality === 'verifie'}<span class="text-green"><Icon name="check" size={12} weight={3} /></span>{/if}

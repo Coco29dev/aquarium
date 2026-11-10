@@ -84,7 +84,7 @@
 	});
 
 	const tabs: { href: string; label: string; icon: IconName }[] = [
-		{ href: '/', label: "Aujourd'hui", icon: 'today' },
+		{ href: '/', label: 'Aujourd’hui', icon: 'today' },
 		{ href: '/aquariums', label: 'Bacs', icon: 'bacs' },
 		{ href: '/encyclopedie', label: 'Savoir', icon: 'book' },
 		{ href: '/reglages', label: 'Plus', icon: 'gear' }
@@ -102,6 +102,29 @@
 	const bubbleHref = $derived.by(() => {
 		const onTank = /^\/aquariums\/(\d+)/.exec(page.url.pathname);
 		return onTank ? `/assistant?bac=${onTank[1]}` : '/assistant';
+	});
+	/**
+	 * La bulle n'apparaît que là où elle n'est pas déjà proposée : l'en-tête d'un bac (onglets Suivi,
+	 * Tâches, Vivants, Journal) et l'écran « Plus » ont leur propre accès à l'assistant, et elle y
+	 * recouvrirait des valeurs et des boutons.
+	 */
+	const showBubble = $derived(
+		!/^\/aquariums\/\d+(\/(taches|inventaire|journal))?\/?$/.test(page.url.pathname) && page.url.pathname !== '/reglages'
+	);
+	// Pendant le défilement, la bulle se range sur le bord pour ne rien masquer ; elle revient dès que le doigt se repose.
+	let scrolling = $state(false);
+	onMount(() => {
+		let timer: ReturnType<typeof setTimeout>;
+		const onScroll = () => {
+			scrolling = true;
+			clearTimeout(timer);
+			timer = setTimeout(() => (scrolling = false), 600);
+		};
+		addEventListener('scroll', onScroll, { passive: true });
+		return () => {
+			removeEventListener('scroll', onScroll);
+			clearTimeout(timer);
+		};
 	});
 	const root = $derived(ROOTS.includes(page.url.pathname));
 
@@ -336,14 +359,16 @@
 					</li>
 				{/each}
 			</ul>
-			<a
-				href={bubbleHref}
-				class="pressable pointer-events-auto absolute right-4 grid h-[52px] w-[52px] place-items-center rounded-full text-white shadow-[0_6px_18px_rgb(0_0_0/0.28)]"
-				style="bottom: calc(max(10px, calc(env(safe-area-inset-bottom) - 6px)) + 62px + 14px); background: var(--indigo); view-transition-name: assistant"
-				aria-label="Ouvrir l'assistant"
-			>
-				<Icon name="chat" size={26} filled weight={1.8} />
-			</a>
+			{#if showBubble}
+				<a
+					href={bubbleHref}
+					class="pressable pointer-events-auto absolute right-4 grid h-[52px] w-[52px] place-items-center rounded-full text-white shadow-[0_6px_18px_rgb(0_0_0/0.28)] transition-[transform,opacity] duration-300 {scrolling ? 'translate-x-[62%] opacity-60' : ''}"
+					style="bottom: calc(max(10px, calc(env(safe-area-inset-bottom) - 6px)) + 62px + 14px); background: var(--indigo); view-transition-name: assistant"
+					aria-label="Ouvrir l’assistant"
+				>
+					<Icon name="chat" size={26} filled weight={1.8} />
+				</a>
+			{/if}
 			<a
 				href="/mesurer"
 				class="glass pressable pointer-events-auto grid h-[62px] w-[62px] shrink-0 place-items-center rounded-full text-tint"

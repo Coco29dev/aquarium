@@ -430,8 +430,10 @@
 						<a href={a.href} class="tappable flex items-center gap-3 pl-4">
 							<span class="w-[26px] shrink-0 text-center" style="color: {a.color}; --cut: var(--bg2)"><Icon name={a.icon} size={19} filled weight={1.8} /></span>
 							<div class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 pr-4">
-								<p class="subhead min-w-0 flex-1">{a.text}</p>
-								{#if a.detail}<span class="footnote shrink-0 text-label2">{a.detail}</span>{/if}
+								<div class="min-w-0 flex-1">
+									<p class="subhead">{a.text}</p>
+									{#if a.detail}<p class="footnote text-label2">{a.detail}</p>{/if}
+								</div>
 								<span class="shrink-0 text-label3"><Icon name="next" size={15} weight={2.4} /></span>
 							</div>
 						</a>
@@ -815,7 +817,7 @@
 					{#each stages as s, i (s)}
 						<div>
 							<div class="mb-1 h-1.5 rounded-full {i < at ? 'bg-indigo' : i === at ? 'bg-indigo/40' : 'bg-fill'}"></div>
-							<p class="caption1 font-semibold {i <= at ? 'text-label' : 'text-label3'}">{s}</p>
+							<p class="caption1 font-semibold {i <= at ? 'text-label' : 'text-label2'}">{s}</p>
 						</div>
 					{/each}
 				</div>

@@ -95,17 +95,17 @@
 					href="/aquariums"
 					data-nav="pop"
 					onclick={back}
-					class="pressable grid h-9 w-9 place-items-center justify-self-start rounded-full {past ? 'text-tint' : 'glass text-label'}"
+					class="pressable grid h-11 w-11 place-items-center justify-self-start rounded-full {past ? 'text-tint' : 'glass text-label'}"
 					aria-label="Retour"
 				>
 					<Icon name="back" size={22} weight={2.4} />
 				</a>
 				<p class="headline max-w-[56vw] truncate transition-opacity duration-200 {past ? 'opacity-100' : 'opacity-0'}">{aquarium.name}</p>
 				<div class="flex items-center gap-2 justify-self-end">
-					<a href="/assistant?bac={id}" class="pressable grid h-9 w-9 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}" aria-label="Assistant">
+					<a href="/assistant?bac={id}" class="pressable grid h-11 w-11 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}" aria-label="Assistant">
 						<Icon name="chat" size={21} />
 					</a>
-					<a href="/aquariums/{id}/reglages" class="pressable grid h-9 w-9 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}" aria-label="Réglages du bac">
+					<a href="/aquariums/{id}/reglages" class="pressable grid h-11 w-11 place-items-center rounded-full {past ? 'text-tint' : 'glass text-label'}" aria-label="Réglages du bac">
 						<Icon name="ellipsis" size={22} />
 					</a>
 				</div>
@@ -130,10 +130,10 @@
 		<NavBar title={aquarium.name} back={{ href: '/aquariums', label: 'Bacs' }} {kicker}>
 			{#snippet trailing()}
 				<div class="flex items-center gap-2 pr-2">
-					<a href="/assistant?bac={id}" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Assistant">
+					<a href="/assistant?bac={id}" class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" aria-label="Assistant">
 						<Icon name="chat" size={21} />
 					</a>
-					<a href="/aquariums/{id}/reglages" class="glass pressable grid h-9 w-9 place-items-center rounded-full text-tint" aria-label="Réglages du bac">
+					<a href="/aquariums/{id}/reglages" class="glass pressable grid h-11 w-11 place-items-center rounded-full text-tint" aria-label="Réglages du bac">
 						<Icon name="ellipsis" size={22} />
 					</a>
 				</div>

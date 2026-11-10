@@ -12,7 +12,7 @@
 	let { onminus, onplus, minusDisabled = false, plusDisabled = false, label = '' }: Props = $props();
 </script>
 
-<div class="flex h-8 w-[94px] shrink-0 items-center rounded-full bg-fill3" role="group" aria-label={label}>
+<div class="flex h-11 w-[116px] shrink-0 items-center rounded-full bg-fill3" role="group" aria-label={label}>
 	<button
 		type="button"
 		class="grid h-full flex-1 place-items-center rounded-l-full active:bg-fill disabled:text-label3"

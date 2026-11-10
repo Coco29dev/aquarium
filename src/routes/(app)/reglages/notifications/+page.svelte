@@ -278,5 +278,5 @@
 		</li>
 	</Section>
 
-	{#if saving}<p class="footnote -mt-4 text-center text-label3">Enregistrement…</p>{/if}
+	{#if saving}<p class="footnote -mt-4 text-center text-label2">Enregistrement…</p>{/if}
 {/if}

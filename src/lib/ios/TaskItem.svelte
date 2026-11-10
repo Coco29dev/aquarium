@@ -77,7 +77,7 @@
 		<button class="row-body min-w-0 flex-1 py-2.5 pr-4 text-left" onclick={edit}>
 			<p class="body {done ? 'text-label3' : ''}">{task.title}</p>
 			<p class="footnote flex items-center gap-1.5">
-				{#if tankName}<span style="color: {tankColor}" class="font-semibold">{tankName}</span>{/if}
+				{#if tankName}<span style="color: color-mix(in srgb, {tankColor} 62%, var(--label))" class="font-semibold">{tankName}</span>{/if}
 				<span class={late && !done ? 'text-red' : 'text-label2'}>{detail}</span>
 			</p>
 		</button>

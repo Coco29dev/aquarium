@@ -81,8 +81,11 @@
 		set(p, plain(next, p));
 	}
 	/** Toucher une valeur grise la reprend telle quelle. */
+	let viaKeyboard = false;
 	function focusValue(p: Parameter, input: HTMLInputElement) {
-		if (!confirmed[p.id] && valueOf(p) != null) confirmed[p.id] = true;
+		// Passer d'un champ au suivant avec « Suivant » ne reprend pas l'ancienne valeur : seul un appui ou une saisie la confirme.
+		if (!viaKeyboard && !confirmed[p.id] && valueOf(p) != null) confirmed[p.id] = true;
+		viaKeyboard = false;
 		input.select();
 	}
 	function allSame() {
@@ -171,6 +174,19 @@
 		}
 	}
 
+	/** « Suivant » du clavier : passe au paramètre suivant, la dernière valeur referme le clavier. */
+	function nextField(e: KeyboardEvent) {
+		if (e.key !== 'Enter') return;
+		e.preventDefault();
+		const field = e.currentTarget as HTMLInputElement;
+		const fields = [...document.querySelectorAll<HTMLInputElement>('.measure-list input')];
+		const next = fields[fields.indexOf(field) + 1];
+		if (next) {
+			viaKeyboard = true;
+			next.focus();
+		} else field.blur();
+	}
+
 	let scrolled = $state(false);
 	$effect(() => {
 		const update = () => (scrolled = window.scrollY > 2);
@@ -186,9 +202,9 @@
 	style="padding-top: env(safe-area-inset-top)"
 >
 	<div class="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">
-		<button class="btn-plain justify-self-start" onclick={cancel}>Annuler</button>
+		<button class="btn-plain min-h-11 justify-self-start pr-3" onclick={cancel}>Annuler</button>
 		<h1 class="headline">Mesures</h1>
-		<button class="btn-plain justify-self-end font-semibold" disabled={!ready.length || saving} onclick={save}>
+		<button class="btn-plain min-h-11 justify-self-end pl-3 font-semibold" disabled={!ready.length || saving} onclick={save}>
 			Ajouter{ready.length > 1 ? ` (${ready.length})` : ''}
 		</button>
 	</div>
@@ -280,7 +296,7 @@
 			<p class="group subhead px-4 py-3 text-label2">Aucun paramètre suivi pour ce bac.</p>
 		{:else}
 			<ul class="group measure-list">
-				{#each shown as p (p.id)}
+				{#each shown as p, i (p.id)}
 					{@const v = valueOf(p)}
 					{@const last = lastOf(p)}
 					{@const isSet = Boolean(confirmed[p.id])}
@@ -293,7 +309,8 @@
 									<input
 										class="rounded-num w-24 bg-transparent text-right text-[22px] font-semibold outline-none placeholder:text-label3 {out ? 'text-red' : isSet ? 'text-label' : 'text-label3'}"
 										inputmode="decimal"
-										enterkeyhint="next"
+										enterkeyhint={i === shown.length - 1 ? 'done' : 'next'}
+										onkeydown={nextField}
 										placeholder="–"
 										value={shownText(p)}
 										onfocus={(e) => focusValue(p, e.currentTarget)}
@@ -322,6 +339,16 @@
 			</p>
 		{/if}
 	</section>
+{/if}
+
+<!-- Action principale à portée du pouce : le bouton du haut est loin sur un grand écran. -->
+{#if tank && ready.length}
+	<div class="h-20" aria-hidden="true"></div>
+	<div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md px-4" style="padding-bottom: max(12px, env(safe-area-inset-bottom))">
+		<button class="btn-filled pointer-events-auto w-full shadow-[0_8px_24px_rgb(0_0_0/0.22)]" disabled={saving} onclick={save}>
+			Ajouter {ready.length} mesure{ready.length > 1 ? 's' : ''}
+		</button>
+	</div>
 {/if}
 
 <style>

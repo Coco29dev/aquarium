@@ -16,7 +16,7 @@
 
 <NavBar title={guide.title} back={{ href: `/encyclopedie/${theme.slug}`, label: 'Guides' }} large={false} />
 
-<article class="pb-4">
+<article class="selectable pb-4">
 	<header class="mb-6 px-1 pt-3">
 		<p class="footnote font-semibold uppercase" style="color: {theme.color}">{theme.title}</p>
 		<h1 class="title1 mt-0.5">{guide.title}</h1>

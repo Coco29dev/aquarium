@@ -22,7 +22,7 @@ test('accès protégé : API fermée et mauvais mot de passe refusé', async ({ 
 	await expect(page.getByRole('alert')).toBeVisible();
 });
 
-test('première ouverture : visite en quatre pages puis état vide', async ({ page }) => {
+test('première ouverture : accueil, visite guidée, puis état vide', async ({ page }) => {
 	await login(page);
 	await page.waitForURL('**/bienvenue');
 	await expect(page.getByRole('heading', { name: 'Bienvenue dans Biotope' })).toBeVisible();
@@ -36,6 +36,37 @@ test('première ouverture : visite en quatre pages puis état vide', async ({ pa
 	await page.getByRole('button', { name: 'Plus tard' }).click();
 	await page.waitForURL((u) => u.pathname === '/');
 	await expect(page.getByRole('heading', { name: 'Aucun bac pour l’instant' })).toBeVisible();
+
+	// La visite guidée démarre seule sur l'écran d'onglet, puis suit les huit étapes.
+	const tour = page.getByRole('dialog', { name: 'Petite visite de l’appli' });
+	await expect(tour).toBeVisible();
+	await expect(tour).toContainText('Étape 1 sur 8');
+	await tour.getByRole('button', { name: 'C’est parti' }).click();
+	await expect(page.getByRole('dialog', { name: 'Aujourd’hui' })).toBeVisible();
+	await page.getByRole('button', { name: 'Suivant' }).click();
+	await page.waitForURL('**/aquariums');
+	await expect(page.getByRole('dialog', { name: 'Bacs' })).toBeVisible();
+	await page.getByRole('button', { name: 'Précédent' }).click();
+	await expect(page.getByRole('dialog', { name: 'Aujourd’hui' })).toBeVisible();
+	await page.getByRole('button', { name: 'Passer' }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+
+	// Quittée : elle ne revient pas, ni au rechargement (l'état est enregistré sur le serveur).
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Aucun bac pour l’instant' })).toBeVisible();
+	await page.waitForTimeout(1200);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	const saved = await (await page.request.get('/api/settings/onboarding')).json();
+	expect(saved).toEqual({ welcomeDone: true, tour: 'skipped' });
+
+	// Elle se rejoue depuis Plus et se termine par la création du premier bac.
+	await page.goto('/reglages');
+	await page.getByRole('button', { name: 'Revoir la visite guidée' }).click();
+	for (let i = 0; i < 7; i++) await page.getByRole('button', { name: /^(C’est parti|Suivant)$/ }).click();
+	await expect(page.getByRole('dialog', { name: 'Tu es prêt' })).toBeVisible();
+	await page.getByRole('button', { name: 'Créer mon premier bac' }).click();
+	await page.waitForURL('**/aquariums/nouveau');
+	expect(await (await page.request.get('/api/settings/onboarding')).json()).toEqual({ welcomeDone: true, tour: 'done' });
 });
 
 test('un bac avec une tâche en retard : carte « À faire maintenant » et prévision', async ({ page }) => {

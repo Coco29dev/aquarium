@@ -2,6 +2,7 @@ import { readState, writeState } from './data';
 import { DEFAULT_NOTIFICATION_SETTINGS, parseNotificationSettings } from '$lib/domain/notifications';
 import type { NotificationSettings } from '$lib/types';
 import { parseProfile, type Profile } from '$lib/domain/profile';
+import { parseOnboarding, type OnboardingState } from '$lib/domain/onboarding';
 
 const KEY = 'notification_settings';
 
@@ -33,4 +34,20 @@ export async function saveProfile(value: unknown): Promise<Profile> {
 	const profile = parseProfile(value);
 	await writeState(PROFILE_KEY, profile);
 	return profile;
+}
+
+// --- Premier lancement : accueil vu, visite guidée faite (suit le compte d'un appareil à l'autre) ---
+
+const ONBOARDING_KEY = 'onboarding';
+
+/** `null` tant que rien n'est enregistré : compte neuf, ou compte antérieur à la visite guidée. */
+export async function getOnboarding(): Promise<OnboardingState | null> {
+	return parseOnboarding(await readState<unknown>(ONBOARDING_KEY));
+}
+
+export async function saveOnboarding(value: unknown): Promise<OnboardingState> {
+	const state = parseOnboarding(value);
+	if (!state) throw new Error('État de visite invalide');
+	await writeState(ONBOARDING_KEY, state);
+	return state;
 }

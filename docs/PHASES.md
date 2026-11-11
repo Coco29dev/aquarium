@@ -330,3 +330,14 @@ Audit de l'interface sur un viewport iPhone (390 px, clair et sombre), puis corr
 - **Honnêteté de l'état d'un bac** : « Tout est dans la plage » devient « Valeurs mesurées dans la plage » avec la liste des paramètres jamais mesurés ou sans mesure depuis plus de 14 jours.
 - **Divers** : texte des réponses de l'assistant et des guides sélectionnable (`selectable`) ; écran d'un paramètre sans mesure : invitation à saisir au lieu d'un grand cadre vide ; périodes « 7 j · 30 j · 3 mois · 1 an » au lieu de « S · M · 3 M » ; alertes de l'accueil avec le bac sous le message ; apostrophe typographique dans la barre d'onglets.
 - Tests : 2 parcours Playwright ajoutés (saisie au clavier, bulle de l'assistant).
+
+## V2, lot 13 : visite guidée du premier lancement
+
+Après l'écran d'accueil (« Bienvenue dans Biotope »), une visite guidée présente les écrans de l'appli sur les vrais éléments. Conçue avec les règles d'onboarding de la base UX (toujours passable, retour possible, progression visible, une idée par étape, mouvement réduit respecté).
+
+- **Parcours** (`domain/onboarding.ts`, `TOUR_STEPS`) : huit étapes de deux phrases au plus : présentation, Aujourd'hui, Bacs, assistant, bouton + (mesure), Savoir, Plus, conclusion. Chaque étape change d'écran derrière la carte et met en lumière l'onglet, la bulle ou le bouton réel (attributs `data-tour` du layout). Conclusion : « Créer mon premier bac » si le compte n'a pas de bac, sinon « Terminer ».
+- **Interface** (`ios/Tour.svelte`) : projecteur arrondi qui glisse d'un élément à l'autre, carte posée au-dessus ou au-dessous selon la place, « Étape n sur 8 » et points de progression, Précédent, Passer, flèches et Échap au clavier, focus gardé dans la carte (`role="dialog"`), page figée derrière. Si l'élément ciblé est absent, la carte reste centrée.
+- **État qui suit le compte** (`/api/settings/onboarding`, clé `onboarding` de `app_state`, copie dans `localStorage`) : `{ welcomeDone, tour: pending | done | skipped }`. Le serveur fait foi, donc rien ne se rejoue sur un autre appareil. Un compte d'avant la visite guidée qui a déjà des bacs est marqué comme installé sans rien lui montrer. Le drapeau local `onboarded` est conservé et resynchronisé.
+- **Déclenchement** : seulement sur un écran d'onglet, après l'accueil, jamais par-dessus un formulaire ou une feuille. Rejouable depuis Plus › À propos › « Revoir la visite guidée » (« Revoir l'accueil » ouvre l'accueil).
+- Logique pure isolée de l'interface (`resolveOnboarding`, `shouldAutoStartTour`), réutilisable telle quelle dans une version empaquetée pour les magasins d'applications.
+- Tests : `onboarding.test.ts` (10) et le parcours Playwright du premier lancement étendu (démarrage automatique, retour, abandon, persistance serveur, relecture jusqu'à la création du bac).

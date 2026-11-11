@@ -5,11 +5,14 @@
 	import { store } from '$lib/client/store.svelte';
 	import { recordScreen } from '$lib/client/nav';
 	import { ui } from '$lib/client/ui.svelte';
+	import { tour } from '$lib/client/tour.svelte';
+	import { shouldAutoStartTour } from '$lib/domain/onboarding';
 	import { registerServiceWorker } from '$lib/push-client';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import Banner from '$lib/ios/Banner.svelte';
 	import AlertHost from '$lib/ios/AlertHost.svelte';
 	import ContextMenuHost from '$lib/ios/ContextMenuHost.svelte';
+	import Tour from '$lib/ios/Tour.svelte';
 	import Spinner from '$lib/ios/Spinner.svelte';
 	import { contextMenuState } from '$lib/ios/contextMenuState.svelte';
 	import { dueTasks } from '$lib/domain/tasks';
@@ -23,6 +26,7 @@
 		if ('serviceWorker' in navigator) void registerServiceWorker().catch(() => {});
 		void store.init();
 		void ui.loadProfile();
+		void tour.load();
 		// Une tâche cochée juste avant de quitter l'appli est envoyée sans attendre.
 		const flush = () => ui.flush();
 		addEventListener('pagehide', flush);
@@ -83,11 +87,11 @@
 		});
 	});
 
-	const tabs: { href: string; label: string; icon: IconName }[] = [
-		{ href: '/', label: 'Aujourd’hui', icon: 'today' },
-		{ href: '/aquariums', label: 'Bacs', icon: 'bacs' },
-		{ href: '/encyclopedie', label: 'Savoir', icon: 'book' },
-		{ href: '/reglages', label: 'Plus', icon: 'gear' }
+	const tabs: { href: string; label: string; icon: IconName; tour: string }[] = [
+		{ href: '/', label: 'Aujourd’hui', icon: 'today', tour: 'aujourdhui' },
+		{ href: '/aquariums', label: 'Bacs', icon: 'bacs', tour: 'bacs' },
+		{ href: '/encyclopedie', label: 'Savoir', icon: 'book', tour: 'savoir' },
+		{ href: '/reglages', label: 'Plus', icon: 'gear', tour: 'plus' }
 	];
 
 	function active(href: string): boolean {
@@ -158,19 +162,23 @@
 		};
 	});
 
-	// --- Premier lancement : accueil guidé ---------------------------------------------------
+	// --- Premier lancement : accueil guidé, puis visite guidée -------------------------------
+	// L'état (accueil vu, visite faite) suit le compte : il vient du serveur, la copie locale sert hors ligne.
 	$effect(() => {
 		const view = store.view;
-		if (!view || view.aquariums.length) return;
+		if (!view || !tour.loaded) return;
+		tour.resolve(view.aquariums.length);
 		const path = page.url.pathname;
-		if (path.startsWith('/bienvenue') || path === '/aquariums/nouveau') return;
-		let onboarded = true;
-		try {
-			onboarded = localStorage.getItem('onboarded') === '1';
-		} catch {
-			// Sans stockage, on ne réaffiche pas l'accueil à chaque ouverture.
+		if (!tour.state.welcomeDone) {
+			if (!view.aquariums.length && !path.startsWith('/bienvenue') && path !== '/aquariums/nouveau') void goto('/bienvenue', { replaceState: true });
+			return;
 		}
-		if (!onboarded) void goto('/bienvenue', { replaceState: true });
+		if (tour.active || !shouldAutoStartTour(tour.state, path)) return;
+		// Laisse l'écran d'arrivée se dessiner avant de poser la carte par-dessus.
+		const timer = setTimeout(() => {
+			if (!tour.active && shouldAutoStartTour(tour.state, location.pathname)) tour.start();
+		}, 700);
+		return () => clearTimeout(timer);
 	});
 
 	// --- Gestes : tirer pour synchroniser, glisser du bord gauche pour revenir ---------------
@@ -350,6 +358,7 @@
 					<li class="flex-1">
 						<a
 							href={tab.href}
+							data-tour="tab-{tab.tour}"
 							aria-current={on ? 'page' : undefined}
 							class="flex h-[54px] flex-col items-center justify-center gap-0.5 rounded-full transition-colors duration-200 {on ? 'bg-fill3 text-tint' : 'text-label'}"
 						>
@@ -362,6 +371,7 @@
 			{#if showBubble}
 				<a
 					href={bubbleHref}
+					data-tour="assistant"
 					class="pressable pointer-events-auto absolute right-4 grid h-[52px] w-[52px] place-items-center rounded-full text-white shadow-[0_6px_18px_rgb(0_0_0/0.28)] transition-[transform,opacity] duration-300 {scrolling ? 'translate-x-[62%] opacity-60' : ''}"
 					style="bottom: calc(max(10px, calc(env(safe-area-inset-bottom) - 6px)) + 62px + 14px); background: var(--indigo); view-transition-name: assistant"
 					aria-label="Ouvrir l’assistant"
@@ -371,6 +381,7 @@
 			{/if}
 			<a
 				href="/mesurer"
+				data-tour="mesurer"
 				class="glass pressable pointer-events-auto grid h-[62px] w-[62px] shrink-0 place-items-center rounded-full text-tint"
 				style="view-transition-name: tabaction"
 				aria-label="Saisir des mesures"
@@ -405,4 +416,5 @@
 	<Banner />
 	<ContextMenuHost />
 	<AlertHost />
+	{#if tour.active}<Tour />{/if}
 </div>

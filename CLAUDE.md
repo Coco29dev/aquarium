@@ -69,8 +69,9 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 | 5 : édition des données, réglages de notifications, ntfy, sauvegarde hebdomadaire (hors brief initial) | Fait, déployé |
 | 6 : capteurs ESP32 | Non commencée (c'était la « phase 4 » du brief) |
 | 7 : assistant conversationnel Claude (hors brief initial) | Fait, déployé ; conversations multiples, historique, photos et bulle d'accès rapide en cours de test |
+| Visite guidée du premier lancement (hors brief initial) | Faite ; accueil puis visite en huit étapes sur les vrais écrans, état enregistré sur le serveur (`docs/PHASES.md`, lot 13) |
 
-Restes connus : confirmer la phase 0 sur l'iPhone ; relire les fiches du noyau ; envisager une sauvegarde de Postgres elle-même (modèle Railway) en plus de l'export JSON ; tests d'interface limités à 5 parcours Playwright (`npm run test:e2e`, base jetable `aquarium_e2e` recréée à chaque lancement, Postgres local requis) en plus des tests de logique métier (`npm test`).
+Restes connus : confirmer la phase 0 sur l'iPhone ; relire les fiches du noyau ; envisager une sauvegarde de Postgres elle-même (modèle Railway) en plus de l'export JSON ; tests d'interface limités à quelques parcours Playwright (`npm run test:e2e`, base jetable `aquarium_e2e` recréée à chaque lancement, Postgres local requis) en plus des tests de logique métier (`npm test`).
 
 Les trois sections ci-dessous gardent le plan d'origine à titre de référence ; l'état réel est dans le tableau ci-dessus et dans `docs/PHASES.md`.
 

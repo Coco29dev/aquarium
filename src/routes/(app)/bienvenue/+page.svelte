@@ -6,6 +6,7 @@
 	import { APP_NAME, APP_TAGLINE } from '$lib/brand';
 	import { enableReminders, isStandalone, pushSupported } from '$lib/push-client';
 	import { ui } from '$lib/client/ui.svelte';
+	import { tour } from '$lib/client/tour.svelte';
 	import ProfileForm from '$lib/components/ProfileForm.svelte';
 
 	// Accueil du premier lancement, façon écrans de bienvenue d'Apple : quatre pages qu'on fait
@@ -44,11 +45,8 @@
 	}
 
 	function finish(to: string) {
-		try {
-			localStorage.setItem('onboarded', '1');
-		} catch {
-			// Sans stockage, l'accueil pourra revenir : sans gravité.
-		}
+		// L'accueil est vu (ou passé) : il ne revient plus, et la visite guidée peut démarrer.
+		tour.markWelcomeDone();
 		void goto(to, { replaceState: true });
 	}
 

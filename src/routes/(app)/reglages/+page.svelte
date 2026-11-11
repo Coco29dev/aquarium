@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { tour } from '$lib/client/tour.svelte';
 	import { isStandalone, pushSupported } from '$lib/push-client';
 	import { daysBetween, dayInParis } from '$lib/domain/dates';
 	import NavBar from '$lib/ios/NavBar.svelte';
@@ -181,7 +182,8 @@
 </Section>
 
 <Section header="À propos">
-	<Row href="/bienvenue" icon="book" iconColor="var(--blue)" title="Revoir la visite" />
+	<Row onclick={() => tour.start()} icon="today" iconColor="var(--blue)" title="Revoir la visite guidée" chevron />
+	<Row href="/bienvenue" icon="book" iconColor="var(--indigo)" title="Revoir l’accueil" />
 	<Row title="Version" value="2.0" />
 	<Row title="Espèces" value="FishBase, SeaLifeBase" />
 </Section>

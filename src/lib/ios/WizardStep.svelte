@@ -21,7 +21,7 @@
 <div class="wiz {direction}">
 	<div class="mb-5">
 		{#if icon}
-			<span class="mb-3 grid h-14 w-14 place-items-center rounded-[16px] text-white" style="background: {tone}; --cut: {tone}">
+			<span class="mb-3 grid h-14 w-14 place-items-center rounded-field text-white" style="background: {tone}; --cut: {tone}">
 				<Icon name={icon} size={30} filled weight={1.7} />
 			</span>
 		{/if}

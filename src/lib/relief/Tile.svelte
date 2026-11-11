@@ -30,9 +30,9 @@
 {/snippet}
 
 {#if href}
-	<a {href} aria-label={label} class="pressable relative block overflow-hidden rounded-[24px] p-4 {surface} {cls}" style="--tone: {tone}">{@render inner()}</a>
+	<a {href} aria-label={label} class="pressable relative block overflow-hidden rounded-card p-4 {surface} {cls}" style="--tone: {tone}">{@render inner()}</a>
 {:else if onclick}
-	<button type="button" {onclick} aria-label={label} class="pressable relative block w-full overflow-hidden rounded-[24px] p-4 text-left {surface} {cls}" style="--tone: {tone}">{@render inner()}</button>
+	<button type="button" {onclick} aria-label={label} class="pressable relative block w-full overflow-hidden rounded-card p-4 text-left {surface} {cls}" style="--tone: {tone}">{@render inner()}</button>
 {:else}
-	<div class="relative overflow-hidden rounded-[24px] p-4 {surface} {cls}" style="--tone: {tone}">{@render inner()}</div>
+	<div class="relative overflow-hidden rounded-card p-4 {surface} {cls}" style="--tone: {tone}">{@render inner()}</div>
 {/if}

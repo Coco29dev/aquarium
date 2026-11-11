@@ -105,7 +105,7 @@
 				{@const fit = fitOf(s)}
 				<li>
 					<button type="button" onclick={() => onpick(s)} class="tappable flex w-full items-center gap-3 pl-3 text-left">
-						<SpeciesThumb species={s} class="my-2.5 h-[60px] w-[60px] shrink-0 rounded-[14px]" iconSize={24} />
+						<SpeciesThumb species={s} class="my-2.5 h-[60px] w-[60px] shrink-0 rounded-field" iconSize={24} />
 						<span class="row-body flex min-w-0 flex-1 items-center gap-2 py-2.5 pr-3">
 							<span class="min-w-0 flex-1">
 								<span class="body block truncate font-semibold">{speciesName(s)}</span>

@@ -174,7 +174,7 @@
 			ui.show(parts.length ? `Ajouté au projet : ${parts.join(', ')}` : 'Tout est déjà dans ton projet', undefined, 'check');
 			if (parts.length) await goto(`/aquariums/${tankId}/projet`);
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			adding = false;
 		}
@@ -219,7 +219,7 @@
 				<span>{Math.round(idea.volume[1] * 1.4)} L</span>
 			</div>
 			{#if plan.tooSmall}
-				<p class="subhead mt-3 rounded-[14px] bg-orange/12 px-3 py-2"><span class="font-semibold">Un peu juste.</span> Ce volume est en dessous de la plage conseillée : les quantités sont au plus bas.</p>
+				<p class="subhead mt-3 rounded-field bg-orange/12 px-3 py-2"><span class="font-semibold">Un peu juste.</span> Ce volume est en dessous de la plage conseillée : les quantités sont au plus bas.</p>
 			{:else if plan.fit === 'proche'}
 				<p class="subhead mt-3 text-label2">Hors de la plage idéale, mais encore envisageable : les quantités sont ajustées.</p>
 			{/if}
@@ -229,15 +229,15 @@
 		<section class="raised mb-5 p-4" aria-label="Ce biotope pour mon projet">
 			<h2 class="headline">Ce biotope en un coup d’œil</h2>
 			<ul class="mt-3 grid grid-cols-3 gap-2 text-center">
-				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+				<li class="rounded-field bg-fill3 px-2 py-2.5">
 					<p class="title3 tabular-nums">{animals}</p>
 					<p class="footnote text-label2">animaux</p>
 				</li>
-				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+				<li class="rounded-field bg-fill3 px-2 py-2.5">
 					<p class="title3 tabular-nums">{plantNames.length}</p>
 					<p class="footnote text-label2">{salt ? 'algues' : 'plantes'}</p>
 				</li>
-				<li class="rounded-[14px] bg-fill3 px-2 py-2.5">
+				<li class="rounded-field bg-fill3 px-2 py-2.5">
 					<p class="title3 tabular-nums">{chosen.length}</p>
 					<p class="footnote text-label2">matériel</p>
 				</li>
@@ -259,7 +259,7 @@
 		</section>
 
 		{#if idea.warn}
-			<div class="mb-5 flex gap-3 rounded-[22px] bg-orange/12 py-3 pl-4 pr-4">
+			<div class="mb-5 flex gap-3 rounded-card bg-orange/12 py-3 pl-4 pr-4">
 				<span class="mt-0.5 shrink-0 text-orange" style="--cut: var(--bg)"><Icon name="alert" size={22} filled /></span>
 				<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Attention.</span> {idea.warn}</p>
 			</div>
@@ -384,7 +384,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="subhead mt-3 rounded-[14px] bg-fill3 px-3 py-3">
+					<p class="subhead mt-3 rounded-field bg-fill3 px-3 py-3">
 						{#if salt}
 							Un récif se passe de plantes : la roche vive et les coraux font le décor. Choisis « mixte » pour des macro-algues de refuge.
 						{:else}
@@ -432,7 +432,7 @@
 				</ul>
 				<p class="body leading-relaxed">{idea.decor}</p>
 				{#if idea.tip}
-					<div class="mt-3 flex gap-3 rounded-[22px] bg-blue/12 py-3 pl-4 pr-4">
+					<div class="mt-3 flex gap-3 rounded-card bg-blue/12 py-3 pl-4 pr-4">
 						<span class="mt-0.5 shrink-0 text-blue" style="--cut: var(--bg)"><Icon name="info" size={22} filled /></span>
 						<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Astuce.</span> {idea.tip}</p>
 					</div>

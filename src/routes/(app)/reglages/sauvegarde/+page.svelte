@@ -37,7 +37,7 @@
 			status = await store.runBackup();
 			ui.show('Sauvegarde faite', undefined, 'check');
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			running = false;
 		}
@@ -64,7 +64,7 @@
 
 <!-- État, façon Sauvegarde iCloud -->
 <div class="mb-8 mt-4 flex flex-col items-center text-center">
-	<span class="mb-3 grid h-16 w-16 place-items-center rounded-[18px] bg-green text-white" style="--cut: var(--green)">
+	<span class="mb-3 grid h-16 w-16 place-items-center rounded-field bg-green text-white" style="--cut: var(--green)">
 		<Icon name="sync" size={34} weight={2.2} />
 	</span>
 	{#if status}
@@ -108,7 +108,7 @@
 	{#each exports as x (x.href)}
 		<li>
 			<a href={x.href} download data-sveltekit-reload class="tappable flex items-center gap-3 pl-4">
-				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: {x.color}; --cut: {x.color}">
+				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: {x.color}; --cut: {x.color}">
 					<Icon name={x.icon} size={19} filled weight={2} />
 				</span>
 				<span class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">

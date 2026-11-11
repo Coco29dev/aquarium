@@ -40,7 +40,7 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<div class="relative overflow-hidden rounded-[22px]">
+	<div class="relative overflow-hidden rounded-card">
 		<SpeciesThumb species={s} class="aspect-[16/10] w-full" iconSize={56} alt={speciesName(s)} />
 		<div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3 pt-10 text-white">
 			<h2 class="title2 leading-tight">{speciesName(s)}</h2>
@@ -68,7 +68,7 @@
 	{#if s.description}<p class="body">{s.description}</p>{/if}
 
 	{#if facts.length}
-		<dl class="grid grid-cols-2 gap-px overflow-hidden rounded-[22px] bg-sep/40">
+		<dl class="grid grid-cols-2 gap-px overflow-hidden rounded-card bg-sep/40">
 			{#each facts as [label, value] (label)}
 				<div class="bg-bg2 px-4 py-3">
 					<dt class="caption1 text-label2">{label}</dt>
@@ -81,7 +81,7 @@
 	{#if s.care}
 		<div>
 			<h3 class="footnote mb-1.5 px-1 uppercase tracking-wide text-label2">Conseils d’élevage</h3>
-			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3">{s.care}</p>
+			<p class="subhead rounded-card bg-bg2 px-4 py-3">{s.care}</p>
 		</div>
 	{/if}
 

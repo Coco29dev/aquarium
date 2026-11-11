@@ -16,6 +16,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { haptic } from '$lib/motion/haptic';
 
 	/**
 	 * Ligne de liste qu'on fait glisser pour révéler des actions (façon Mail) :
@@ -105,7 +106,10 @@
 		const limit = w - 24;
 		if (Math.abs(next) > limit) next = Math.sign(next) * (limit + (Math.abs(next) - limit) / 4);
 		offset = next;
-		full = Math.abs(next) > w * 0.62 && (next > 0 ? leading.length > 0 : trailing.length > 0);
+		const nextFull = Math.abs(next) > w * 0.62 && (next > 0 ? leading.length > 0 : trailing.length > 0);
+		// Franchir le seuil du glissement complet : un « tic », comme le cran de Mail.
+		if (nextFull && !full) haptic('tick');
+		full = nextFull;
 	}
 
 	function up() {
@@ -199,7 +203,10 @@
 		onpointerup={up}
 		onpointercancel={up}
 		onclickcapture={click}
-		ontransitionend={() => (animating = false)}
+		ontransitionend={(e) => {
+			// Les transitions des enfants (rond à cocher…) remontent jusqu'ici : seule celle de la ligne compte.
+			if (e.target === e.currentTarget) animating = false;
+		}}
 		role="presentation"
 	>
 		{@render children()}

@@ -10,6 +10,7 @@
 	import Section from '$lib/ios/Section.svelte';
 	import Row from '$lib/ios/Row.svelte';
 	import Spinner from '$lib/ios/Spinner.svelte';
+	import Mark from '$lib/art/Mark.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
 	import { listResource } from '$lib/client/api';
 	import type { BackupStatus } from '$lib/types';
@@ -135,13 +136,13 @@
 	<Row href="/reglages/notifications" icon="bell" iconColor="var(--red)" title="Notifications" value={notifications} />
 	<Row href="/reglages/affichage" title="Affichage" value={themeLabel}>
 		{#snippet leading()}
-			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-blue text-[13px] font-bold tracking-tight text-on-tint" aria-hidden="true">AA</span>
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip bg-blue text-[13px] font-bold tracking-tight text-on-tint" aria-hidden="true">AA</span>
 		{/snippet}
 	</Row>
 	<Row href="/reglages/sauvegarde" icon="sync" iconColor="var(--green)" title="Sauvegarde" value={backupValue} />
 	<Row href="/reglages/raccourcis" title="Raccourcis Siri">
 		{#snippet leading()}
-			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-purple text-white" aria-hidden="true">
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip bg-purple text-white" aria-hidden="true">
 				<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
 					<path d="M12 3.5l8 4.5-8 4.5L4 8z" fill="currentColor" fill-opacity="0.4" />
 					<path d="M4 12l8 4.5 8-4.5M4 16l8 4.5 8-4.5" stroke-linecap="round" />
@@ -184,7 +185,9 @@
 <Section header="À propos">
 	<Row onclick={() => tour.start()} icon="today" iconColor="var(--blue)" title="Revoir la visite guidée" chevron />
 	<Row href="/bienvenue" icon="book" iconColor="var(--indigo)" title="Revoir l’accueil" />
-	<Row title="Version" value="2.0" />
+	<Row title="Version" value="2.0">
+		{#snippet leading()}<Mark size={30} />{/snippet}
+	</Row>
 	<Row title="Espèces" value="FishBase, SeaLifeBase" />
 </Section>
 

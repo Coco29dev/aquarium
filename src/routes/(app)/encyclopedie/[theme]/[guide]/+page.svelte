@@ -54,13 +54,13 @@
 				</ol>
 			{/if}
 			{#if block.tip}
-				<div class="mt-3 flex gap-3 rounded-[22px] bg-blue/12 py-3 pl-4 pr-4">
+				<div class="mt-3 flex gap-3 rounded-card bg-blue/12 py-3 pl-4 pr-4">
 					<span class="mt-0.5 shrink-0 text-blue" style="--cut: var(--bg)"><Icon name="info" size={22} filled /></span>
 					<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Astuce.</span> {block.tip}</p>
 				</div>
 			{/if}
 			{#if block.warn}
-				<div class="mt-3 flex gap-3 rounded-[22px] bg-orange/12 py-3 pl-4 pr-4">
+				<div class="mt-3 flex gap-3 rounded-card bg-orange/12 py-3 pl-4 pr-4">
 					<span class="mt-0.5 shrink-0 text-orange" style="--cut: var(--bg)"><Icon name="alert" size={22} filled /></span>
 					<p class="subhead min-w-0 flex-1 leading-relaxed"><span class="font-semibold">Attention.</span> {block.warn}</p>
 				</div>

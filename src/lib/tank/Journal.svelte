@@ -5,6 +5,8 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { empty, friendlyError } from '$lib/voice';
+	import { clock } from '$lib/client/clock.svelte';
 	import { api, createResource, deleteResource, listResource, toText } from '$lib/client/api';
 	import { shrinkImage } from '$lib/client/image';
 	import { dayInParis } from '$lib/domain/dates';
@@ -25,7 +27,7 @@
 	const id = $derived(Number(page.params.id));
 	const view = $derived(store.view);
 	const aquarium = $derived(view?.aquariums.find((a) => a.id === id));
-	const today = dayInParis();
+	const today = $derived(clock.today);
 
 	let notes = $state<Note[]>([]);
 	let photos = $state<Photo[]>([]);
@@ -78,7 +80,7 @@
 			await store.deleteEvent(e.id);
 			ui.show('Événement supprimé');
 		} catch (err) {
-			ui.show((err as Error).message);
+			ui.fail(err);
 		}
 	}
 
@@ -87,7 +89,7 @@
 			[notes, photos] = await Promise.all([listResource<Note>('notes', id), api<Photo[]>('GET', `/api/photos?aquariumId=${id}`)]);
 			message = '';
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		} finally {
 			loaded = true;
 		}
@@ -105,7 +107,7 @@
 			await load();
 			ui.show('Note ajoutée', undefined, 'check');
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		}
 	}
 
@@ -126,7 +128,7 @@
 			await load();
 			ui.show(files.length > 1 ? `${files.length} photos ajoutées` : 'Photo ajoutée', undefined, 'check');
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		} finally {
 			uploading = false;
 			input.value = '';
@@ -140,7 +142,7 @@
 			viewing = null;
 			await load();
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		}
 	}
 
@@ -151,7 +153,7 @@
 			await store.mutate('PATCH', `/api/aquariums/${id}`, { coverPhotoId: isCover ? null : photo.id });
 			ui.show(isCover ? 'Photo de couverture retirée' : 'Photo de couverture du bac', undefined, 'check');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 
@@ -161,7 +163,7 @@
 			await deleteResource('notes', note.id);
 			await load();
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		}
 	}
 
@@ -260,7 +262,7 @@
 	<input bind:this={photoInput} type="file" accept="image/*" multiple class="hidden" onchange={upload} />
 
 	<div class="mt-4">
-		{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+		{#if message}<p class="subhead mb-4 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 		{#if uploading}<p class="subhead mb-4 px-1 text-label2">Envoi de la photo…</p>{/if}
 
 		<div class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" style="scrollbar-width: none" role="tablist" aria-label="Filtrer le journal">
@@ -279,11 +281,9 @@
 		{#if loaded && days.length === 0}
 			<div class="mt-14 flex flex-col items-center px-6 text-center">
 				<span class="mb-3 text-label3"><Icon name="book" size={56} weight={1.4} /></span>
-				<h2 class="title3">{filter === 'tout' ? 'Journal vide' : 'Rien dans cette catégorie'}</h2>
+				<h2 class="title3">{filter === 'tout' ? empty.journalTitle : 'Rien dans cette catégorie'}</h2>
 				<p class="subhead mt-1 text-label2">
-					{filter === 'tout'
-						? 'Note un changement d’eau, un dosage, un réglage, une observation, ou ajoute une photo du bac.'
-						: 'Rien n’a encore été noté ici.'}
+					{filter === 'tout' ? empty.journalText : empty.journalFiltered}
 				</p>
 				<button class="btn-tinted mt-5" onclick={newEvent}>Ajouter un événement</button>
 			</div>

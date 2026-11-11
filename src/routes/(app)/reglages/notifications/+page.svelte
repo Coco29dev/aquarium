@@ -68,7 +68,7 @@
 			settings = await store.saveNotificationSettings($state.snapshot(settings) as NotificationSettings);
 		} catch (error) {
 			settings = previous;
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			saving = false;
 		}
@@ -83,7 +83,7 @@
 			permission = Notification.permission;
 			ui.show(subscription === 'inactif' ? 'Notifications non autorisées' : 'Rappels activés', undefined, subscription === 'inactif' ? undefined : 'check');
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 			input.checked = active;
@@ -97,7 +97,7 @@
 			ui.show(total === 0 ? 'Aucun appareil abonné' : `Notification envoyée (${sent}/${total})`, undefined, total ? 'check' : undefined);
 			await refresh();
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 		}
@@ -258,7 +258,7 @@
 		footer="Si les notifications de l’iPhone ne passent plus, le récapitulatif part aussi sur ntfy : installe l’appli ntfy et abonne-toi au même sujet. L’envoi par e-mail n’est pas encore disponible."
 	>
 		<li class="flex items-center gap-3 pl-4">
-			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] bg-gray text-white" style="--cut: var(--gray)">
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip bg-gray text-white" style="--cut: var(--gray)">
 				<Icon name="bell" size={19} filled weight={2} />
 			</span>
 			<div class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-1.5 pr-4">

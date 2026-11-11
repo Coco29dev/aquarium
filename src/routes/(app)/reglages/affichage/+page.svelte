@@ -6,6 +6,9 @@
 	import Row from '$lib/ios/Row.svelte';
 	import Switch from '$lib/ios/Switch.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { revealTheme } from '$lib/motion/theme';
+	import { hapticsEnabled, hapticsSupported, setHaptics } from '$lib/motion/haptic';
+	import { ambienceEnabled, setAmbience } from '$lib/motion/ambience';
 
 	// Apparence de l'iPhone, pour savoir quel aperçu est coché en mode Automatique.
 	let systemDark = $state(false);
@@ -20,10 +23,24 @@
 	const auto = $derived(ui.theme === 'auto');
 	const current = $derived(ui.theme === 'auto' ? (systemDark ? 'dark' : 'light') : ui.theme);
 
-	function toggleAuto(event: Event) {
-		const on = (event.currentTarget as HTMLInputElement).checked;
-		ui.setTheme(on ? 'auto' : current);
+	/** Choisir une apparence : si elle change vraiment, une goutte part du doigt et révèle le nouveau thème. */
+	function pick(id: 'light' | 'dark', event: MouseEvent) {
+		if (id === current) ui.setTheme(id);
+		else revealTheme(() => ui.setTheme(id), event);
 	}
+
+	function toggleAuto(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (!input.checked) return ui.setTheme(current);
+		// Repasser en automatique change l'écran seulement si l'iPhone est dans l'autre apparence.
+		if ((systemDark ? 'dark' : 'light') !== current) revealTheme(() => ui.setTheme('auto'), input);
+		else ui.setTheme('auto');
+	}
+
+	// Réglages de ressenti, gardés sur l'appareil.
+	let ambience = $state(ambienceEnabled());
+	let haptics = $state(hapticsEnabled());
+	const canHaptics = hapticsSupported();
 
 	// Couleurs fixes : chaque aperçu montre un thème précis, quel que soit le thème actif.
 	const previews = [
@@ -44,9 +61,9 @@
 	<li class="grid grid-cols-2 gap-4 px-6 pb-4 pt-5">
 		{#each previews as p (p.id)}
 			{@const on = current === p.id}
-			<button class="flex flex-col items-center gap-2.5" onclick={() => ui.setTheme(p.id)} aria-pressed={on} aria-label="Apparence {p.label.toLowerCase()}">
+			<button class="flex flex-col items-center gap-2.5" onclick={(event) => pick(p.id, event)} aria-pressed={on} aria-label="Apparence {p.label.toLowerCase()}">
 				<span
-					class="relative block aspect-[9/16] w-full max-w-[104px] overflow-hidden rounded-[18px] border-[3px] shadow-[0_2px_8px_rgb(0_0_0/0.12)] transition-[border-color] duration-200"
+					class="relative block aspect-[9/16] w-full max-w-[104px] overflow-hidden rounded-[18px] border-[3px] shadow-[0_2px_8px_rgb(0_0_0/0.12)] transition-[border-color] duration-[var(--dur-s)]"
 					style="background: {p.bg}; border-color: {on ? 'var(--tint)' : p.frame}"
 					aria-hidden="true"
 				>
@@ -77,4 +94,36 @@
 			<Switch checked={auto} onchange={toggleAuto} label="Apparence automatique" />
 		{/snippet}
 	</Row>
+</Section>
+
+<Section
+	header="Ressenti"
+	footer="Réglages › Accessibilité › Réduire les animations de l’iPhone coupe aussi l’ambiance et les transitions."
+>
+	<Row title="Ambiance animée" subtitle="Bulles, vagues et poissons des écrans d’accueil.">
+		{#snippet trailing()}
+			<Switch
+				checked={ambience}
+				onchange={(event) => {
+					ambience = event.currentTarget.checked;
+					setAmbience(ambience);
+				}}
+				label="Ambiance animée"
+			/>
+		{/snippet}
+	</Row>
+	{#if canHaptics}
+		<Row title="Retour tactile" subtitle="Un léger tic en cochant, glissant ou changeant d’onglet.">
+			{#snippet trailing()}
+				<Switch
+					checked={haptics}
+					onchange={(event) => {
+						haptics = event.currentTarget.checked;
+						setHaptics(haptics);
+					}}
+					label="Retour tactile"
+				/>
+			{/snippet}
+		</Row>
+	{/if}
 </Section>

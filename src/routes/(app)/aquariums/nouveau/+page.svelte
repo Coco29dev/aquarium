@@ -360,14 +360,14 @@
 
 <div class="flex min-h-[calc(100dvh-7rem)] flex-col">
 	<div class="flex-1 pt-4">
-		{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+		{#if message}<p class="subhead mb-4 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 		{#if stepIdx === 0}
 			<WizardStep title="Où en est ton bac ?" subtitle="Je m’adapte : les étapes et les suggestions changent selon ta situation." {direction}>
 				<div class="flex flex-col gap-3">
 					{#each CHOICES as c (c.stage)}
-						<button type="button" class="pressable flex items-center gap-4 rounded-[22px] bg-bg2 p-4 text-left" onclick={() => choose(c.stage)}>
-							<span class="grid h-14 w-14 shrink-0 place-items-center rounded-[16px] text-white" style="background: {c.tone}; --cut: {c.tone}">
+						<button type="button" class="pressable flex items-center gap-4 rounded-card bg-bg2 p-4 text-left" onclick={() => choose(c.stage)}>
+							<span class="grid h-14 w-14 shrink-0 place-items-center rounded-field text-white" style="background: {c.tone}; --cut: {c.tone}">
 								<Icon name={c.icon} size={30} filled weight={1.7} />
 							</span>
 							<span class="min-w-0 flex-1">
@@ -451,7 +451,7 @@
 						{#each d.habitants as h (h.key)}
 							<li class="pl-4">
 								<div class="row-body flex min-h-14 items-center gap-3 py-2 pr-4">
-									<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: {h.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}; --cut: {h.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}">
+									<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: {h.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}; --cut: {h.kind === 'flore' ? 'var(--green)' : 'var(--orange)'}">
 										<Icon name={h.kind === 'flore' ? 'leaf' : 'fish'} size={19} filled weight={2} />
 									</span>
 									<span class="min-w-0 flex-1">

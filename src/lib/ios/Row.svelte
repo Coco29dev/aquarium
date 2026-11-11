@@ -53,7 +53,7 @@
 		{@render leading()}
 	{:else if icon}
 		{#if iconColor}
-			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: {iconColor}; --cut: {iconColor}">
+			<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: {iconColor}; --cut: {iconColor}">
 				<Icon name={icon} size={19} filled weight={2} />
 			</span>
 		{:else}

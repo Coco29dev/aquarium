@@ -24,12 +24,55 @@
 				try {
 					var accent = localStorage.getItem('accent');
 					if (accent) root.dataset.accent = accent;
+					// Réglage « Ambiance animée » (Réglages › Affichage), lu avant l'affichage.
+					if (localStorage.getItem('ambient') === 'off') root.dataset.ambient = 'off';
 				} catch (e) {}
 				apply();
-				window.__applyTheme = apply;
 				media.addEventListener('change', apply);
+				// Voile de démarrage : pas sur les écrans servis d'emblée (connexion), et retiré au plus tard
+				// après 4 s si l'appli ne démarrait pas (le retrait normal, en fondu, est dans le layout).
+				if (/^\/(login|logout)/.test(location.pathname)) root.classList.add('no-boot');
+				setTimeout(function () {
+					var veil = document.getElementById('boot');
+					if (veil) veil.remove();
+				}, 4000);
 			})();
 		</script>
+		<style>
+			/* Voile de démarrage : même image que l'écran de lancement (eau lagon, halo en haut à gauche, poisson de la marque
+			   à 36 % de la largeur, centré à 45 % de la hauteur, sans texte), pour que le passage de l'un à l'autre ne se voie pas.
+			   Le dessin vient de scripts/make-splash.mjs ; le fondu de sortie est dans src/lib/motion/boot.ts. */
+			#boot {
+				position: fixed;
+				inset: 0;
+				z-index: 2147483000;
+				background:
+					radial-gradient(90% 90% at 26% 0%, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0)),
+					linear-gradient(180deg, #2ccad9, #0b7f93 55%, #06323f);
+				pointer-events: none;
+				transition: opacity 300ms ease;
+			}
+			/* Boîte de 64 unités du poisson : 36 % / 56,3 unités de large ; le point (31,65 ; 28,7) tombe à 50 % / 45 %. */
+			#boot svg {
+				position: absolute;
+				left: 29.76%;
+				top: calc(45% - 18.35vw);
+				width: 40.92%;
+				height: auto;
+				aspect-ratio: 1;
+			}
+			#boot.leaving {
+				opacity: 0;
+			}
+			html.no-boot #boot {
+				display: none;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#boot {
+					display: none;
+				}
+			}
+		</style>
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-title" content="Biotope" />
@@ -51,6 +94,29 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<div id="boot" aria-hidden="true">
+			<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+				<defs>
+					<linearGradient id="boot-f" gradientUnits="userSpaceOnUse" x1="8" y1="12" x2="48" y2="54">
+						<stop offset="0" stop-color="#ffc178" />
+						<stop offset="1" stop-color="#ff6f61" />
+					</linearGradient>
+				</defs>
+				<!-- le poisson de src/lib/art/fish.ts (Mark sans pastille) : ombre, queue, dorsale, corps, ouïe, œil, bulles -->
+				<g fill="#021b23" opacity=".25" transform="translate(.6 1.8)">
+					<path d="M18 33C14.5 28.5 10.5 23 5 19.5 6.5 25.5 7 29.5 9.5 33 7 36.5 6.5 40.5 5 46.5 10.5 43 14.5 37.5 18 33z" stroke="#021b23" stroke-width="3" stroke-linejoin="round" />
+					<path d="M50 33C50 23.5 41.5 16.5 31.5 16.5 23 16.5 18 22 15.5 30.5v5C18 44 23 49.5 31.5 49.5 41.5 49.5 50 42.5 50 33z" />
+				</g>
+				<path d="M18 33C14.5 28.5 10.5 23 5 19.5 6.5 25.5 7 29.5 9.5 33 7 36.5 6.5 40.5 5 46.5 10.5 43 14.5 37.5 18 33z" fill="url(#boot-f)" stroke="url(#boot-f)" stroke-width="3" stroke-linejoin="round" />
+				<path d="M21 22C19.5 14.5 23.5 9.5 29 8 28.5 12.5 31.5 15 38 17.5z" fill="#ff6f61" stroke="#ff6f61" stroke-width="2" stroke-linejoin="round" />
+				<path d="M50 33C50 23.5 41.5 16.5 31.5 16.5 23 16.5 18 22 15.5 30.5v5C18 44 23 49.5 31.5 49.5 41.5 49.5 50 42.5 50 33z" fill="url(#boot-f)" />
+				<path d="M37.5 22.5C34 29 34 37 37.5 43.5" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2.6" stroke-linecap="round" />
+				<circle cx="42.5" cy="28.5" r="3.2" fill="#06323f" />
+				<circle cx="43.5" cy="27.4" r="1.05" fill="#fff" />
+				<circle cx="54.5" cy="18.5" r="4.3" fill="none" stroke="#fff" stroke-width="2" />
+				<circle cx="48" cy="10" r="2.1" fill="#fff" fill-opacity=".92" />
+			</svg>
+		</div>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

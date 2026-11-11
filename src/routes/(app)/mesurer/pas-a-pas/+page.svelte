@@ -5,6 +5,7 @@
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { dayInParis } from '$lib/domain/dates';
+	import { clock } from '$lib/client/clock.svelte';
 	import { tankHealth } from '$lib/tank';
 	import { TANK_TONE, fmt, relativeDay } from '$lib/ui';
 	import Icon from '$lib/components/Icon.svelte';
@@ -141,7 +142,7 @@
 		return null;
 	};
 
-	const today = dayInParis();
+	const today = $derived(clock.today);
 	const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 	const ago = (iso: string) => {
 		const r = relativeDay(dayInParis(iso), today);
@@ -369,15 +370,19 @@
 		if (!tank || !ready.length || saving) return;
 		saving = true;
 		const values = ready.map((p) => ({ parameterId: p.id, value: valueOf(p)! }));
+		const saved = ready.map((p) => ({ parameter: p, value: valueOf(p)! }));
+		// Première saisie de ces paramètres pour ce bac : l'appli dit alors que la courbe commence.
+		const firstTime = !(view?.measurements ?? []).some((m) => values.some((v) => v.parameterId === m.parameterId));
 		try {
 			await store.addMeasurements(tank.id, values, whenLocal ? new Date(whenLocal).toISOString() : undefined);
-			ui.show(`${values.length} mesure${values.length > 1 ? 's' : ''} ajoutée${values.length > 1 ? 's' : ''} · ${tank.name}`, undefined, 'check');
+			// Le verdict lit la vue (file d'envoi comprise) : il ne dépend ni du réseau ni de l'écran suivant.
+			ui.reportMeasures(tank, saved, firstTime);
 			clearStored();
 			drafts = {};
 			confirmed = {};
 			close();
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			saving = false;
 		}

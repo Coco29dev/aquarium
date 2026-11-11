@@ -26,7 +26,7 @@
 			if (done) ui.show(done, undefined, 'check');
 			return true;
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 			return false;
 		}
 	}
@@ -245,7 +245,7 @@
 		{#if cover != null}
 			<Row href="/aquariums/{id}/journal" title="Changer de photo">
 				{#snippet leading()}
-					<img src="/api/photos/{cover}" alt="" class="h-[30px] w-[30px] shrink-0 rounded-[8px] object-cover" />
+					<img src="/api/photos/{cover}" alt="" class="h-[30px] w-[30px] shrink-0 rounded-chip object-cover" />
 				{/snippet}
 			</Row>
 			<Row title="Retirer la photo de couverture" destructive onclick={removeCover} />
@@ -270,7 +270,7 @@
 				{#each ordered as p, i (p.id)}
 					{@const lifted = i === dragIndex}
 					<li
-						class="relative bg-bg2 pl-4 {lifted ? 'z-10 shadow-[0_8px_24px_rgb(0_0_0/0.18)]' : ''}"
+						class="relative bg-bg2 pl-4 {lifted ? 'z-10 shadow-[var(--elev-3)]' : ''}"
 						style="transform: translateY({lifted ? dragY : shiftOf(i)}px) scale({lifted ? 1.02 : 1}); transition: {lifted ? 'none' : 'transform 220ms cubic-bezier(0.3,0.8,0.3,1)'}"
 					>
 						<div class="row-body flex min-h-11 items-center gap-3 pr-2">

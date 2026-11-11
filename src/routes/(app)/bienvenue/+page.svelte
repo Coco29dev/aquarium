@@ -3,6 +3,9 @@
 	import { goto } from '$app/navigation';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import Lagoon from '$lib/components/Lagoon.svelte';
+	import Mark from '$lib/art/Mark.svelte';
+	import WaveDivider from '$lib/art/WaveDivider.svelte';
+	import Caustics from '$lib/art/Caustics.svelte';
 	import { APP_NAME, APP_TAGLINE } from '$lib/brand';
 	import { enableReminders, isStandalone, pushSupported } from '$lib/push-client';
 	import { ui } from '$lib/client/ui.svelte';
@@ -57,7 +60,7 @@
 			reminders = state === 'inactif' ? 'off' : 'on';
 		} catch (e) {
 			reminders = 'off';
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 </script>
@@ -65,6 +68,8 @@
 <svelte:head><title>Bienvenue · Biotope</title></svelte:head>
 
 <div class="fixed inset-0 z-40 mx-auto flex max-w-md flex-col bg-bg" style="padding-top: env(safe-area-inset-top); padding-bottom: max(16px, env(safe-area-inset-bottom))">
+	<!-- Un reflet de surface très discret en haut de chaque page, derrière tout le contenu -->
+	<Caustics on="page" layers={1} class="-z-10 h-[46%]" />
 	<div class="flex h-11 items-center justify-end px-4">
 		<button class="btn-plain" onclick={() => finish('/')}>Plus tard</button>
 	</div>
@@ -91,7 +96,8 @@
 
 		<!-- 3. Ce que fait l'appli -->
 		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
-			<h1 class="title1 mb-8 text-center">Ce que {APP_NAME} fait pour toi</h1>
+			<h1 class="title1 text-center">Ce que {APP_NAME} fait pour toi</h1>
+			<WaveDivider class="my-6" />
 			<ul class="flex flex-col gap-6">
 				{#each features as f (f.title)}
 					<li class="flex items-start gap-4">
@@ -107,7 +113,7 @@
 
 		<!-- 4. Rappels -->
 		<section class="flex w-full shrink-0 snap-center flex-col items-center justify-center px-8 text-center">
-			<span class="mb-8 grid h-[104px] w-[104px] place-items-center rounded-[26px] bg-red text-white shadow-[0_14px_34px_rgb(255_59_48/0.3)]" style="--cut: var(--red)">
+			<span class="mb-8 grid h-[104px] w-[104px] place-items-center rounded-card bg-red text-white shadow-[0_14px_34px_rgb(255_59_48/0.3)]" style="--cut: var(--red)">
 				<Icon name="bell" size={58} filled weight={1.6} />
 			</span>
 			<h1 class="title1">Ne rate plus un changement d’eau</h1>
@@ -131,7 +137,9 @@
 
 		<!-- 5. Premier bac -->
 		<section class="flex w-full shrink-0 snap-center flex-col justify-center px-8">
-			<h1 class="title1 mb-8 text-center">Prêt en trois étapes</h1>
+			<span class="rise mx-auto mb-5 block rounded-[22.5%] shadow-[0_10px_26px_rgb(6_50_63/0.3),0_1px_3px_rgb(0_0_0/0.12)]"><Mark size={72} /></span>
+			<h1 class="title1 text-center">Prêt en trois étapes</h1>
+			<WaveDivider class="my-6" />
 			<ol class="flex flex-col gap-6">
 				{#each steps as st (st.n)}
 					<li class="flex items-start gap-4">

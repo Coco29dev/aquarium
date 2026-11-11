@@ -124,7 +124,7 @@
 			editing = null;
 			ui.show('Mesure modifiée', undefined, 'check');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			saving = false;
 		}
@@ -144,7 +144,7 @@
 			if (editing?.id === m.id) editing = null;
 			ui.show('Mesure supprimée');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 
@@ -211,13 +211,13 @@
 
 	{#if list.length === 0}
 		<!-- Aucune mesure du tout : une invitation plutôt qu'un grand cadre vide. -->
-		<div class="mb-3 rounded-[22px] bg-bg2 px-4 py-6 text-center">
+		<div class="mb-3 rounded-card bg-bg2 px-4 py-6 text-center">
 			<p class="headline">Pas encore de mesure</p>
 			<p class="subhead mt-1 text-label2">Saisis une première valeur : la courbe apparaît dès la deuxième.</p>
 			<a href="/mesurer?bac={id}" class="btn-tinted mt-4">Saisir une mesure</a>
 		</div>
 	{:else}
-		<div class="mb-3 rounded-[22px] bg-bg2 px-2 pb-2 pt-3">
+		<div class="mb-3 rounded-card bg-bg2 px-2 pb-2 pt-3">
 			<Chart {points} min={parameter.min} max={parameter.max} decimals={parameter.decimals} height={220} {compare} {markers} />
 		</div>
 	{/if}

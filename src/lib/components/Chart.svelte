@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fmt } from '$lib/ui';
+	import { empty } from '$lib/voice';
 
 	/**
 	 * Graphe d'un paramètre façon Santé : points reliés d'un trait de couleur, plage acceptable
@@ -219,6 +220,6 @@
 			</div>
 		{/if}
 	{:else if points.length === 0}
-		<p class="subhead grid h-full place-items-center text-label2">Pas encore de mesure.</p>
+		<p class="subhead grid h-full place-items-center px-8 text-center text-label2">{empty.chart}</p>
 	{/if}
 </div>

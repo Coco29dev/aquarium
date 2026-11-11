@@ -52,15 +52,28 @@
 			// Replié dès que le grand titre passe sous la barre.
 			collapsed = heading.getBoundingClientRect().bottom < (bar?.getBoundingClientRect().bottom ?? 44);
 		};
+		// Une seule mesure par image, quel que soit le nombre d'événements de défilement reçus.
+		let frame = 0;
+		const onScroll = () => {
+			if (!frame)
+				frame = requestAnimationFrame(() => {
+					frame = 0;
+					update();
+				});
+		};
 		update();
-		addEventListener('scroll', update, { passive: true });
-		return () => removeEventListener('scroll', update);
+		addEventListener('scroll', onScroll, { passive: true });
+		return () => {
+			removeEventListener('scroll', onScroll);
+			cancelAnimationFrame(frame);
+		};
 	});
 </script>
 
 <div
 	bind:this={bar}
-	class="sticky top-0 z-20 -mx-4 transition-[background-color,box-shadow] duration-200 {scrolled ? 'bar-material shadow-[0_0.5px_0_var(--sep)]' : ''}"
+	class="bar-glass waterline sticky top-0 z-20 -mx-4 transition-[background-color] duration-200"
+	data-scrolled={scrolled ? '' : undefined}
 	style="padding-top: env(safe-area-inset-top); {tone && !scrolled ? `background: ${tone}` : ''}"
 >
 	<div class="grid h-11 grid-cols-[1fr_auto_1fr] items-center px-2">

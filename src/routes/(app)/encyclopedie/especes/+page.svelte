@@ -9,6 +9,7 @@
 	import Sheet from '$lib/ios/Sheet.svelte';
 	import Segmented from '$lib/ios/Segmented.svelte';
 	import SearchField from '$lib/ios/SearchField.svelte';
+	import Spinner from '$lib/ios/Spinner.svelte';
 	import Switch from '$lib/ios/Switch.svelte';
 	import { api } from '$lib/client/api';
 	import { canGoBack } from '$lib/client/nav';
@@ -200,7 +201,7 @@
 		</div>
 
 		{#if s.dataQuality === 'claude'}
-			<div class="mb-6 flex items-center gap-3 rounded-[22px] bg-orange/12 py-3 pl-4 pr-3">
+			<div class="mb-6 flex items-center gap-3 rounded-card bg-orange/12 py-3 pl-4 pr-3">
 				<span class="shrink-0 text-orange" style="--cut: var(--bg)"><Icon name="info" size={22} filled /></span>
 				<p class="footnote min-w-0 flex-1">
 					<span class="font-semibold">À vérifier.</span> Fiche rédigée de mémoire par Claude, recoupe avant de t’y fier.
@@ -279,7 +280,7 @@
 		{/each}
 	</div>
 
-	{#if message}<p class="subhead mb-4 rounded-2xl bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+	{#if message}<p class="subhead mb-4 rounded-field bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 	{#if results.length}
 		<Section footer={results.length >= 40 ? 'Les 40 premières : précise ta recherche.' : undefined}>
@@ -306,7 +307,7 @@
 		</div>
 	{:else}
 		<div class="grid place-items-center py-14">
-			<span class="h-6 w-6 animate-spin rounded-full border-[3px] border-fill border-t-label2" aria-label="Recherche"></span>
+			<span role="status" aria-label="Recherche"><Spinner spinning size={28} /></span>
 		</div>
 	{/if}
 

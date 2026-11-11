@@ -4,6 +4,9 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { clock } from '$lib/client/clock.svelte';
+	import { empty } from '$lib/voice';
+	import EmptyState from '$lib/art/EmptyState.svelte';
 	import { listResource } from '$lib/client/api';
 	import { analyzeParameter, driftThreshold, lastWaterChanges, slopePerDay } from '$lib/domain/drift';
 	import { DAY_MS, dayInParis } from '$lib/domain/dates';
@@ -31,7 +34,7 @@
 	const health = $derived(view && aquarium ? tankHealth(view, aquarium) : null);
 	const parameters = $derived((view?.parameters ?? []).filter((p) => p.aquariumId === id));
 	const measurements = $derived((view?.measurements ?? []).filter((m) => m.aquariumId === id));
-	const today = dayInParis();
+	const today = $derived(clock.today);
 
 	const stage = $derived(aquarium ? stageOf(aquarium) : 'actif');
 
@@ -84,7 +87,7 @@
 			await store.setStage(id, next);
 			ui.show(next === 'cyclage' ? 'Bac mis en eau' : 'Bac actif', undefined, 'check');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 	function onJourneyAction(step: JourneyStep) {
@@ -191,7 +194,9 @@
 	<p class="subhead mt-10 text-center text-label2">Ce bac n’existe pas ou plus.</p>
 {:else}
 	{@const tone = TANK_TONE[aquarium.waterType]}
-	{#if showJourney}
+	<!-- Un cyclage en cours a déjà sa carte de coach juste dessous : le parcours ne la redouble pas (sauf quand le cyclage
+	     est terminé, car c'est lui qui porte l'action « Passer en bac actif »). -->
+	{#if showJourney && !(health.coach && !health.coach.ready)}
 		<div class="mt-3"><JourneyCard {aquarium} steps={journey} compact={stage === 'actif'} onaction={onJourneyAction} /></div>
 	{/if}
 
@@ -199,7 +204,7 @@
 	<div class="mb-6 mt-3">
 		{#if health.coach}
 			{@const at = stageIndex[health.coach.stage]}
-			<div class="rounded-[22px] bg-bg2 p-4">
+			<div class="raised p-4">
 				<div class="mb-3 flex items-center gap-1.5 text-indigo">
 					<Icon name="cycle" size={17} weight={2} />
 					<span class="subhead font-semibold">Cyclage en cours</span>
@@ -232,7 +237,7 @@
 				{/each}
 			</ul>
 		{:else}
-			<div class="flex items-center gap-3 rounded-[22px] bg-bg2 px-4 py-3.5">
+			<div class="raised flex items-center gap-3 px-4 py-3.5">
 				<span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green text-white"><Icon name="check" size={18} weight={2.8} /></span>
 				<div>
 					<p class="headline">{gaps.length && health.level === 'ok' && measurements.length ? 'Valeurs mesurées dans la plage' : health.label}</p>
@@ -257,13 +262,18 @@
 			<a href="/aquariums/{id}/reglages" class="btn-plain subhead">Plages</a>
 		</div>
 		{#if tiles.length === 0}
-			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3.5 text-label2">Aucun paramètre suivi. Ajoute-en dans les réglages du bac.</p>
+			<p class="subhead rounded-card bg-bg2 px-4 py-3.5 text-label2">{empty.params}</p>
+		{:else if measurements.length === 0}
+			<!-- Rien n'a encore été mesuré : une seule invitation plutôt qu'une grille de tuiles vides. -->
+			<EmptyState art="mesures" variant={aquarium.waterType} level={3} title={empty.noMeasureTitle} text={empty.noMeasureText} class="rounded-card bg-bg2 py-6">
+				{#snippet actions()}<a href="/mesurer?bac={id}" class="btn-tinted">Saisir la première mesure</a>{/snippet}
+			</EmptyState>
 		{:else}
 			<div class="grid grid-cols-2 gap-2.5">
 				{#each tiles as t (t.p.id)}
 					{@const state = t.alert?.level === 'hors_plage' ? 'bad' : t.alert?.level === 'derive' ? 'warn' : 'ok'}
 					{@const color = state === 'bad' ? 'var(--red)' : state === 'warn' ? 'var(--orange)' : tone}
-					<a href="/aquariums/{id}/parametre/{t.p.id}" class="pressable block rounded-[22px] bg-bg2 p-3.5 {state !== 'ok' ? 'col-span-2' : ''}">
+					<a href="/aquariums/{id}/parametre/{t.p.id}" class="pressable raised block p-3.5 {state !== 'ok' ? 'col-span-2' : ''}">
 						<div class="flex items-center gap-1.5" style="color: {color}; --cut: var(--bg2)">
 							<Icon name={iconOf(t.p)} size={17} filled weight={1.8} />
 							<span class="subhead min-w-0 flex-1 truncate font-semibold {state === 'ok' ? 'text-label' : ''}">{t.p.name}</span>
@@ -284,7 +294,7 @@
 										{#if state !== 'ok' && t.p.min != null && t.p.max != null}<span> · plage {fmt(t.p.min, t.p.decimals)}–{fmt(t.p.max, t.p.decimals)}</span>{/if}
 									</p>
 								{:else}
-									<p class="subhead text-label2">Pas encore de mesure</p>
+									<p class="subhead text-label2">{empty.noMeasure}</p>
 								{/if}
 							</div>
 							<div class={state !== 'ok' ? '' : 'mt-2'}><Spark points={t.points} min={t.p.min} max={t.p.max} {color} /></div>
@@ -301,7 +311,7 @@
 			icon="drop"
 			iconColor="var(--cyan)"
 			title="Changement d’eau"
-			subtitle={waterDays == null ? 'Aucun changement noté' : `${waterDays === 0 ? 'Aujourd’hui' : waterDays === 1 ? 'Hier' : `Il y a ${waterDays} jours`}${waterDetail ? ` · ${waterDetail}` : ''}`}
+			subtitle={waterDays == null ? empty.waterNever : `${waterDays === 0 ? 'Aujourd’hui' : waterDays === 1 ? 'Hier' : `Il y a ${waterDays} jours`}${waterDetail ? ` · ${waterDetail}` : ''}`}
 		>
 			{#snippet trailing()}
 				<button type="button" class="subhead rounded-full bg-tint/15 px-3.5 py-1.5 font-semibold text-tint active:opacity-60" onclick={() => (waterSheet = true)}>

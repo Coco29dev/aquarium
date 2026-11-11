@@ -2,6 +2,9 @@
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { feedingStatus, feedingsToday } from '$lib/domain/feeding';
+	import { haptic } from '$lib/motion/haptic';
+	import { reducedMotion } from '$lib/motion/reduced';
+	import { fed } from '$lib/voice';
 	import Icon from '$lib/components/Icon.svelte';
 
 	/**
@@ -33,6 +36,19 @@
 		status === 'trop' ? `Consigne dépassée (${perDay} par jour)` : status === 'complet' ? 'Repas du jour complets' : null
 	);
 
+	// Flocons de nourriture : un petit mouvement au toucher, pas de bannière. Le compteur dit le reste.
+	const FLAKES = [-14, -7, 0, 7, 14];
+	let flakes = $state(0);
+	let flakeTimer: ReturnType<typeof setTimeout> | undefined;
+	let said = $state('');
+	function sprinkle() {
+		if (reducedMotion()) return;
+		flakes += 1;
+		clearTimeout(flakeTimer);
+		flakeTimer = setTimeout(() => (flakes = 0), 900);
+	}
+	$effect(() => () => clearTimeout(flakeTimer));
+
 	let busy = false;
 	async function feed(event: MouseEvent) {
 		event.preventDefault();
@@ -49,10 +65,12 @@
 				});
 				if (!ok) return;
 			}
+			haptic('tick');
+			sprinkle();
 			await store.addFeeding(aquariumId);
-			ui.show('Repas noté', undefined, 'check');
+			said = fed(today.count, perDay);
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 		}
@@ -67,9 +85,20 @@
 	<button
 		type="button"
 		onclick={feed}
-		class="pressable flex shrink-0 items-center gap-1.5 rounded-full bg-fill3 font-semibold text-tint {compact ? 'footnote h-8 px-3' : 'subhead h-9 px-3.5'}"
+		class="pressable relative flex shrink-0 items-center gap-1.5 rounded-full bg-fill3 font-semibold text-tint {compact ? 'footnote h-8 px-3' : 'subhead h-9 px-3.5'}"
 		aria-label="Noter un repas pour {aquarium?.name ?? 'ce bac'}"
 	>
 		<Icon name="fish" size={compact ? 15 : 17} weight={2} />Nourri
+		{#if flakes}
+			{#key flakes}
+				<span class="pointer-events-none absolute inset-x-0 top-1 flex justify-center" aria-hidden="true">
+					{#each FLAKES as dx, i (dx)}
+						<span class="absolute h-1 w-1 rounded-full" style="background: var(--coral); --dx: {dx}px; animation: flake 760ms var(--ease-out) {i * 40}ms both"></span>
+					{/each}
+				</span>
+			{/key}
+		{/if}
 	</button>
+	<!-- Le geste n'affiche pas de bannière : on le dit aux lecteurs d'écran. -->
+	<span class="sr-only" role="status">{said}</span>
 </div>

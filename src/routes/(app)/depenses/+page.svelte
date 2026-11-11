@@ -141,7 +141,7 @@
 	<div class="mb-5 mt-1"><Segmented options={filterOptions} bind:value={filter} label="Bac" /></div>
 {/if}
 
-{#if message}<p class="subhead mb-4 rounded-2xl bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+{#if message}<p class="subhead mb-4 rounded-field bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 <!-- Total du mois, façon Forme / Cartes -->
 <section class="group mb-8 p-4">

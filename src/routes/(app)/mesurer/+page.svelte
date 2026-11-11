@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { clock } from '$lib/client/clock.svelte';
 	import { dayInParis } from '$lib/domain/dates';
 	import { tankHealth } from '$lib/tank';
 	import { TANK_TONE, fmt, relativeDay } from '$lib/ui';
@@ -117,7 +118,7 @@
 			})
 	);
 
-	const today = dayInParis();
+	const today = $derived(clock.today);
 	const ago = (iso: string) => {
 		const r = relativeDay(dayInParis(iso), today);
 		return r === "aujourd'hui" ? `auj. ${new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : r;
@@ -161,14 +162,19 @@
 		if (!tank || !ready.length || saving) return;
 		saving = true;
 		const values = ready.map((p) => ({ parameterId: p.id, value: valueOf(p)! }));
+		const saved = ready.map((p) => ({ parameter: p, value: valueOf(p)! }));
+		// Première saisie de ces paramètres pour ce bac : l'appli dit alors que la courbe commence.
+		const firstTime = !(view?.measurements ?? []).some((m) => values.some((v) => v.parameterId === m.parameterId));
+		const target = tank;
 		try {
-			await store.addMeasurements(tank.id, values, whenLocal ? new Date(whenLocal).toISOString() : undefined);
-			ui.show(`${values.length} mesure${values.length > 1 ? 's' : ''} ajoutée${values.length > 1 ? 's' : ''} · ${tank.name}`, undefined, 'check');
+			await store.addMeasurements(target.id, values, whenLocal ? new Date(whenLocal).toISOString() : undefined);
+			// Le verdict lit la vue (file d'envoi comprise) : il ne dépend ni du réseau ni de l'écran suivant.
+			ui.reportMeasures(target, saved, firstTime);
 			drafts = {};
 			confirmed = {};
 			close();
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			saving = false;
 		}
@@ -240,7 +246,7 @@
 		<!-- Le lien remplace l'entrée d'historique : à la fin du pas à pas, on revient d'où l'on venait. -->
 		<li>
 			<a href="/mesurer/pas-a-pas?bac={tank.id}" data-sveltekit-replacestate class="tappable flex items-center gap-3 pl-4">
-				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--indigo); --cut: var(--indigo)">
+				<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: var(--indigo); --cut: var(--indigo)">
 					<Icon name="flask" size={19} filled weight={2} />
 				</span>
 				<div class="row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
@@ -345,7 +351,7 @@
 {#if tank && ready.length}
 	<div class="h-20" aria-hidden="true"></div>
 	<div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md px-4" style="padding-bottom: max(12px, env(safe-area-inset-bottom))">
-		<button class="btn-filled pointer-events-auto w-full shadow-[0_8px_24px_rgb(0_0_0/0.22)]" disabled={saving} onclick={save}>
+		<button class="btn-filled pointer-events-auto w-full shadow-[var(--elev-3)]" disabled={saving} onclick={save}>
 			Ajouter {ready.length} mesure{ready.length > 1 ? 's' : ''}
 		</button>
 	</div>

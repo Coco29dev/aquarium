@@ -1,11 +1,17 @@
 <script lang="ts">
 	/** Faux quand l'onglet est masqué (gardé en vie) : seules les actions de l'onglet actif sont affichées. */
 	let { active = true }: { active?: boolean } = $props();
+	import { flip } from 'svelte/animate';
+	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { clock } from '$lib/client/clock.svelte';
 	import { dueTasks } from '$lib/domain/tasks';
 	import { dayInParis } from '$lib/domain/dates';
+	import { reducedMotion } from '$lib/motion/reduced';
+	import { empty, nextTaskText, nothingTodayTitle } from '$lib/voice';
+	import EmptyState from '$lib/art/EmptyState.svelte';
 	import { TASK_KINDS } from '$lib/templates';
 	import { SHORT_WATER, fmt, lateBy, relativeDay, tankAge } from '$lib/ui';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
@@ -27,11 +33,14 @@
 	const view = $derived(store.view);
 	const aquarium = $derived(view?.aquariums.find((a) => a.id === id));
 	const tasks = $derived((view?.tasks ?? []).filter((t) => t.aquariumId === id));
-	const today = dayInParis();
-	const due = $derived(dueTasks(tasks));
+	// Jour vivant : l'appli reprise le lendemain n'est pas rechargée.
+	const today = $derived(clock.today);
+	const due = $derived(dueTasks(tasks, clock.now));
 	const dueIds = $derived(new Set(due.map((t) => t.id)));
 	const upcoming = $derived(tasks.filter((t) => t.active && !dueIds.has(t.id)).sort((a, b) => a.nextDue.localeCompare(b.nextDue)));
 	const paused = $derived(tasks.filter((t) => !t.active));
+	/** Prochaine tâche de ce bac : quand rien n'est dû, on dit ce qui vient ensuite. */
+	const nextUp = $derived(upcoming[0] ? { title: upcoming[0].title, when: relativeDay(upcoming[0].nextDue, today) } : null);
 	const history = $derived(
 		(view?.completions ?? [])
 			.filter((c) => tasks.some((t) => t.id === c.taskId))
@@ -55,7 +64,7 @@
 			await action();
 			return true;
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 			return false;
 		}
 	}
@@ -181,12 +190,22 @@
 	<!-- À faire, façon Rappels -->
 	<Section header="À faire" variant="title" inset={false}>
 		{#if due.length === 0}
-			<p class="subhead rounded-[22px] bg-bg2 px-4 py-3.5 text-label2">Rien à faire aujourd’hui pour ce bac.</p>
+			<!-- Rien de dû : on dit ce qui vient ensuite ; sans aucune tâche, on propose d'en ajouter une. -->
+			{#if tasks.length === 0}
+				<EmptyState art="taches" variant={aquarium.waterType} compact level={3} title={empty.tasksNoneTitle} text={empty.tasksNoneText} class="rounded-card bg-bg2 py-5">
+					{#snippet actions()}<button type="button" class="btn-tinted" onclick={openAdd}>Ajouter une tâche</button>{/snippet}
+				</EmptyState>
+			{:else}
+				<EmptyState art="taches" variant={aquarium.waterType} compact level={3} title={nothingTodayTitle} text={nextTaskText(nextUp)} class="rounded-card bg-bg2 py-5" />
+			{/if}
 		{:else}
 			<ul class="group task-list">
 				{#each due as task (task.id)}
 					{@const late = lateBy(task, today) > 0}
-					<TaskItem {task} detail="{dueLabel(task)} · {every(task.everyDays).toLowerCase()}" {late} onpostpone={(t) => (postponing = t)} onedit={openEdit} />
+					<!-- Une tâche qui part se replie, les suivantes montent. -->
+					<div role="presentation" animate:flip={{ duration: reducedMotion() ? 0 : 220 }} out:slide|local={{ duration: reducedMotion() ? 0 : 220 }}>
+						<TaskItem {task} detail="{dueLabel(task)} · {every(task.everyDays).toLowerCase()}" {late} onpostpone={(t) => (postponing = t)} onedit={openEdit} />
+					</div>
 				{/each}
 			</ul>
 			<p class="footnote mt-2 px-4 text-label2">Glisse vers la droite pour cocher, vers la gauche pour reporter ou ignorer.</p>
@@ -285,7 +304,7 @@
 <PostponeSheet bind:task={postponing} />
 
 <style>
-	.task-list > :global(li + li .row-body) {
+	.task-list > :global(div + div .row-body) {
 		box-shadow: inset 0 0.5px 0 var(--sep);
 	}
 </style>

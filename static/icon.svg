@@ -1,42 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
 	<defs>
-		<linearGradient id="deep" x1="0" y1="0" x2="0" y2="1">
-			<stop offset="0" stop-color="#19b6c6" />
-			<stop offset="0.5" stop-color="#0b7f93" />
+		<linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#2ccad9" />
+			<stop offset=".56" stop-color="#0b7f93" />
 			<stop offset="1" stop-color="#06323f" />
 		</linearGradient>
-		<radialGradient id="glow" cx="0.28" cy="0.05" r="0.85">
-			<stop offset="0" stop-color="#fff" stop-opacity=".42" />
+		<radialGradient id="glow" cx=".26" cy=".02" r=".95">
+			<stop offset="0" stop-color="#fff" stop-opacity=".46" />
 			<stop offset="1" stop-color="#fff" stop-opacity="0" />
 		</radialGradient>
-		<linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+		<linearGradient id="coral" gradientUnits="userSpaceOnUse" x1="8" y1="12" x2="48" y2="54">
 			<stop offset="0" stop-color="#ffc178" />
 			<stop offset="1" stop-color="#ff6f61" />
 		</linearGradient>
 	</defs>
-	<rect width="1024" height="1024" fill="url(#deep)" />
+	<!-- plein cadre : iOS arrondit lui-même les coins, Android masque en cercle -->
+	<rect width="1024" height="1024" fill="url(#water)" />
 	<rect width="1024" height="1024" fill="url(#glow)" />
-	<!-- rayons de lumière -->
-	<g fill="#fff" opacity=".10">
-		<path d="M170 0h110L150 1024H20z" />
-		<path d="M440 0h70L360 1024h-100z" />
+	<!-- deux rayons, d'en haut à gauche -->
+	<g fill="#fff" opacity=".09">
+		<path d="M150 0h120L110 1024H-30z" />
+		<path d="M420 0h66L330 1024h-96z" />
 	</g>
-	<!-- algue -->
-	<path d="M170 880c-60-110 40-170-10-290-24-58-4-110 30-150 4 70 56 110 40 200-14 80 48 120 6 240z" fill="#5ee0b3" opacity=".85" />
-	<!-- sable -->
-	<path d="M0 860c150-46 290-46 430 0s290 46 430 0l164-30v194H0z" fill="#04222c" opacity=".55" />
-	<!-- poisson -->
-	<g transform="translate(540 520) rotate(-8)">
-		<path d="M-260 0C-120-190 120-220 250 0 120 220-120 190-260 0z" fill="url(#coral)" filter="drop-shadow(0 22px 28px rgba(0,25,40,.45))" />
-		<path d="M230 0c60-72 130-112 200-120-34 70-34 170 0 240-70-8-140-48-200-120z" fill="url(#coral)" />
-		<path d="M-20-150c-50 90-50 210 0 300" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="26" stroke-linecap="round" />
-		<circle cx="-150" cy="-26" r="30" fill="#06323f" />
-		<circle cx="-142" cy="-36" r="9" fill="#fff" />
-	</g>
-	<!-- bulles -->
-	<g fill="none" stroke="#fff" stroke-width="20" opacity=".9">
-		<circle cx="300" cy="300" r="46" />
-		<circle cx="390" cy="190" r="26" />
-		<circle cx="250" cy="170" r="16" />
+	<!-- le poisson de la marque, dans le cercle de sécurité (rayon 410) -->
+	<g transform="translate(512 520) scale(11.500) translate(-31.650 -28.700)">
+		<!-- ombre portée -->
+		<g fill="#021b23" opacity=".28" transform="translate(.6 1.8)">
+			<path d="M18 33C14.500 28.500 10.500 23 5 19.500 6.500 25.500 7 29.500 9.500 33 7 36.500 6.500 40.500 5 46.500 10.500 43 14.500 37.500 18 33z" stroke="#021b23" stroke-width="3" stroke-linejoin="round" />
+			<path d="M50 33C50 23.500 41.500 16.500 31.500 16.500 23 16.500 18 22 15.500 30.500v5C18 44 23 49.500 31.500 49.500 41.500 49.500 50 42.500 50 33z" />
+		</g>
+		<path d="M18 33C14.500 28.500 10.500 23 5 19.500 6.500 25.500 7 29.500 9.500 33 7 36.500 6.500 40.500 5 46.500 10.500 43 14.500 37.500 18 33z" fill="url(#coral)" stroke="url(#coral)" stroke-width="3" stroke-linejoin="round" />
+		<path d="M21 22C19.500 14.500 23.500 9.500 29 8 28.500 12.500 31.500 15 38 17.500z" fill="#ff6f61" stroke="#ff6f61" stroke-width="2" stroke-linejoin="round" />
+		<path d="M50 33C50 23.500 41.500 16.500 31.500 16.500 23 16.500 18 22 15.500 30.500v5C18 44 23 49.500 31.500 49.500 41.500 49.500 50 42.500 50 33z" fill="url(#coral)" />
+		<path d="M37.500 22.500C34 29 34 37 37.500 43.500" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2.600" stroke-linecap="round" />
+		<circle cx="42.500" cy="28.500" r="3.200" fill="#06323f" />
+		<circle cx="43.500" cy="27.400" r="1.050" fill="#fff" />
+		<circle cx="54.500" cy="18.500" r="4.300" fill="none" stroke="#fff" stroke-width="2" />
+		<circle cx="48" cy="10" r="2.100" fill="#fff" fill-opacity=".92" />
 	</g>
 </svg>

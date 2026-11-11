@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../lib/art/tokens.css';
 
 /* Variante dark: de Tailwind alignée sur le thème choisi dans l'appli. */
 @custom-variant dark (&:where([data-scheme='dark'], [data-scheme='dark'] *));
@@ -53,8 +54,9 @@
 	--glass: rgb(250 250 252 / 0.8);
 	--glass-strong: rgb(249 249 251 / 0.86);
 	--glass-edge: rgb(255 255 255 / 0.7);
-	--glass-shadow: 0 8px 28px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.06);
-	--dim: rgb(0 0 0 / 0.3);
+	--glass-shadow: 0 8px 28px rgb(var(--shadow-ink) / 0.14), 0 1px 3px rgb(var(--shadow-ink) / 0.07);
+	/* Voile derrière les feuilles et alertes : un peu d'eau profonde plutôt que du noir. */
+	--dim: rgb(3 28 36 / 0.38);
 }
 
 /*
@@ -95,7 +97,7 @@
 		--glass-strong: rgb(30 30 32 / 0.86);
 		--glass-edge: rgb(255 255 255 / 0.14);
 		--glass-shadow: 0 8px 28px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
-		--dim: rgb(0 0 0 / 0.5);
+		--dim: rgb(0 6 9 / 0.6);
 }
 
 /*
@@ -143,6 +145,11 @@
 	--font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
 	--font-rounded: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+	/* Rayons : puce, champ, carte (au-delà de ~96 px de haut), héros (scène, grande carte). Intérieur = extérieur − marge. */
+	--radius-chip: 8px;
+	--radius-field: 14px;
+	--radius-card: 24px;
+	--radius-hero: 32px;
 }
 
 @layer base {
@@ -192,27 +199,32 @@ a {
 	text-decoration: none;
 }
 
+/* Anneau de focus plein (3:1 minimum sur fond clair comme sombre, WCAG 1.4.11). */
 :focus-visible {
-	outline: 3px solid color-mix(in srgb, var(--tint) 55%, transparent);
-	outline-offset: 1px;
+	outline: 2.5px solid var(--tint);
+	outline-offset: 2px;
 }
 }
 
 /* --- Typographie (échelle Dynamic Type par défaut) ------------------------ */
 
+/* Les grands titres prennent la voix arrondie (SF Pro Rounded, comme les chiffres) : la signature typographique de Biotope. */
 @utility large-title {
+	font-family: var(--font-rounded);
 	font-size: 34px;
 	line-height: 41px;
 	font-weight: 700;
 	letter-spacing: 0.011em;
 }
 @utility title1 {
+	font-family: var(--font-rounded);
 	font-size: 28px;
 	line-height: 34px;
 	font-weight: 700;
 	letter-spacing: 0.013em;
 }
 @utility title2 {
+	font-family: var(--font-rounded);
 	font-size: 22px;
 	line-height: 28px;
 	font-weight: 700;
@@ -302,26 +314,68 @@ a {
 	backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* Liste groupée en encart (Réglages, Santé). */
-@utility group {
-	background: var(--bg2);
-	border-radius: 22px;
-	overflow: hidden;
-}
-
-/* Surbrillance au toucher d'une ligne de liste. */
-@utility tappable {
-	transition: background-color 120ms ease;
-	&:active {
-		background-color: var(--fill3);
+/* Verre permanent d'une barre fixe ou collante (déjà positionnée, avec z-index) : le flou vit dans un pseudo-élément
+   dont seule l'opacité change au défilement (data-scrolled), au lieu d'une bascule de classe qui crée la couche
+   de flou en plein défilement. À associer à `waterline` pour le filet de bas de barre. */
+@utility bar-glass {
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		pointer-events: none;
+		opacity: 0;
+		background: var(--glass-strong);
+		-webkit-backdrop-filter: blur(20px) saturate(180%);
+		backdrop-filter: blur(20px) saturate(180%);
+		transition: opacity var(--dur-s);
+	}
+	&[data-scrolled]::before {
+		opacity: 1;
 	}
 }
 
-/* Réduction au toucher (cartes, boutons ronds). */
-@utility pressable {
-	transition: transform 160ms cubic-bezier(0.3, 0.7, 0.4, 1.4), opacity 160ms;
+/* Liste groupée en encart (Réglages, Santé). */
+@utility group {
+	background: var(--bg2);
+	border-radius: var(--radius-card);
+	overflow: hidden;
+}
+
+/* Surbrillance au toucher d'une ligne de liste : immédiate à l'appui, fondue au relâchement. */
+@utility tappable {
+	transition: background-color var(--dur-s) ease;
 	&:active {
-		transform: scale(0.97);
+		background-color: var(--fill3);
+		transition-duration: 0ms;
+	}
+}
+
+/* Réduction au toucher (cartes, boutons ronds) : l'eau encaisse vite, puis rebondit un peu au relâchement. */
+@utility pressable {
+	transition: transform var(--dur-m) var(--ease-pop), opacity var(--dur-s);
+	&:active {
+		transform: scale(var(--press-scale));
+		transition-duration: var(--dur-press), var(--dur-s);
+		transition-timing-function: var(--ease-out), ease;
+	}
+}
+
+/* Filet de bas de barre qui apparaît comme une ligne de flottaison (data-scrolled posé au défilement). */
+@utility waterline {
+	position: relative;
+	&::after {
+		content: '';
+		position: absolute;
+		inset: auto 0 -1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity var(--dur-s);
+		background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tint) 55%, transparent) 50%, transparent);
+	}
+	&[data-scrolled]::after {
+		opacity: 1;
 	}
 }
 
@@ -341,10 +395,12 @@ a {
 	font-size: 17px;
 	font-weight: 600;
 	letter-spacing: -0.022em;
-	transition: transform 160ms cubic-bezier(0.3, 0.7, 0.4, 1.4), opacity 160ms;
+	transition: transform var(--dur-m) var(--ease-pop), opacity var(--dur-s);
 	&:active:not(:disabled) {
-		transform: scale(0.97);
+		transform: scale(var(--press-scale));
 		opacity: 0.85;
+		transition-duration: var(--dur-press), var(--dur-s);
+		transition-timing-function: var(--ease-out), ease;
 	}
 	&:disabled {
 		background: var(--fill);
@@ -366,10 +422,12 @@ a {
 	font-size: 17px;
 	font-weight: 600;
 	letter-spacing: -0.022em;
-	transition: transform 160ms cubic-bezier(0.3, 0.7, 0.4, 1.4), opacity 160ms;
+	transition: transform var(--dur-m) var(--ease-pop), opacity var(--dur-s);
 	&:active:not(:disabled) {
-		transform: scale(0.97);
+		transform: scale(var(--press-scale));
 		opacity: 0.7;
+		transition-duration: var(--dur-press), var(--dur-s);
+		transition-timing-function: var(--ease-out), ease;
 	}
 	&:disabled {
 		color: var(--label3);
@@ -394,7 +452,7 @@ a {
 @utility field {
 	width: 100%;
 	min-height: 44px;
-	border-radius: 12px;
+	border-radius: var(--radius-field);
 	background: var(--fill3);
 	padding: 0 14px;
 	font-size: 17px;
@@ -417,7 +475,7 @@ html:not(.native-switch) input[type='checkbox'][switch] {
 	height: 31px;
 	border-radius: 999px;
 	background: var(--fill);
-	transition: background-color 200ms;
+	transition: background-color var(--dur-s);
 	flex: none;
 	&::after {
 		content: '';
@@ -429,7 +487,7 @@ html:not(.native-switch) input[type='checkbox'][switch] {
 		border-radius: 50%;
 		background: #fff;
 		box-shadow: 0 3px 8px rgb(0 0 0 / 0.15), 0 3px 1px rgb(0 0 0 / 0.06);
-		transition: transform 240ms cubic-bezier(0.3, 0.7, 0.4, 1.2);
+		transition: transform var(--dur-m) var(--ease-pop);
 	}
 	&:checked {
 		background: var(--green);
@@ -465,17 +523,53 @@ html:not(.native-switch) input[type='checkbox'][switch] {
 	}
 }
 
+@keyframes fade-out {
+	to {
+		opacity: 0;
+	}
+}
+/* Sorties : elles repartent de la position courante (pas de `from`), donc d'un glissement du doigt aussi. */
+@keyframes sheet-down {
+	to {
+		transform: translateY(100%);
+	}
+}
+@keyframes banner-out {
+	to {
+		opacity: 0;
+		transform: translateY(-16px) scale(0.94);
+	}
+}
+@keyframes pop-out {
+	to {
+		opacity: 0;
+		transform: scale(0.94);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
 	*::after {
 		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		animation-delay: 0s !important;
 		transition-duration: 1ms !important;
+		scroll-behavior: auto !important;
+	}
+	/* Indicateurs d'attente (classe .busy) : un souffle d'opacité, sans mouvement. */
+	.busy {
+		animation: busy-fade 1.4s ease-in-out infinite !important;
 	}
 	::view-transition-group(*),
 	::view-transition-old(*),
 	::view-transition-new(*) {
 		animation: none !important;
+	}
+}
+@keyframes busy-fade {
+	50% {
+		opacity: 0.35;
 	}
 }
 
@@ -503,30 +597,46 @@ html:not(.native-switch) input[type='checkbox'][switch] {
 		transform: translateX(100%);
 	}
 }
+/* mix-blend-mode normal : le réglage par défaut (plus-lighter) additionne deux pages opaques et blanchit l'écran pendant le glissement. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
 	animation-duration: 380ms;
-	animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+	animation-timing-function: var(--ease-nav);
+	mix-blend-mode: normal;
 }
 html[data-nav='push']::view-transition-old(root) {
 	animation-name: nav-out;
 }
 html[data-nav='push']::view-transition-new(root) {
 	animation-name: nav-in;
-	box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+	box-shadow: -8px 0 24px rgb(var(--shadow-ink) / 0.16);
 }
 html[data-nav='pop']::view-transition-old(root) {
 	animation-name: nav-back-out;
 	z-index: 2;
-	box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+	box-shadow: -8px 0 24px rgb(var(--shadow-ink) / 0.16);
 }
 html[data-nav='pop']::view-transition-new(root) {
 	animation-name: nav-back-in;
 }
-html[data-nav='tab']::view-transition-old(root),
+/* Onglets : la page dérive de 14 px dans le sens du déplacement (--dir : 1 vers la droite, -1 vers la gauche). */
+@keyframes drift-out {
+	to {
+		opacity: 0;
+		transform: translateX(calc(var(--dir, 1) * -14px));
+	}
+}
+@keyframes drift-in {
+	from {
+		opacity: 0;
+		transform: translateX(calc(var(--dir, 1) * 14px));
+	}
+}
+html[data-nav='tab']::view-transition-old(root) {
+	animation: drift-out var(--dur-s) var(--ease-in) both;
+}
 html[data-nav='tab']::view-transition-new(root) {
-	animation-duration: 160ms;
-	animation-timing-function: ease;
+	animation: drift-in var(--dur-m) var(--ease-out) both;
 }
 ::view-transition-group(tabbar),
 ::view-transition-group(tabaction) {
@@ -540,6 +650,54 @@ html[data-nav='tab']::view-transition-new(root) {
 ::view-transition-new(tabbar),
 ::view-transition-new(tabaction) {
 	animation: none;
+}
+/* Superpositions (alerte, menu contextuel, visite guidée, bannière) : nommées pour rester par-dessus la page
+   au lieu de glisser avec elle ; elles gardent leur propre animation d'entrée et de sortie. */
+::view-transition-group(alert),
+::view-transition-group(alert-dim),
+::view-transition-group(ctx-dim),
+::view-transition-group(ctx-lift),
+::view-transition-group(ctx-menu),
+::view-transition-group(tour),
+::view-transition-group(banner) {
+	z-index: 20;
+	animation: none;
+}
+::view-transition-old(alert),
+::view-transition-old(alert-dim),
+::view-transition-old(ctx-dim),
+::view-transition-old(ctx-lift),
+::view-transition-old(ctx-menu),
+::view-transition-old(tour),
+::view-transition-old(banner) {
+	display: none;
+}
+::view-transition-new(alert),
+::view-transition-new(alert-dim),
+::view-transition-new(ctx-dim),
+::view-transition-new(ctx-lift),
+::view-transition-new(ctx-menu),
+::view-transition-new(tour),
+::view-transition-new(banner) {
+	animation: none;
+}
+
+/* Barre d'onglets : la pilule d'accent glisse d'un onglet à l'autre (--i : rang de l'onglet actif, --n : nombre d'onglets)
+   sur un ressort ; sans linear(), la transition est simplement sautée. */
+.tab-pill {
+	position: absolute;
+	inset: 4px auto 4px 4px;
+	width: calc((100% - 8px) / var(--n, 4));
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--tint) 8%, transparent);
+	box-shadow: var(--water-edge);
+	transform: translateX(calc(var(--i, 0) * 100%));
+	transition:
+		transform var(--dur-l) var(--ease-spring),
+		opacity var(--dur-s);
+}
+.tab-pill[data-none] {
+	opacity: 0;
 }
 
 /* Présentation modale (feuille plein écran) : monte du bas, redescend à la fermeture. */
@@ -580,30 +738,112 @@ html[data-nav='dismiss']::view-transition-new(root) {
 	animation-name: modal-under-back;
 }
 
+/* Bascule clair ↔ sombre : une goutte part du doigt (--tx, --ty) et l'eau change de couleur derrière elle.
+   Les éléments nommés (barre d'onglets, bulle) suivent le cercle au lieu de rester par-dessus. */
+@keyframes theme-reveal {
+	from {
+		clip-path: circle(0px at var(--tx, 50%) var(--ty, 0px));
+	}
+	to {
+		clip-path: circle(var(--tr, 150vmax) at var(--tx, 50%) var(--ty, 0px));
+	}
+}
+html[data-nav='theme']::view-transition-old(root) {
+	animation: none;
+	z-index: 0;
+}
+html[data-nav='theme']::view-transition-new(root) {
+	animation: theme-reveal 620ms var(--ease-out) both;
+	z-index: 1;
+}
+html[data-nav='theme'] * {
+	view-transition-name: none !important;
+}
+
+/* Les couleurs de la charte glissent d'une valeur à l'autre (thème automatique, changement d'accent) :
+   enregistrées comme <color>, elles s'interpolent, et tout ce qui les lit par var() suit. */
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #eef3f5; }
+@property --bg2 { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --bg3 { syntax: '<color>'; inherits: true; initial-value: #eef3f5; }
+@property --label { syntax: '<color>'; inherits: true; initial-value: #000000; }
+@property --label2 { syntax: '<color>'; inherits: true; initial-value: rgb(60 60 67 / 0.72); }
+@property --label3 { syntax: '<color>'; inherits: true; initial-value: rgb(60 60 67 / 0.3); }
+@property --label4 { syntax: '<color>'; inherits: true; initial-value: rgb(60 60 67 / 0.18); }
+@property --sep { syntax: '<color>'; inherits: true; initial-value: rgb(60 60 67 / 0.29); }
+@property --fill { syntax: '<color>'; inherits: true; initial-value: rgb(120 120 128 / 0.2); }
+@property --fill2 { syntax: '<color>'; inherits: true; initial-value: rgb(120 120 128 / 0.16); }
+@property --fill3 { syntax: '<color>'; inherits: true; initial-value: rgb(118 118 128 / 0.12); }
+@property --tint { syntax: '<color>'; inherits: true; initial-value: #0a7385; }
+@property --blue { syntax: '<color>'; inherits: true; initial-value: #0a7385; }
+@property --on-tint { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --coral { syntax: '<color>'; inherits: true; initial-value: #ff6f61; }
+@property --green { syntax: '<color>'; inherits: true; initial-value: #208a3c; }
+@property --orange { syntax: '<color>'; inherits: true; initial-value: #b35c00; }
+@property --red { syntax: '<color>'; inherits: true; initial-value: #d92f24; }
+@property --glass { syntax: '<color>'; inherits: true; initial-value: rgb(250 250 252 / 0.8); }
+@property --glass-strong { syntax: '<color>'; inherits: true; initial-value: rgb(249 249 251 / 0.86); }
+@property --glass-edge { syntax: '<color>'; inherits: true; initial-value: rgb(255 255 255 / 0.7); }
+@property --dim { syntax: '<color>'; inherits: true; initial-value: rgb(3 28 36 / 0.38); }
+
+@media (prefers-reduced-motion: no-preference) {
+	:root {
+		transition-property: --bg, --bg2, --bg3, --label, --label2, --label3, --label4, --sep, --fill, --fill2, --fill3, --tint, --blue, --on-tint,
+			--coral, --green, --orange, --red, --glass, --glass-strong, --glass-edge, --dim;
+		transition-duration: 340ms;
+		transition-timing-function: ease;
+	}
+	/* Pendant la goutte du thème, les jetons sautent d'un coup : l'image « après » doit être l'état final. */
+	html[data-nav='theme'] {
+		transition: none;
+	}
+}
+
 /* --- Relief : élévations, surfaces teintées, mouvement d'ambiance ------------------------- */
 
 :root {
-	/* Ombres douces en clair ; en sombre, un liseré clair remplace l'ombre (invisible sur du noir). */
-	--elev-1: 0 1px 2px rgb(20 30 60 / 0.06), 0 8px 20px -8px rgb(20 40 90 / 0.16);
-	--elev-2: 0 2px 4px rgb(20 30 60 / 0.08), 0 18px 36px -12px rgb(20 40 90 / 0.3);
-	--edge: inset 0 1px 0 rgb(255 255 255 / 0.8);
+	/* Mouvement : l'eau encaisse vite (< 100 ms), ondule, se calme ; rien au-delà de 520 ms, hors jauges. */
+	--dur-press: 90ms;
+	--dur-s: 180ms;
+	--dur-m: 280ms;
+	--dur-l: 520ms;
+	--dur-fill: 800ms;
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-in: cubic-bezier(0.5, 0, 0.9, 0.5);
+	/* Parité avec le geste iOS : entrées et sorties d'écran, feuilles. */
+	--ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
+	/* Dépasse un peu la cible puis se pose : coche, bulle, bannière. */
+	--ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+	/* Ressort amorti (+1,5 %), pour les indicateurs qui glissent (pilule d'onglet). */
+	--ease-spring: linear(0, 0.11, 0.328, 0.549, 0.728, 0.856, 0.937, 0.983, 1.006, 1.014, 1.015, 1);
+	--press-scale: 0.97;
+	/* Lumière qui traverse l'eau : part de la teinte d'accent, un peu plus forte en sombre. */
+	--lume: 8%;
+	/* Ombres teintées lagon plutôt que bleu-gris ou noir ; en sombre, un liseré clair remplace l'ombre (invisible sur du noir). */
+	--shadow-ink: 6 50 63;
+	--elev-1: 0 1px 2px rgb(var(--shadow-ink) / 0.07), 0 8px 20px -8px rgb(var(--shadow-ink) / 0.18);
+	--elev-2: 0 2px 4px rgb(var(--shadow-ink) / 0.09), 0 18px 36px -12px rgb(var(--shadow-ink) / 0.3);
+	--elev-3: 0 2px 6px rgb(var(--shadow-ink) / 0.1), 0 14px 30px -8px rgb(var(--shadow-ink) / 0.28);
+	--water-edge: inset 0 1px 0 color-mix(in srgb, var(--tint) 26%, rgb(255 255 255 / 0.6));
+	--caustic: radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--tint) var(--lume), transparent), transparent 62%);
 }
 :root[data-scheme='dark'] {
+	--lume: 14%;
 	--elev-1: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 10px 24px -10px rgb(0 0 0 / 0.8);
 	--elev-2: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 20px 40px -14px rgb(0 0 0 / 0.9);
-	--edge: inset 0 1px 0 rgb(255 255 255 / 0.07);
+	--elev-3: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 16px 32px -10px rgb(0 0 0 / 0.85);
+	--water-edge: inset 0 1px 0 color-mix(in srgb, var(--tint) 22%, rgb(255 255 255 / 0.05));
 }
 
-/* Carte en relief : surface claire, liseré lumineux en haut, ombre diffuse. */
+/* Carte en relief : surface claire, lumière d'eau en coin, liseré lumineux en haut, ombre diffuse. */
 @utility raised {
-	background: var(--bg2);
-	border-radius: 24px;
-	box-shadow: var(--edge), var(--elev-1);
+	background: var(--caustic), var(--bg2);
+	border-radius: var(--radius-card);
+	box-shadow: var(--water-edge), var(--elev-1);
 }
 @utility lifted {
-	background: var(--bg2);
-	border-radius: 28px;
-	box-shadow: var(--edge), var(--elev-2);
+	background: var(--caustic), var(--bg2);
+	border-radius: var(--radius-card);
+	box-shadow: var(--water-edge), var(--elev-2);
 }
 
 /* Carte colorée : dégradé de la teinte `--tone`, texte blanc, ombre de la même couleur. */
@@ -616,11 +856,39 @@ html[data-nav='dismiss']::view-transition-new(root) {
 		radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 55%, white) 0%, transparent 55%),
 		linear-gradient(160deg, color-mix(in srgb, var(--tone) 94%, white) 0%, color-mix(in srgb, var(--tone) 72%, black) 100%);
 	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 14px 28px -12px color-mix(in srgb, var(--tone) 75%, transparent);
+	/* Texte secondaire (text-white/75 à /85) : à 80 % d'opacité sur une teinte vive il tombe à 2 ou 3:1. */
+	& [class*='text-white/'] {
+		color: rgb(255 255 255 / 0.94);
+	}
 }
-/* Carte à fond teinté légèrement, texte normal. */
+/* Tuile dont le texte blanc est en haut, sur une teinte vive (orange, vert d'un bac) : le blanc y tombait à 1,7:1.
+   La teinte est rendue plus profonde (luminosité OKLCH ≈ 0,45 à 0,56 : blanc ≥ 4,5:1) en gardant sa chroma, donc un orange
+   brûlé et un vert franc, pas un brun terne comme avec un voile noir. Repli sans couleurs relatives : mélange avec du noir. */
+:root:not([data-scheme='dark']) .tone-card.tone-deep {
+	background:
+		radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 46%, black) 0%, transparent 60%),
+		linear-gradient(160deg, color-mix(in srgb, var(--tone) 52%, black) 0%, color-mix(in srgb, var(--tone) 40%, black) 100%);
+}
+@supports (color: oklch(from red l c h)) {
+	:root:not([data-scheme='dark']) .tone-card.tone-deep {
+		background:
+			radial-gradient(120% 90% at 0% 0%, oklch(from var(--tone) 0.56 c h) 0%, transparent 60%),
+			linear-gradient(160deg, oklch(from var(--tone) 0.52 c h) 0%, oklch(from var(--tone) 0.44 c h) 100%);
+	}
+}
+/* En sombre, les teintes système sont plus claires : le dégradé s'enfonce pour que le blanc garde 4,5:1. */
+:root[data-scheme='dark'] .tone-card {
+	background:
+		radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 58%, white) 0%, transparent 55%),
+		linear-gradient(160deg, color-mix(in srgb, var(--tone) 58%, black) 0%, color-mix(in srgb, var(--tone) 38%, black) 100%);
+}
+/* Carte à fond teinté légèrement, texte normal. Le liseré du haut suit la teinte de la carte, pas l'accent. */
 @utility tone-soft {
 	background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 18%, var(--bg2)) 0%, color-mix(in srgb, var(--tone) 6%, var(--bg2)) 100%);
-	box-shadow: var(--edge), var(--elev-1);
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tone) 30%, rgb(255 255 255 / 0.6)), var(--elev-1);
+}
+:root[data-scheme='dark'] .tone-soft {
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tone) 22%, rgb(255 255 255 / 0.05)), var(--elev-1);
 }
 
 /* Mouvements d'ambiance : coupés pour qui préfère moins d'animations. */
@@ -671,6 +939,39 @@ html[data-nav='dismiss']::view-transition-new(root) {
 @media (prefers-reduced-motion: reduce) {
 	.ambient {
 		animation: none !important;
+	}
+}
+/* Hors écran ou appli en arrière-plan (action `ambient`) : les boucles s'arrêtent. Réglage « Ambiance animée » : html[data-ambient='off']. */
+[data-live='off'] .ambient,
+[data-live='off'].ambient {
+	animation-play-state: paused !important;
+}
+html[data-ambient='off'] .ambient {
+	animation: none !important;
+}
+
+/* Petits mouvements de retour d'action, partagés : coche qui se pose, onde autour du rond, flocons de nourriture. */
+@keyframes check-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.3) rotate(-14deg);
+	}
+}
+@keyframes ripple {
+	from {
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--tint) 50%, transparent);
+	}
+	to {
+		box-shadow: 0 0 0 12px transparent;
+	}
+}
+@keyframes flake {
+	20% {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+		transform: translate(var(--dx, 0px), 18px);
 	}
 }
 

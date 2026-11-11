@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
+	import Mark from '$lib/art/Mark.svelte';
+	import Loader from '$lib/art/Loader.svelte';
 
 	let { form } = $props();
 
@@ -20,12 +22,12 @@
 	style="padding-top: calc(env(safe-area-inset-top) + 24px); padding-bottom: calc(env(safe-area-inset-bottom) + 24px)"
 >
 	<div class="mb-10 flex flex-col items-center text-center" style="animation: fade-in 500ms both">
-		<img
-			src="/apple-touch-icon-180x180.png"
-			alt=""
-			class="mb-5 h-[104px] w-[104px] rounded-[22%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]"
-			style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both"
-		/>
+		<span
+			class="mb-5 block rounded-[22.5%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]"
+			style="animation: pop-in 520ms var(--ease-pop, cubic-bezier(0.3, 0.8, 0.3, 1.15)) both"
+		>
+			<Mark size={104} />
+		</span>
 		<h1 class="large-title">Biotope</h1>
 		<p class="body mt-1.5 text-label2">Saisis ton mot de passe pour ouvrir tes bacs.</p>
 	</div>
@@ -51,7 +53,7 @@
 						autocomplete="current-password"
 						required
 						placeholder="Requis"
-						class="body min-w-0 flex-1 bg-transparent text-right outline-none placeholder:text-label3"
+						class="body min-w-0 flex-1 bg-transparent text-right outline-none placeholder:text-label2"
 					/>
 				</label>
 			</li>
@@ -61,7 +63,7 @@
 		{/if}
 		<button class="btn-filled mt-6 w-full" disabled={busy}>
 			{#if busy}
-				<span class="h-5 w-5 animate-spin rounded-full border-[2.5px] border-white/40 border-t-white" aria-hidden="true"></span>
+				<span class="inline-flex" style="--loader-ink: var(--on-tint)"><Loader size={20} spinning /></span>
 				Connexion…
 			{:else}
 				Se connecter

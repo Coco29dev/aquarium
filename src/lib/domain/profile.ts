@@ -138,3 +138,45 @@ export function milestones(level: Level | null, f: JourneyFacts): Milestone[] {
 export function nextMilestone(list: Milestone[]): Milestone | null {
 	return list.find((x) => !x.done) ?? null;
 }
+
+// --- Jalons atteints et anniversaires de bac ---------------------------------------------------------
+// Des petits moments positifs et rares : ni série, ni compteur de jours manqués, rien qui se « perde ».
+
+/**
+ * Jalons passés à « fait » depuis la dernière fois. `previous` est la liste des identifiants déjà
+ * faits la dernière fois (null : première fois, on prend l'état actuel comme point de départ sans rien
+ * annoncer, pour ne pas fêter d'un coup tout ce qui était déjà acquis).
+ */
+export function newlyDone(previous: string[] | null, list: Milestone[]): Milestone[] {
+	if (previous === null) return [];
+	const known = new Set(previous);
+	return list.filter((m) => m.done && !known.has(m.id));
+}
+
+/** Identifiants des jalons faits, pour garder l'état d'une fois sur l'autre. */
+export const doneIds = (list: Milestone[]): string[] => list.filter((m) => m.done).map((m) => m.id);
+
+/** Jours d'âge d'un bac à fêter : 30, 100, puis chaque année. */
+const FIRST_ANNIVERSARIES = [30, 100] as const;
+/** Un anniversaire reste affiché ce nombre de jours (jour J compris) : on n'ouvre pas l'appli tous les jours. */
+export const ANNIVERSARY_WINDOW = 3;
+
+export interface Anniversary {
+	/** Âge fêté, en jours (30, 100, 365, 730…). */
+	days: number;
+	/** « 30 jours », « 100 jours », « 1 an », « 2 ans ». */
+	label: string;
+}
+
+/** Anniversaire à montrer pour un bac d'âge `age` (jours depuis la mise en eau), ou null. */
+export function anniversaryOf(age: number | null | undefined): Anniversary | null {
+	if (age == null || age < FIRST_ANNIVERSARIES[0]) return null;
+	for (const days of FIRST_ANNIVERSARIES) {
+		if (age >= days && age < days + ANNIVERSARY_WINDOW) return { days, label: `${days} jours` };
+	}
+	if (age >= 365) {
+		const years = Math.floor(age / 365);
+		if (age - years * 365 < ANNIVERSARY_WINDOW) return { days: years * 365, label: years === 1 ? '1 an' : `${years} ans` };
+	}
+	return null;
+}

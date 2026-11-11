@@ -89,7 +89,7 @@
 		try {
 			await navigator.share({ text });
 		} catch (e) {
-			if ((e as Error).name !== 'AbortError') ui.show('Partage impossible : copie le texte à la place.');
+			if ((e as Error).name !== 'AbortError') ui.fail('Partage impossible : copie le texte à la place.');
 		}
 	}
 
@@ -113,7 +113,7 @@
 		Un résumé clair de ton bac à coller sur un forum ou un groupe : c’est ce qu’on te demandera en premier. Le nom du bac n’y figure pas.
 	</p>
 
-	{#if loadError}<p class="subhead mb-4 rounded-2xl bg-orange/10 px-4 py-3 text-orange" role="status">{loadError}</p>{/if}
+	{#if loadError}<p class="subhead mb-4 rounded-field bg-orange/10 px-4 py-3 text-orange" role="status">{loadError}</p>{/if}
 
 	<Section header="Ta question" footer="Décris le problème : ce que tu vois, depuis quand, ce que tu as déjà essayé.">
 		<li class="p-1">

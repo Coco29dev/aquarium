@@ -69,7 +69,7 @@
 	<label class="flex items-center gap-3">
 		<span class="body w-24 shrink-0 font-semibold">Volume</span>
 		<input
-			class="body min-h-11 min-w-0 flex-1 rounded-[12px] bg-fill3 px-3 text-right outline-none focus:ring-2 focus:ring-blue"
+			class="body min-h-11 min-w-0 flex-1 rounded-field bg-fill3 px-3 text-right outline-none focus:ring-2 focus:ring-blue"
 			inputmode="numeric"
 			placeholder="150"
 			bind:value={volumeText}

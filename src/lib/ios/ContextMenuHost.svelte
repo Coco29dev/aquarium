@@ -1,11 +1,20 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	import { contextMenuState } from './contextMenuState.svelte';
+	import { presence } from '$lib/motion/presence.svelte';
 
 	// Affiche le menu contextuel ouvert par l'action use:contextMenu : fond flouté et assombri,
 	// copie de l'élément soulevée à sa place, menu de verre dessous (ou dessus faute de place).
 	const MENU_W = 250;
 	const ROW_H = 46;
+
+	// Le menu reste affiché le temps de sa sortie : on garde une copie de la dernière ouverture.
+	let last = $state<typeof contextMenuState.open>(null);
+	$effect(() => {
+		if (contextMenuState.open) last = contextMenuState.open;
+	});
+	const view = presence(() => Boolean(contextMenuState.open), 180);
+	const shown = $derived(contextMenuState.open ?? last);
 
 	let lift = $state<HTMLElement>();
 	// Le doigt qui a ouvert le menu se relève dessus : ce premier clic ne doit rien faire.
@@ -15,7 +24,7 @@
 	});
 
 	const layout = $derived.by(() => {
-		const o = contextMenuState.open;
+		const o = shown;
 		if (!o) return null;
 		const vw = window.innerWidth;
 		const vh = window.innerHeight;
@@ -66,26 +75,29 @@
 	}
 </script>
 
-{#if contextMenuState.open && layout}
-	<div class="fixed inset-0 z-[55]" role="presentation" onpointerdowncapture={() => (armed = true)}>
+{#if view.rendered && shown && layout}
+	<!-- Voile, élément soulevé et menu portent chacun un nom de transition : ils restent par-dessus la page quand
+	     une navigation suit le choix. -->
+	<div class="fixed inset-0 z-[55]" style:pointer-events={view.leaving ? 'none' : undefined} role="presentation" onpointerdowncapture={() => (armed = true)}>
 		<button
 			class="absolute inset-0 bg-[var(--dim)] backdrop-blur-xl"
-			style="animation: fade-in 200ms both"
+			style="view-transition-name: ctx-dim; animation: {view.leaving ? 'fade-out var(--dur-s) var(--ease-in) both' : 'fade-in 200ms both'}"
 			aria-label="Fermer le menu"
 			onclick={() => armed && contextMenuState.close()}
 		></button>
 		<div
 			bind:this={lift}
-			class="ctx-lift pointer-events-none absolute overflow-hidden rounded-[22px] bg-bg2"
-			style="top: {layout.top}px; left: {layout.left}px; width: {layout.width}px; max-height: {layout.height}px"
+			class="ctx-lift pointer-events-none absolute overflow-hidden rounded-card bg-bg2"
+			style="view-transition-name: ctx-lift; top: {layout.top}px; left: {layout.left}px; width: {layout.width}px; max-height: {layout.height}px{view.leaving ? '; animation: fade-out var(--dur-s) var(--ease-in) both' : ''}"
 			aria-hidden="true"
 		></div>
 		<ul
-			class="glass absolute overflow-hidden rounded-[22px]"
-			style="top: {layout.menuTop}px; left: {layout.menuLeft}px; width: {MENU_W}px; transform-origin: {layout.origin} center; animation: ctx-menu 280ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both; background: var(--glass-strong)"
+			class="glass absolute overflow-hidden rounded-card"
+			style="view-transition-name: ctx-menu; top: {layout.menuTop}px; left: {layout.menuLeft}px; width: {MENU_W}px; transform-origin: {layout.origin} center; animation: {view.leaving ? 'pop-out var(--dur-s) var(--ease-in) both' : 'ctx-menu 280ms var(--ease-pop) both'}; background: var(--glass-strong)"
+			onanimationend={view.end}
 			role="menu"
 		>
-			{#each contextMenuState.open.items as item, i (item.label)}
+			{#each shown.items as item, i (item.label)}
 				<li>
 					<button
 						role="menuitem"

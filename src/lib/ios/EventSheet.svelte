@@ -215,7 +215,7 @@
 			onsaved?.();
 			onclose();
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			saving = false;
 		}
@@ -369,7 +369,7 @@
 							onsaved?.();
 							onclose();
 						} catch (e) {
-							ui.show((e as Error).message);
+							ui.fail(e);
 						}
 					}}
 				/>

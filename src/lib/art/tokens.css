@@ -1,0 +1,40 @@
+/*
+ * Palette d'illustration de Biotope. Fixe quelle que soit la couleur d'accent choisie :
+ * le poisson reste corail, l'eau reste lagon. Les teintes sombres sont plus lumineuses (eau profonde, lumière qui perce).
+ * Utilisation : var(--art-…) dans les SVG de src/lib/art/ ; jamais de noir pur, jamais de contour sur les aplats.
+ */
+:root {
+	--art-lagon: #19b6c6;
+	--art-abysse: #06323f;
+	--art-ecume: #dcf5f7;
+	--art-nacre: #ffffff;
+	--art-sable: #efdcbb;
+	--art-sable-deep: #d9c39b;
+	--art-bio: #0fb5a4;
+	--art-fish-a: #ffb26b;
+	--art-fish-b: #f25c4e;
+	--art-algue: #3cc79a;
+	--art-meduse: #8a63d8;
+	--art-glass: rgb(60 60 67 / 0.26);
+	--art-shadow: rgb(6 50 63 / 0.14);
+	/* Traits de lumière sur eau colorée, puis sur le fond de page. */
+	--art-caustic: rgb(255 255 255 / 0.5);
+	--art-caustic-page: rgb(10 115 133 / 0.12);
+}
+:root[data-scheme='dark'] {
+	--art-lagon: #1fb0c4;
+	--art-abysse: #020d12;
+	--art-ecume: #8fe3ee;
+	--art-nacre: #e6fbff;
+	--art-sable: #4d4333;
+	--art-sable-deep: #3a3226;
+	--art-bio: #6cf5de;
+	--art-fish-a: #ffc178;
+	--art-fish-b: #ff6f61;
+	--art-algue: #5ee0b3;
+	--art-meduse: #b08cff;
+	--art-glass: rgb(235 235 245 / 0.3);
+	--art-shadow: rgb(0 0 0 / 0.45);
+	--art-caustic: rgb(143 227 238 / 0.22);
+	--art-caustic-page: rgb(143 227 238 / 0.1);
+}

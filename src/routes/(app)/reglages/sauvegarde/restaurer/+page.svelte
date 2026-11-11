@@ -214,7 +214,7 @@
 
 {#if step === 'source'}
 	<div class="mb-6 mt-4 flex flex-col items-center px-4 text-center">
-		<span class="mb-3 grid h-16 w-16 place-items-center rounded-[18px] bg-orange text-white" style="--cut: var(--orange)">
+		<span class="mb-3 grid h-16 w-16 place-items-center rounded-field bg-orange text-white" style="--cut: var(--orange)">
 			<Icon name="undo" size={34} weight={2.2} />
 		</span>
 		<p class="title3">Restaurer tes données</p>
@@ -230,7 +230,7 @@
 	{/if}
 
 	{#if error}
-		<p class="subhead mb-6 flex gap-2 rounded-[18px] bg-red/10 px-4 py-3 text-red" role="alert">
+		<p class="subhead mb-6 flex gap-2 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">
 			<span class="mt-0.5 shrink-0"><Icon name="alert" size={18} /></span>{error}
 		</p>
 	{/if}
@@ -289,13 +289,13 @@
 	</div>
 
 	{#if error}
-		<p class="subhead mb-6 flex gap-2 rounded-[18px] bg-red/10 px-4 py-3 text-red" role="alert">
+		<p class="subhead mb-6 flex gap-2 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">
 			<span class="mt-0.5 shrink-0"><Icon name="alert" size={18} /></span>{error}
 		</p>
 	{/if}
 
 	{#if preview.errors.length || !preview.valid}
-		<div class="mb-6 rounded-[22px] bg-red/10 px-4 py-3.5" role="alert">
+		<div class="mb-6 rounded-card bg-red/10 px-4 py-3.5" role="alert">
 			<p class="headline mb-1 flex items-center gap-2 text-red"><Icon name="alert" size={20} filled />Ce fichier ne peut pas être restauré</p>
 			<ul class="subhead flex flex-col gap-1 text-red">
 				{#each preview.errors as e (e)}<li>{e}</li>{/each}

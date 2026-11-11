@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROFILE, milestones, nextMilestone, parseProfile, personalGreeting, rankPicks } from './profile';
+import { ANNIVERSARY_WINDOW, DEFAULT_PROFILE, anniversaryOf, doneIds, milestones, newlyDone, nextMilestone, parseProfile, personalGreeting, rankPicks } from './profile';
 
 const facts = { tanks: 1, measurements: 0, waterChanges: 0, arrivals: 0, daysTracked: 0, stability: null, covers: 0 };
 
@@ -45,5 +45,43 @@ describe('milestones', () => {
 	});
 	it('sans niveau, se comporte comme un débutant', () => {
 		expect(milestones(null, facts).map((m) => m.id)).toEqual(milestones('debutant', facts).map((m) => m.id));
+	});
+});
+
+describe('jalons atteints', () => {
+	it('ne fête rien la première fois : l’état actuel devient le point de départ', () => {
+		const list = milestones('debutant', { ...facts, measurements: 3, waterChanges: 1 });
+		expect(newlyDone(null, list)).toEqual([]);
+	});
+	it('annonce seulement ce qui vient de passer à fait', () => {
+		const before = milestones('debutant', { ...facts, measurements: 1 });
+		const after = milestones('debutant', { ...facts, measurements: 1, waterChanges: 1 });
+		expect(newlyDone(doneIds(before), after).map((m) => m.id)).toEqual(['eau']);
+		expect(newlyDone(doneIds(after), after)).toEqual([]);
+	});
+	it('ne dit rien d’un jalon qui repasse à non fait (aucune perte)', () => {
+		const full = milestones('debutant', { ...facts, measurements: 1, waterChanges: 1 });
+		const fewer = milestones('debutant', { ...facts, measurements: 0, waterChanges: 0 });
+		expect(newlyDone(doneIds(full), fewer)).toEqual([]);
+	});
+});
+
+describe('anniversaires de bac', () => {
+	it('fête 30 jours, 100 jours, puis chaque année', () => {
+		expect(anniversaryOf(30)).toEqual({ days: 30, label: '30 jours' });
+		expect(anniversaryOf(100)).toEqual({ days: 100, label: '100 jours' });
+		expect(anniversaryOf(365)).toEqual({ days: 365, label: '1 an' });
+		expect(anniversaryOf(730)).toEqual({ days: 730, label: '2 ans' });
+	});
+	it('reste affiché quelques jours pour qui n’ouvre pas l’appli le jour J', () => {
+		expect(anniversaryOf(30 + ANNIVERSARY_WINDOW - 1)?.days).toBe(30);
+		expect(anniversaryOf(30 + ANNIVERSARY_WINDOW)).toBeNull();
+		expect(anniversaryOf(366)?.label).toBe('1 an');
+		expect(anniversaryOf(365 + ANNIVERSARY_WINDOW)).toBeNull();
+	});
+	it('ne dit rien les autres jours, ni sans date de mise en eau', () => {
+		for (const age of [0, 1, 29, 60, 99, 200, 364, 500]) expect(anniversaryOf(age)).toBeNull();
+		expect(anniversaryOf(null)).toBeNull();
+		expect(anniversaryOf(undefined)).toBeNull();
 	});
 });

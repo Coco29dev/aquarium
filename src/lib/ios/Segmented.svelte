@@ -1,5 +1,7 @@
 <script lang="ts" generics="T extends string | number">
-	/** Contrôle segmenté iOS : capsule grise, segment choisi en relief qui glisse. */
+	import { haptic } from '$lib/motion/haptic';
+
+	/** Contrôle segmenté iOS : capsule grise, segment choisi en relief qui glisse sur un ressort. */
 	interface Props {
 		options: { value: T; label: string }[];
 		value: T;
@@ -13,8 +15,8 @@
 
 <div class="relative grid rounded-full bg-fill3 p-[3px]" style="grid-template-columns: repeat({options.length}, minmax(0, 1fr))" role="radiogroup" aria-label={label}>
 	<span
-		class="absolute bottom-[3px] top-[3px] rounded-full bg-bg2 shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0.5px_1px_rgb(0_0_0/0.08)] transition-transform duration-300 ease-[cubic-bezier(0.3,0.8,0.3,1)] dark:bg-[#636366]"
-		style="left: 3px; width: calc((100% - 6px) / {options.length}); transform: translateX({index * 100}%)"
+		class="absolute bottom-[3px] top-[3px] rounded-full bg-bg2 shadow-[0_3px_8px_rgb(var(--shadow-ink)/0.14),0_0.5px_1px_rgb(var(--shadow-ink)/0.1)] dark:bg-[#636366]"
+		style="left: 3px; width: calc((100% - 6px) / {options.length}); transform: translateX({index * 100}%); transition: transform var(--dur-l) var(--ease-spring)"
 		aria-hidden="true"
 	></span>
 	{#each options as o (o.value)}
@@ -24,6 +26,7 @@
 			aria-checked={o.value === value}
 			class="footnote relative z-[1] h-10 truncate px-2 font-semibold transition-opacity active:opacity-60"
 			onclick={() => {
+				if (o.value !== value) haptic('tick');
 				value = o.value;
 				onchange?.(o.value);
 			}}

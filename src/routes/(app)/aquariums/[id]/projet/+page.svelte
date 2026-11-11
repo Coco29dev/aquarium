@@ -84,7 +84,7 @@
 		try {
 			await action();
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 
@@ -95,7 +95,7 @@
 			await updateResource('project_items', item.id, { done });
 		} catch (error) {
 			items = items.map((i) => (i.id === item.id ? { ...i, done: !done } : i));
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 
@@ -120,7 +120,7 @@
 			});
 		} catch (error) {
 			items = before;
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 
@@ -163,7 +163,7 @@
 			await load();
 			close();
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 		}
@@ -183,7 +183,7 @@
 			await load();
 			close();
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 		}
@@ -221,7 +221,7 @@
 			}
 			await goto(`/aquariums/${id}`, { replaceState: true });
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		} finally {
 			busy = false;
 		}
@@ -234,7 +234,7 @@
 			await store.mutate('DELETE', `/api/aquariums/${id}`);
 			await goto('/aquariums', { replaceState: true });
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 
@@ -271,7 +271,7 @@
 	/>
 
 	{#if loadError}
-		<p class="subhead mb-4 rounded-2xl bg-orange/10 px-4 py-3 text-orange" role="status">
+		<p class="subhead mb-4 rounded-field bg-orange/10 px-4 py-3 text-orange" role="status">
 			Impossible de charger la liste ({loadError}). Les modifications demandent une connexion.
 		</p>
 	{/if}
@@ -340,7 +340,7 @@
 			{#each wishes as item (item.id)}
 				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
 					<div class="flex items-center gap-3 pl-4">
-						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--blue); --cut: var(--blue)">
+						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: var(--blue); --cut: var(--blue)">
 							<Icon name="fish" size={19} filled weight={2} />
 						</span>
 						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">
@@ -358,7 +358,7 @@
 			{#each plants as item (item.id)}
 				<SwipeRow trailing={[{ label: 'Retirer', icon: 'trash', color: 'var(--red)', onaction: () => remove(item) }]}>
 					<div class="flex items-center gap-3 pl-4">
-						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white" style="background: var(--green); --cut: var(--green)">
+						<span class="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white" style="background: var(--green); --cut: var(--green)">
 							<Icon name="leaf" size={19} filled weight={2} />
 						</span>
 						<div class="row-body flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 pr-4">

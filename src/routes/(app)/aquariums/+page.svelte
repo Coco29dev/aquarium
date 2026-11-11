@@ -11,6 +11,7 @@
 	import Row from '$lib/ios/Row.svelte';
 	import TankCard from '$lib/relief/TankCard.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
+	import EmptyState from '$lib/art/EmptyState.svelte';
 	import { tankFacts } from '$lib/relief/facts';
 	import { contextMenu } from '$lib/ios/contextMenu';
 	import type { Aquarium, ProjectItem } from '$lib/types';
@@ -94,12 +95,11 @@
 </NavBar>
 
 {#if aquariums.length === 0}
-	<div class="mt-16 flex flex-col items-center px-6 text-center">
-		<img src="/apple-touch-icon-180x180.png" alt="" class="mb-5 h-24 w-24 rounded-[22%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]" style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both" />
-		<h2 class="title2">Aucun bac</h2>
-		<p class="subhead mt-1.5 text-label2">Ton bac est déjà en eau, en cyclage, ou encore à l’état de projet : je m’adapte à chaque cas.</p>
-		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>
-	</div>
+	<EmptyState art="bac" class="mt-6" title="Aucun bac" text="Ton bac est déjà en eau, en cyclage, ou encore à l’état de projet : je m’adapte à chaque cas.">
+		{#snippet actions()}
+			<a href="/aquariums/nouveau" class="btn-filled">Ajouter un bac</a>
+		{/snippet}
+	</EmptyState>
 {:else}
 	{#if live.length}
 		<h2 class="title3 mb-2.5 mt-2 px-1 font-bold">En eau</h2>
@@ -127,8 +127,8 @@
 					/>
 				</div>
 			{:else}
-				<div class="reveal" use:contextMenu={tankMenu(aquarium)}>
-					<Tile href="/aquariums/{aquarium.id}" {tone} variant="solid" mark={TANK_ICON[aquarium.waterType]} class="flex min-h-[11.5rem] flex-col">
+				<div class="reveal {i === live.length - 1 && live.length % 2 === 0 ? 'col-span-2' : ''}" use:contextMenu={tankMenu(aquarium)}>
+					<Tile href="/aquariums/{aquarium.id}" {tone} variant="solid" mark={TANK_ICON[aquarium.waterType]} class="tone-deep flex min-h-[11.5rem] flex-col">
 						<div class="flex items-start gap-2">
 							<div class="min-w-0 flex-1">
 								<p class="headline truncate">{aquarium.name}</p>
@@ -178,7 +178,7 @@
 		</Section>
 	{/if}
 
-	<a href="/aquariums/nouveau" class="pressable flex items-center gap-3 rounded-[22px] border-[1.5px] border-dashed border-label3 px-4 py-3.5 text-tint">
+	<a href="/aquariums/nouveau" class="pressable flex items-center gap-3 rounded-card border-[1.5px] border-dashed border-label3 px-4 py-3.5 text-tint">
 		<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint/12"><Icon name="plus" size={22} weight={2.4} /></span>
 		<span class="min-w-0 flex-1">
 			<span class="headline block">Ajouter un bac</span>

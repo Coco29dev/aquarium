@@ -66,7 +66,7 @@
 				type="button"
 				role="radio"
 				aria-checked={on}
-				class="pressable flex flex-col items-start gap-2 rounded-[18px] bg-bg2 p-3.5 text-left transition-shadow {on ? 'shadow-[inset_0_0_0_2px_var(--tint)]' : ''}"
+				class="pressable flex flex-col items-start gap-2 rounded-card bg-bg2 p-3.5 text-left transition-shadow {on ? 'shadow-[inset_0_0_0_2px_var(--tint)]' : ''}"
 				onclick={() => ui.setProfile({ interest: it.value })}
 			>
 				<span class={on ? 'text-tint' : 'text-label2'} style="--cut: var(--bg2)"><Icon name={it.icon} size={26} filled weight={1.7} /></span>
@@ -76,7 +76,7 @@
 	</div>
 
 	<h3 class={label}>Ta couleur</h3>
-	<div class="flex items-center justify-between gap-2 rounded-[18px] bg-bg2 px-4 py-3.5" role="radiogroup" aria-label="Couleur d’accent">
+	<div class="flex items-center justify-between gap-2 rounded-card bg-bg2 px-4 py-3.5" role="radiogroup" aria-label="Couleur d’accent">
 		{#each ACCENTS as a (a.id)}
 			{@const on = ui.profile.accent === a.id}
 			<button

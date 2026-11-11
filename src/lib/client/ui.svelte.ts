@@ -1,11 +1,32 @@
 import { store } from './store.svelte';
 import { DEFAULT_PROFILE, parseProfile, type Profile } from '$lib/domain/profile';
+import { tankHealth } from '$lib/tank';
+import { haptic } from '$lib/motion/haptic';
+import { friendlyError, looksLikeError, measureVerdict, taskDone, type SavedValue } from '$lib/voice';
+import type { Aquarium } from '$lib/types';
 
-interface Toast {
+/**
+ * Nature d'une bannière : `ok` (c'est fait), `info` (neutre), `warn` (une valeur à regarder, ton calme,
+ * jamais rouge) et `error` (échec : reste plus longtemps et se ferme d'un toucher).
+ */
+export type ToastKind = 'ok' | 'info' | 'warn' | 'error';
+
+export interface Toast {
 	id: number;
 	message: string;
+	kind: ToastKind;
 	icon?: string;
 	undo?: () => void;
+	/** Lien proposé à côté du message (le verdict d'une saisie : « Voir »). */
+	action?: { label: string; href: string };
+}
+
+export interface NotifyOptions {
+	message: string;
+	kind?: ToastKind;
+	icon?: string;
+	undo?: () => void;
+	action?: { label: string; href: string };
 }
 
 export interface ConfirmOptions {
@@ -20,7 +41,13 @@ interface PendingConfirm extends ConfirmOptions {
 	resolve: (ok: boolean) => void;
 }
 
+/** Délai d'annulation d'une tâche cochée : la bannière reste affichée pendant ce temps. */
 const UNDO_MS = 4500;
+/**
+ * Durée d'affichage selon la nature : une confirmation s'efface vite, une erreur reste de quoi la lire
+ * (au moins 8 s) et se ferme d'un toucher ; une bannière avec lien laisse le temps de le toucher.
+ */
+const DURATION: Record<ToastKind, number> = { ok: 3000, info: 3000, warn: 6500, error: 9000 };
 
 export type ThemePreference = 'auto' | 'light' | 'dark';
 
@@ -44,6 +71,8 @@ function readProfile(): Profile {
 /** État d'interface partagé : bannière avec « Annuler », alertes de confirmation, tâches cochées en sursis. */
 class Ui {
 	toast = $state<Toast | null>(null);
+	/** Horodatage du dernier geste de l'utilisateur qui change les anneaux du jour (tâche cochée, mesures). */
+	lastAction = 0;
 	alert = $state<PendingConfirm | null>(null);
 	/** Tâches cochées dont l'envoi attend la fin du délai d'annulation. */
 	checking = $state<Record<number, true>>({});
@@ -130,10 +159,32 @@ class Ui {
 		});
 	}
 
-	show(message: string, undo?: () => void, icon?: string) {
+	/** Note un geste de l'utilisateur : seul un changement qui le suit de près peut être fêté. */
+	noteAction() {
+		this.lastAction = Date.now();
+	}
+
+	/** Affiche une bannière (une seule à la fois : la nouvelle remplace l'ancienne). */
+	notify({ message, kind = 'info', icon, undo, action }: NotifyOptions) {
 		clearTimeout(this.#timer);
-		this.toast = { id: Date.now(), message, undo, icon };
-		this.#timer = setTimeout(() => (this.toast = null), UNDO_MS);
+		this.toast = { id: Date.now(), message, kind, icon, undo, action };
+		const ms = undo ? Math.max(UNDO_MS, DURATION[kind]) : action ? Math.max(6500, DURATION[kind]) : DURATION[kind];
+		this.#timer = setTimeout(() => (this.toast = null), ms);
+	}
+
+	/**
+	 * Forme courte, conservée pour les écrans existants : `icon` 'check' = confirmation, une autre icône =
+	 * information, sans icône = information… sauf si le texte dit visiblement un échec (ancienne façon de
+	 * signaler une erreur avec `ui.show(error.message)`) : il est alors présenté comme une erreur.
+	 */
+	show(message: string, undo?: () => void, icon?: string) {
+		if (!icon && !undo && looksLikeError(message)) return this.fail(message);
+		this.notify({ message, undo, icon, kind: icon === 'check' ? 'ok' : 'info' });
+	}
+
+	/** Échec d'une action : phrase calme en français, bannière qui reste et se ferme d'un toucher. */
+	fail(error: unknown, fallback?: string) {
+		this.notify({ message: friendlyError(error, fallback), kind: 'error', icon: 'alert' });
 	}
 
 	dismiss() {
@@ -141,18 +192,46 @@ class Ui {
 		this.toast = null;
 	}
 
+	/**
+	 * Ce que l'appli dit juste après une saisie de mesures : ce qui mérite un regard (lien vers le
+	 * paramètre), sinon « dans la plage ». Lit la vue (file d'envoi comprise) : marche hors ligne.
+	 */
+	reportMeasures(aquarium: Aquarium, saved: SavedValue[], firstTime: boolean) {
+		this.noteAction();
+		const view = store.view;
+		const health = view ? tankHealth(view, aquarium) : null;
+		const verdict = measureVerdict({
+			aquariumId: aquarium.id,
+			saved,
+			alerts: health?.alerts ?? [],
+			coachTitle: health?.coach?.title ?? null,
+			firstTime
+		});
+		haptic(verdict.level === 'ok' ? 'confirm' : 'warn');
+		this.notify({
+			message: verdict.message,
+			kind: verdict.level === 'ok' ? 'ok' : 'warn',
+			icon: verdict.level === 'ok' ? 'check' : 'alert',
+			action: verdict.href ? { label: verdict.linkLabel ?? 'Voir', href: verdict.href } : undefined
+		});
+	}
+
 	/** Coche une tâche : visible tout de suite, envoyée après le délai d'annulation. */
 	check(taskId: number, title: string) {
 		if (this.checking[taskId]) return;
+		// Le retour tactile part tout de suite, dans le geste : rien n'attend l'animation ni le réseau.
+		haptic('confirm');
+		this.noteAction();
 		this.checking[taskId] = true;
 		this.#pending.set(
 			taskId,
 			setTimeout(() => void this.#commit(taskId), UNDO_MS)
 		);
-		this.show(title, () => this.uncheck(taskId), 'check');
+		this.notify({ message: taskDone(title), kind: 'ok', icon: 'check', undo: () => this.uncheck(taskId) });
 	}
 
 	uncheck(taskId: number) {
+		haptic('tick');
 		clearTimeout(this.#pending.get(taskId));
 		this.#pending.delete(taskId);
 		delete this.checking[taskId];

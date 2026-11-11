@@ -1,8 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { slide } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { clock } from '$lib/client/clock.svelte';
 	import { collectTankAlerts } from '$lib/domain/drift';
 	import { collectForecasts } from '$lib/domain/forecast';
 	import { addDays, dayInParis } from '$lib/domain/dates';
@@ -13,10 +16,15 @@
 	import { weeklyReport } from '$lib/domain/weekly';
 	import { listResource } from '$lib/client/api';
 	import { SHORT_WATER, TANK_ICON, TANK_TONE, daysSinceWaterChange, fmt, lateBy, relativeDay, tankAge } from '$lib/ui';
-	import { contextualAdvice, dailyPicks, greeting } from '$lib/domain/advice';
-	import { milestones, nextMilestone, personalGreeting, rankPicks, type JourneyFacts } from '$lib/domain/profile';
+	import { contextualAdvice, dailyPicks } from '$lib/domain/advice';
+	import { anniversaryOf, doneIds, milestones, newlyDone, nextMilestone, rankPicks, type JourneyFacts, type Milestone } from '$lib/domain/profile';
+	import { dayClosed, shouldCelebrate, type RingsSnapshot } from '$lib/domain/celebration';
+	import { anniversary, dayClosed as dayClosedPhrase, milestone as milestonePhrase, nothingToday, welcome } from '$lib/voice';
+	import { haptic } from '$lib/motion/haptic';
+	import { reducedMotion } from '$lib/motion/reduced';
 	import { ALL_GUIDES, resolveRelated } from '$lib/content';
 	import Scene from '$lib/relief/Scene.svelte';
+	import EmptyState from '$lib/art/EmptyState.svelte';
 	import Tile from '$lib/relief/Tile.svelte';
 	import Carousel from '$lib/relief/Carousel.svelte';
 	import TankCard from '$lib/relief/TankCard.svelte';
@@ -35,7 +43,8 @@
 	import type { Aquarium, Task } from '$lib/types';
 
 	const view = $derived(store.view);
-	const today = dayInParis();
+	// Jour et heure vivants : l'appli reprise le lendemain n'est pas rechargée, ils suivent l'horloge.
+	const today = $derived(clock.today);
 	const aquariums = $derived(view?.aquariums ?? []);
 	const tankOf = (id: number) => aquariums.find((a) => a.id === id);
 	const health = $derived(view ? aquariums.map((a) => ({ aquarium: a, health: tankHealth(view, a) })) : []);
@@ -60,7 +69,16 @@
 			};
 		})
 	);
-	let selectedDay = $state(today);
+	let selectedDay = $state(untrack(() => today));
+	// Le jour change pendant que l'appli est ouverte : la sélection suit « aujourd'hui » au lieu de rester sur hier.
+	let knownToday = untrack(() => today);
+	$effect(() => {
+		if (today === knownToday) return;
+		if (untrack(() => selectedDay) === knownToday) selectedDay = today;
+		knownToday = today;
+	});
+	/** Vrai dès que l'utilisateur a changé de jour dans le ruban : seul ce changement joue un fondu. */
+	let switched = $state(false);
 	const selected = $derived(week.find((d) => d.day === selectedDay) ?? week[0]);
 	const sortedTasks = $derived([...selected.tasks].sort((a, b) => a.nextDue.localeCompare(b.nextDue)));
 
@@ -121,7 +139,7 @@
 	const coaches = $derived(health.filter((h) => h.health.coach));
 
 	// --- Anneaux du jour --------------------------------------------------------------------
-	const rings = $derived(view ? activityRings(view, Date.now()) : null);
+	const rings = $derived(view ? activityRings(view, clock.now) : null);
 	/** Tâches cochées en sursis (délai d'annulation) : déjà comptées comme faites. */
 	const checkingDue = $derived(week[0].tasks.filter((t) => ui.checking[t.id]).length);
 	const tasksRing = $derived.by(() => {
@@ -132,6 +150,42 @@
 	});
 	const stabilityRatio = $derived(rings?.stability.score != null ? rings.stability.score / 100 : null);
 
+	// --- Journée bouclée : un halo, une fois par jour, seulement à la fermeture --------------------------
+	// L'état d'avant est gardé le temps de la session (on revient de « Mesures » avec l'anneau des tests fermé) ;
+	// le jour déjà fêté l'est sur l'appareil. Jamais de halo pour un total à 0 ni pour un changement venu d'ailleurs.
+	const BASELINE_KEY = 'rings:baseline';
+	const CELEBRATED_KEY = 'rings:celebrated';
+	const readJson = <T,>(storage: Storage, key: string): T | null => {
+		try {
+			return JSON.parse(storage.getItem(key) ?? 'null') as T | null;
+		} catch {
+			return null;
+		}
+	};
+	let ringsGlow = $state(0);
+	$effect(() => {
+		if (!rings || !active.length) return;
+		const snapshot: RingsSnapshot = {
+			day: today,
+			tasks: { done: tasksRing.done, total: tasksRing.total },
+			tests: { done: rings.tests.done, total: rings.tests.total }
+		};
+		untrack(() => {
+			const before = readJson<RingsSnapshot>(sessionStorage, BASELINE_KEY);
+			const celebratedDay = readJson<string>(localStorage, CELEBRATED_KEY);
+			const celebrate = shouldCelebrate({ before, now: snapshot, celebratedDay, lastActionAt: ui.lastAction, nowMs: Date.now() });
+			try {
+				sessionStorage.setItem(BASELINE_KEY, JSON.stringify(snapshot));
+				if (celebrate) localStorage.setItem(CELEBRATED_KEY, JSON.stringify(today));
+			} catch {
+				// Stockage indisponible : pas de halo une seconde fois, au pire une fois de plus.
+			}
+			if (!celebrate) return;
+			ringsGlow = Date.now();
+			setTimeout(() => haptic('confirm'), 140);
+		});
+	});
+
 	let detailOpen = $state(false);
 	const testDetails = $derived(
 		view
@@ -139,7 +193,7 @@
 					.map((a) => {
 						const parameters = view.parameters.filter((p) => p.aquariumId === a.id);
 						const measurements = view.measurements.filter((m) => m.aquariumId === a.id);
-						const t = testsDue(parameters, measurements, stageOf(a), Date.now());
+						const t = testsDue(parameters, measurements, stageOf(a), clock.now);
 						return {
 							aquarium: a,
 							due: t.due.map((p) => {
@@ -164,7 +218,7 @@
 			: []
 	);
 	const remainingTasks = $derived(
-		view ? dueTasks(view.tasks.filter((t) => activeIds.has(t.aquariumId))).filter((t) => !ui.checking[t.id]) : []
+		view ? dueTasks(view.tasks.filter((t) => activeIds.has(t.aquariumId)), clock.now).filter((t) => !ui.checking[t.id]) : []
 	);
 
 	// --- Bacs en projet : avancement de la liste -----------------------------------------------
@@ -182,8 +236,8 @@
 
 	// --- Bilan de la semaine : mis en avant le dimanche et le lundi ----------------------------
 	const report = $derived(view ? weeklyReport(view) : null);
-	const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Europe/Paris' }).format(new Date());
-	const bilanProminent = weekday === 'Sun' || weekday === 'Mon';
+	const weekday = $derived(new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Europe/Paris' }).format(new Date(clock.now)));
+	const bilanProminent = $derived(weekday === 'Sun' || weekday === 'Mon');
 	const nextTask = $derived(
 		[...remainingTasks].sort((x, y) => x.nextDue.localeCompare(y.nextDue))[0] ?? null
 	);
@@ -261,7 +315,7 @@
 
 	let postponing = $state<Task | null>(null);
 
-	const kicker = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Paris' });
+	const kicker = $derived(new Date(clock.now).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Paris' }));
 
 	function taskDetail(t: Task): { text: string; late: boolean } {
 		const late = lateBy(t, today);
@@ -287,8 +341,8 @@
 	);
 
 	// --- Ambiance de l'accueil ---------------------------------------------------------------------
-	const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Paris' }).formatToParts(new Date()).find((x) => x.type === 'hour')?.value ?? 12);
-	const hello = $derived(personalGreeting(greeting(hour), ui.profile.name));
+	const hour = $derived(clock.hour);
+	const hello = $derived(welcome({ hour, name: ui.profile.name, away: clock.away }));
 	const mood = $derived<'ok' | 'warn' | 'bad'>(
 		attention.some((a) => a.color === 'var(--red)') ? 'bad' : attention.length ? 'warn' : 'ok'
 	);
@@ -296,7 +350,26 @@
 		if (!active.length) return projects.length ? 'Tes projets avancent.' : '';
 		if (attention.length) return attention.length === 1 ? 'Une chose à regarder.' : `${attention.length} choses à regarder.`;
 		const n = remainingTasks.length;
+		if (n === 0 && rings && tasksRing.total > 0 && dayClosed({ tasks: tasksRing, tests: rings.tests })) return dayClosedPhrase(hour, today);
 		return n ? `Tout est calme. ${n} tâche${n > 1 ? 's' : ''} t’attend${n > 1 ? 'ent' : ''}.` : 'Tout est calme, rien d’urgent.';
+	});
+
+	// Prochaine tâche à venir : quand rien n'est dû aujourd'hui, on dit ce qui suit plutôt que de laisser un vide.
+	const upcoming = $derived.by(() => {
+		const next = (view?.tasks ?? [])
+			.filter((t) => t.active && activeIds.has(t.aquariumId) && t.nextDue > today)
+			.sort((a, b) => a.nextDue.localeCompare(b.nextDue))[0];
+		return next ? { title: next.title, when: relativeDay(next.nextDue, today) } : null;
+	});
+
+	// Anniversaire d'un bac (30 jours, 100 jours, un an…) : une ligne discrète dans la scène, jamais quand quelque chose est à traiter.
+	const birthday = $derived.by(() => {
+		if (mood === 'bad') return null;
+		for (const a of active) {
+			const hit = anniversaryOf(tankAge(a, today));
+			if (hit) return anniversary(a.name, hit.label);
+		}
+		return null;
 	});
 
 	const tankFactsOf = (a: Aquarium) => (view ? tankFacts(view, a) : { big: null, stats: [] });
@@ -338,6 +411,36 @@
 	const pathDone = $derived(path.filter((m) => m.done).length);
 	const pathNext = $derived(nextMilestone(path));
 
+	// Jalon atteint : une petite bannière, une fois par jalon. La première fois, l'état actuel sert de point
+	// de départ sans rien annoncer ; la liste des faits ne fait que grandir (rien ne se « perd »).
+	let announce = $state<Milestone | null>(null);
+	$effect(() => {
+		if (!view) return;
+		const list = path;
+		const key = `milestones:${ui.profile.level ?? 'base'}`;
+		untrack(() => {
+			const previous = readJson<string[]>(localStorage, key);
+			const fresh = newlyDone(previous, list);
+			try {
+				localStorage.setItem(key, JSON.stringify([...new Set([...(previous ?? []), ...doneIds(list)])]));
+			} catch {
+				// Stockage indisponible : le jalon sera annoncé à la prochaine ouverture.
+			}
+			if (fresh.length) announce = fresh[0];
+		});
+	});
+	// La bannière attend que la précédente (verdict d'une saisie, tâche cochée) ait fini : une seule à la fois.
+	$effect(() => {
+		if (!announce || ui.toast) return;
+		const m = announce;
+		const timer = setTimeout(() => {
+			if (ui.toast) return;
+			announce = null;
+			ui.notify({ message: milestonePhrase(m.label), kind: 'ok', icon: 'check' });
+		}, 900);
+		return () => clearTimeout(timer);
+	});
+
 	const stageIndex = { demarrage: 0, pic_nitrites: 1, finalisation: 2, pret: 3, aucune_mesure: -1 } as const;
 	const stages = ['Ammoniac', 'Nitrites', 'Nitrates'];
 </script>
@@ -349,15 +452,12 @@
 </NavBar>
 
 {#if view && aquariums.length === 0}
-	<div class="mt-16 flex flex-col items-center px-6 text-center">
-		<img src="/apple-touch-icon-180x180.png" alt="" class="mb-5 h-24 w-24 rounded-[22%] shadow-[0_10px_30px_rgb(6_50_63/0.35),0_1px_3px_rgb(0_0_0/0.12)]" style="animation: pop-in 520ms cubic-bezier(0.3, 0.8, 0.3, 1.15) both" />
-		<h2 class="title2">Aucun bac pour l’instant</h2>
-		<p class="subhead mt-1.5 text-label2">Ajoute ton premier aquarium : je prépare les paramètres à suivre et leurs plages.</p>
-		<a href="/aquariums/nouveau" class="btn-filled mt-6">Ajouter un bac</a>
-	</div>
+	<EmptyState art="bac" title="Aucun bac pour l’instant" text="Ajoute ton premier aquarium : je prépare les paramètres à suivre et leurs plages." class="mt-10">
+		{#snippet actions()}<a href="/aquariums/nouveau" class="btn-filled">Ajouter un bac</a>{/snippet}
+	</EmptyState>
 {:else}
 	<!-- Scène : accueil, ambiance du moment, anneaux du jour -->
-	<Scene {hour} class="rise mb-6 mt-1">
+	<Scene hour={clock.hourFraction} class="rise mb-6 mt-1">
 		<div class="px-5 pb-6 pt-5">
 			<div class="flex items-start justify-between gap-3">
 				<p class="footnote font-semibold uppercase tracking-wide text-white/80">{kicker}</p>
@@ -370,6 +470,7 @@
 			</div>
 			<h1 class="large-title mt-2 drop-shadow-sm">{hello}</h1>
 			{#if headline}<p class="body mt-1 text-white/90">{headline}</p>{/if}
+			{#if birthday}<p class="subhead mt-2 w-fit max-w-full rounded-full bg-white/20 px-3 py-1 font-semibold backdrop-blur-md">{birthday}</p>{/if}
 
 			{#if rings && active.length}
 				<button type="button" class="pressable mt-5 flex w-full items-center gap-4 text-left" onclick={() => (detailOpen = true)} aria-label="Voir le détail des anneaux du jour">
@@ -377,6 +478,7 @@
 						<ActivityRings
 							size={92}
 							stroke={11}
+							glowAt={ringsGlow}
 							rings={[
 								{ ratio: tasksRing.ratio, color: 'var(--red)' },
 								{ ratio: rings.tests.ratio, color: 'var(--green)' },
@@ -422,7 +524,9 @@
 
 	<!-- Ce qui demande de l'attention, seulement s'il y en a -->
 	{#if attention.length}
-		<section class="raised rise mb-6 overflow-hidden" style="border-left: 5px solid {mood === 'bad' ? 'var(--red)' : 'var(--orange)'}">
+		<section class="raised rise relative mb-6 overflow-hidden">
+			<!-- Barre d'état à gauche : posée à l'intérieur du rayon, un border-left se terminerait en croissant aux angles. -->
+			<span class="pointer-events-none absolute inset-y-4 left-0 w-1 rounded-r-full" style="background: {mood === 'bad' ? 'var(--red)' : 'var(--orange)'}" aria-hidden="true"></span>
 			<p class="headline px-4 pb-1 pt-3.5">{attention.length === 1 ? 'À regarder' : `À regarder (${attention.length})`}</p>
 			<ul class="attention">
 				{#each attention.slice(0, 4) as a (a.key)}
@@ -460,7 +564,7 @@
 		<div class="raised mb-3 grid grid-cols-7 px-1.5 py-2.5" role="tablist" aria-label="Jours de la semaine">
 			{#each week as d, i (d.day)}
 				{@const on = d.day === selectedDay}
-				<button role="tab" aria-selected={on} onclick={() => (selectedDay = d.day)} class="flex flex-col items-center gap-1">
+				<button role="tab" aria-selected={on} onclick={() => ((selectedDay = d.day), (switched = true))} class="flex flex-col items-center gap-1">
 					<span class="caption2 font-semibold uppercase text-label2">{d.letter}</span>
 					<span
 						class="rounded-num grid h-9 w-9 place-items-center rounded-full text-[19px] transition-all duration-300 {on ? (i === 0 ? 'bg-red text-white shadow-[0_6px_14px_-4px_var(--red)]' : 'bg-label text-bg2') : i === 0 ? 'font-semibold text-red' : ''}"
@@ -476,28 +580,35 @@
 			{/each}
 		</div>
 
-		{#if sortedTasks.length === 0}
-			<div class="raised flex items-center gap-3 px-4 py-4">
-				<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/15 text-green"><Icon name="check" size={22} weight={2.8} /></span>
-				<p class="subhead text-label2">{selectedDay === today ? 'Rien à faire aujourd’hui. Profites-en.' : 'Rien de prévu ce jour-là.'}</p>
+		<!-- Le contenu se renouvelle d'un fondu quand on change de jour ; une tâche qui part se replie et les suivantes montent. -->
+		{#key selectedDay}
+			<div style={switched ? 'animation: fade-in var(--dur-s) var(--ease-out) backwards' : undefined}>
+				{#if sortedTasks.length === 0}
+					<div class="raised flex items-center gap-3 px-4 py-4">
+						<span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/15 text-green"><Icon name="check" size={22} weight={2.8} /></span>
+						<p class="subhead text-label2">{selectedDay === today ? nothingToday(upcoming) : 'Rien de prévu ce jour-là.'}</p>
+					</div>
+				{:else}
+					<ul class="raised ios-tasks overflow-hidden">
+						{#each sortedTasks as task (task.id)}
+							{@const d = taskDetail(task)}
+							{@const tank = tankOf(task.aquariumId)}
+							<div role="presentation" animate:flip={{ duration: reducedMotion() ? 0 : 220 }} out:slide|local={{ duration: reducedMotion() ? 0 : 220 }}>
+								<TaskItem
+									{task}
+									detail={d.text}
+									late={d.late}
+									tankName={tank?.name}
+									tankColor={tank ? TANK_TONE[tank.waterType] : undefined}
+									onpostpone={(t) => (postponing = t)}
+								/>
+							</div>
+						{/each}
+					</ul>
+					<p class="footnote mt-2 px-4 text-label2">Glisse une tâche vers la droite pour la cocher, vers la gauche pour la reporter.</p>
+				{/if}
 			</div>
-		{:else}
-			<ul class="raised ios-tasks overflow-hidden">
-				{#each sortedTasks as task (task.id)}
-					{@const d = taskDetail(task)}
-					{@const tank = tankOf(task.aquariumId)}
-					<TaskItem
-						{task}
-						detail={d.text}
-						late={d.late}
-						tankName={tank?.name}
-						tankColor={tank ? TANK_TONE[tank.waterType] : undefined}
-						onpostpone={(t) => (postponing = t)}
-					/>
-				{/each}
-			</ul>
-			<p class="footnote mt-2 px-4 text-label2">Glisse une tâche vers la droite pour la cocher, vers la gauche pour la reporter.</p>
-		{/if}
+		{/key}
 
 		{#if selectedDay === today && doneToday.length}
 			<p class="footnote mt-2 px-4 text-label2">
@@ -846,7 +957,7 @@
 <PostponeSheet bind:task={postponing} />
 
 <style>
-	.ios-tasks > :global(li + li .row-body),
+	.ios-tasks > :global(div + div .row-body),
 	.attention > li + li .row-body,
 	.ios-list > :global(li + li .row-body) {
 		box-shadow: inset 0 0.5px 0 var(--sep);

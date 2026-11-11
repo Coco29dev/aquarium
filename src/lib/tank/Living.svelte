@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import SpeciesPicker from '$lib/components/SpeciesPicker.svelte';
 	import SpeciesBrowser from '$lib/components/SpeciesBrowser.svelte';
@@ -15,6 +15,9 @@
 	import Segmented from '$lib/ios/Segmented.svelte';
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
+	import { empty, friendlyError } from '$lib/voice';
+	import EmptyState from '$lib/art/EmptyState.svelte';
+	import { clock } from '$lib/client/clock.svelte';
 	import { api, createResource, deleteResource, listResource, toNumber, toText, updateResource } from '$lib/client/api';
 	import { consumableLife } from '$lib/domain/consumables';
 	import { speciesName, type StockItem, type TankContext } from '$lib/domain/species';
@@ -29,7 +32,8 @@
 
 	const id = $derived(Number(page.params.id));
 	const aquarium = $derived(store.view?.aquariums.find((a) => a.id === id));
-	const today = dayInParis();
+	// Jour vivant : l'appli reprise le lendemain n'est pas rechargée (date d'arrivée par défaut, durées de vie).
+	const today = $derived(clock.today);
 
 	let inhabitants = $state<Inhabitant[]>([]);
 	let equipment = $state<Equipment[]>([]);
@@ -47,7 +51,7 @@
 			message = '';
 			await loadSpecies();
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 		} finally {
 			loading = false;
 		}
@@ -74,7 +78,7 @@
 			if (done) ui.show(done, undefined, 'check');
 			return true;
 		} catch (e) {
-			message = (e as Error).message;
+			message = friendlyError(e);
 			return false;
 		}
 	}
@@ -111,7 +115,7 @@
 			await store.mutate('PATCH', `/api/parameters/${c.parameterId}`, { min: c.suggested.min, max: c.suggested.max });
 			ui.show('Plage appliquée', undefined, 'check');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 
@@ -160,7 +164,7 @@
 			await load();
 			ui.show('Photo enregistrée', undefined, 'check');
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			photoBusy = false;
 			if (photoInput) photoInput.value = '';
@@ -188,7 +192,7 @@
 			await updateResource('inhabitants', i.id, { quantity: next });
 		} catch (e) {
 			i.quantity = previous;
-			message = (e as Error).message;
+			message = friendlyError(e);
 		}
 	}
 	async function markGone(i: Inhabitant) {
@@ -215,7 +219,7 @@
 	let speciesText = $state('');
 	let pickedSpecies = $state<Species | null>(null);
 	let quantity = $state(1);
-	let arrivedOn = $state(today);
+	let arrivedOn = $state(untrack(() => today));
 
 	let manual = $state(false);
 	let browserKind = $state<'tout' | 'poisson' | 'plante'>('tout');
@@ -339,7 +343,7 @@
 {:else}
 	<div class="mt-4">
 		{#if message}
-			<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>
+			<p class="subhead mb-4 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>
 		{/if}
 
 		<Section>
@@ -412,27 +416,37 @@
 			</button>
 		{/snippet}
 
-		<div class="mb-2 mt-6 px-4">
-			<h2 class="footnote uppercase tracking-wide text-label2">Faune</h2>
-		</div>
-		<div class="grid grid-cols-2 gap-3">
-			{#each fauna as i (i.id)}{@render habitantCard(i)}{/each}
-		</div>
-		<Section footer={loading ? undefined : animals ? `${animals} ${animals > 1 ? 'animaux' : 'animal'} de ${fauna.length} espèce${fauna.length > 1 ? 's' : ''}.` : undefined}>
-			<Row icon="plus" title="Ajouter un animal" action onclick={() => openAdd('faune')} />
-		</Section>
-
-		{#if flora.length}
+		{#if !loading && fauna.length === 0 && flora.length === 0}
+			<!-- Aucun habitant : une invitation plutôt qu'une grille vide, avec les deux gestes utiles. -->
+			<EmptyState art="habitants" variant={aquarium.waterType} level={3} title={empty.livingTitle} text={empty.livingText} class="mt-6 rounded-card bg-bg2 py-6">
+				{#snippet actions()}
+					<button type="button" class="btn-filled" onclick={() => openAdd('faune')}>Ajouter un animal</button>
+					<button type="button" class="btn-plain" onclick={() => openAdd('flore')}>Ajouter une plante</button>
+				{/snippet}
+			</EmptyState>
+		{:else}
 			<div class="mb-2 mt-6 px-4">
-				<h2 class="footnote uppercase tracking-wide text-label2">Flore</h2>
+				<h2 class="footnote uppercase tracking-wide text-label2">Faune</h2>
 			</div>
 			<div class="grid grid-cols-2 gap-3">
-				{#each flora as i (i.id)}{@render habitantCard(i)}{/each}
+				{#each fauna as i (i.id)}{@render habitantCard(i)}{/each}
 			</div>
+			<Section footer={loading ? undefined : animals ? `${animals} ${animals > 1 ? 'animaux' : 'animal'} de ${fauna.length} espèce${fauna.length > 1 ? 's' : ''}.` : undefined}>
+				<Row icon="plus" title="Ajouter un animal" action onclick={() => openAdd('faune')} />
+			</Section>
+
+			{#if flora.length}
+				<div class="mb-2 mt-6 px-4">
+					<h2 class="footnote uppercase tracking-wide text-label2">Flore</h2>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					{#each flora as i (i.id)}{@render habitantCard(i)}{/each}
+				</div>
+			{/if}
+			<Section header={flora.length ? undefined : 'Flore'}>
+				<Row icon="plus" title="Ajouter une plante" action onclick={() => openAdd('flore')} />
+			</Section>
 		{/if}
-		<Section header={flora.length ? undefined : 'Flore'}>
-			<Row icon="plus" title="Ajouter une plante" action onclick={() => openAdd('flore')} />
-		</Section>
 
 		<Section header="Matériel">
 			{#each equipment as e (e.id)}
@@ -492,7 +506,7 @@
 			{@const n = splitName(detail.species)}
 			{@const sp = speciesOf(detail)}
 			{@const own = customPhoto(detail)}
-			<div class="relative mb-5 overflow-hidden rounded-[22px]">
+			<div class="relative mb-5 overflow-hidden rounded-card">
 				{#if own}
 					<div class="aspect-[16/10] w-full bg-fill3"><img src={own} alt={n.name} class="h-full w-full object-cover" /></div>
 				{:else if sp}

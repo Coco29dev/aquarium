@@ -3,6 +3,7 @@
 	import { store } from '$lib/client/store.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { relativeDay } from '$lib/ui';
+	import { reducedMotion } from '$lib/motion/reduced';
 	import Icon from '$lib/components/Icon.svelte';
 	import SwipeRow from './SwipeRow.svelte';
 	import { contextMenu } from './contextMenu';
@@ -28,7 +29,18 @@
 	let { task, detail, late = false, tankName, tankColor, onpostpone, onedit }: Props = $props();
 
 	const done = $derived(Boolean(ui.checking[task.id]));
-	const toggle = () => (done ? ui.uncheck(task.id) : ui.check(task.id, task.title));
+	// Onde autour du rond au moment où on coche (jamais au premier affichage d'une ligne déjà cochée).
+	let burst = $state(false);
+	let burstTimer: ReturnType<typeof setTimeout> | undefined;
+	function toggle() {
+		if (done) return ui.uncheck(task.id);
+		ui.check(task.id, task.title);
+		if (reducedMotion()) return;
+		burst = true;
+		clearTimeout(burstTimer);
+		burstTimer = setTimeout(() => (burst = false), 560);
+	}
+	$effect(() => () => clearTimeout(burstTimer));
 	const edit = () => (onedit ? onedit(task) : goto(`/aquariums/${task.aquariumId}/taches`));
 
 	async function skip() {
@@ -37,7 +49,7 @@
 			const next = store.view?.tasks.find((t) => t.id === task.id)?.nextDue;
 			ui.show(next ? `Prochaine échéance : ${relativeDay(next)}` : 'Tâche ignorée cette fois', undefined, 'calendar');
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 	async function tomorrow() {
@@ -45,7 +57,7 @@
 			await store.postponeTask(task.id, 1);
 			ui.show('Reportée à demain', undefined, 'calendar');
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 
@@ -67,15 +79,16 @@
 >
 	<div class="flex items-start gap-3 pl-4" use:contextMenu={{ items }}>
 		<button
-			class="mt-2.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 {done ? 'border-tint bg-tint text-on-tint' : 'border-label3'}"
+			class="mt-2.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-[background-color,border-color] duration-[var(--dur-s)] {done ? 'border-tint bg-tint text-on-tint' : 'border-label3'}"
+			style={burst ? 'animation: ripple 520ms var(--ease-out) both' : undefined}
 			onclick={toggle}
 			aria-pressed={done}
 			aria-label="{done ? 'Annuler' : 'Marquer comme fait'} : {task.title}"
 		>
-			{#if done}<span class="grid" style="animation: pop-in 220ms both"><Icon name="check" size={14} weight={3.2} /></span>{/if}
+			{#if done}<span class="grid" style="animation: check-pop var(--dur-m) var(--ease-pop) both"><Icon name="check" size={14} weight={3.2} /></span>{/if}
 		</button>
 		<button class="row-body min-w-0 flex-1 py-2.5 pr-4 text-left" onclick={edit}>
-			<p class="body {done ? 'text-label3' : ''}">{task.title}</p>
+			<p class="body transition-colors duration-[var(--dur-s)] {done ? 'text-label2' : ''}">{task.title}</p>
 			<p class="footnote flex items-center gap-1.5">
 				{#if tankName}<span style="color: color-mix(in srgb, {tankColor} 62%, var(--label))" class="font-semibold">{tankName}</span>{/if}
 				<span class={late && !done ? 'text-red' : 'text-label2'}>{detail}</span>

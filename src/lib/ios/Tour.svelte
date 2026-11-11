@@ -97,13 +97,15 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="fixed inset-0 z-[70]" role="presentation">
+<!-- Nommée pour la transition entre écrans : la visite change d'onglet derrière la carte sans glisser avec lui.
+     overflow-hidden : l'ombre géante du projecteur ne gonfle pas l'image captée par la transition. -->
+<div class="fixed inset-0 z-[70] overflow-hidden" style="view-transition-name: tour" role="presentation">
 	<!-- Fond : bloque l'écran pendant la visite. Sans élément ciblé, il assombrit tout ; sinon c'est le projecteur qui le fait. -->
 	<div class="absolute inset-0" style="background: {rect ? 'transparent' : 'rgb(0 0 0 / 0.55)'}; transition: background 250ms" aria-hidden="true"></div>
 	{#if rect}
 		<div
 			class="pointer-events-none absolute rounded-full"
-			style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; box-shadow: 0 0 0 2.5px var(--tint), 0 0 0 100vmax rgb(0 0 0 / 0.58); transition: left 320ms cubic-bezier(0.32, 0.72, 0, 1), top 320ms cubic-bezier(0.32, 0.72, 0, 1), width 320ms cubic-bezier(0.32, 0.72, 0, 1), height 320ms cubic-bezier(0.32, 0.72, 0, 1)"
+			style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; box-shadow: 0 0 0 2.5px var(--tint), 0 0 0 100vmax rgb(0 0 0 / 0.58); transition: left var(--dur-m) var(--ease-nav), top var(--dur-m) var(--ease-nav), width var(--dur-m) var(--ease-nav), height var(--dur-m) var(--ease-nav)"
 			aria-hidden="true"
 		></div>
 	{/if}
@@ -117,11 +119,11 @@
 				aria-modal="true"
 				aria-labelledby="tour-title"
 				aria-describedby="tour-text"
-				class="pointer-events-auto rounded-[28px] bg-bg2 p-5 shadow-[0_16px_48px_rgb(0_0_0/0.35)] outline-none"
-				style="animation: pop-in 280ms cubic-bezier(0.3, 0.8, 0.3, 1.1) both"
+				class="pointer-events-auto rounded-card bg-bg2 p-5 shadow-[0_16px_48px_rgb(0_0_0/0.35)] outline-none"
+				style="animation: pop-in 280ms var(--ease-pop) both"
 			>
 				<div class="flex items-start gap-3.5">
-					<span class="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-tint text-on-tint" style="--cut: var(--tint)">
+					<span class="grid h-11 w-11 shrink-0 place-items-center rounded-field bg-tint text-on-tint" style="--cut: var(--tint)">
 						<Icon name={step.icon} size={26} filled weight={1.9} />
 					</span>
 					<div class="min-w-0 flex-1">

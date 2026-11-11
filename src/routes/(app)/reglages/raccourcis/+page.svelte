@@ -123,7 +123,7 @@
 			creating = false;
 			await load();
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		} finally {
 			busy = false;
 		}
@@ -143,7 +143,7 @@
 			ui.show('Jeton révoqué', undefined, 'check');
 			await load();
 		} catch (e) {
-			ui.show((e as Error).message);
+			ui.fail(e);
 		}
 	}
 
@@ -177,7 +177,7 @@
 <NavBar title="Raccourcis" back={{ href: '/reglages', label: 'Plus' }} large={false} />
 
 <div class="mb-6 mt-4 flex flex-col items-center px-4 text-center">
-	<span class="mb-3 grid h-16 w-16 place-items-center rounded-[18px] bg-purple text-white">
+	<span class="mb-3 grid h-16 w-16 place-items-center rounded-field bg-purple text-white">
 		<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
 			<path d="M12 3.5l8 4.5-8 4.5L4 8z" fill="currentColor" fill-opacity="0.35" />
 			<path d="M4 12l8 4.5 8-4.5M4 16l8 4.5 8-4.5" stroke-linecap="round" />

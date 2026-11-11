@@ -25,7 +25,7 @@
 
 <div class="flex items-start gap-3 px-4 py-3 {onopen && !pending ? 'tappable' : ''}">
 	<span
-		class="mt-0.5 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[8px] text-white {pending ? 'opacity-50' : ''}"
+		class="mt-0.5 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-chip text-white {pending ? 'opacity-50' : ''}"
 		style="background: {meta.color}; --cut: {meta.color}"
 	>
 		<Icon name={meta.icon} size={18} filled weight={2} />

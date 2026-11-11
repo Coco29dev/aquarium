@@ -280,7 +280,7 @@
 			await api('POST', `/api/assistant/images/${id}/gallery`);
 			ui.show('Ajoutée aux photos du bac', undefined, 'check');
 		} catch (e) {
-			ui.show(e instanceof Error ? e.message : 'Ajout impossible');
+			ui.fail(e, 'Ajout impossible.');
 		}
 	}
 
@@ -335,10 +335,10 @@
 	{#if !tank && !loading}
 		<p class="subhead mt-10 text-center text-label2">Crée d'abord un aquarium pour discuter avec l'assistant.</p>
 	{:else if loading}
-		<div class="mt-16 grid place-items-center"><Spinner /></div>
+		<div class="mt-16 grid place-items-center" role="status" aria-label="Chargement"><Spinner spinning size={32} /></div>
 	{:else if !items.length}
 		<div class="mt-8 px-1 text-center">
-			<span class="mx-auto grid h-14 w-14 place-items-center rounded-[20px] text-white" style="background: var(--indigo)"><Icon name="chat" size={30} filled /></span>
+			<span class="mx-auto grid h-14 w-14 place-items-center rounded-field text-white" style="background: var(--indigo)"><Icon name="chat" size={30} filled /></span>
 			<p class="title3 mt-3 font-semibold">Parle à ton assistant</p>
 			<p class="subhead mt-1 text-label2">Il connaît les mesures, les habitants et les tâches de « {tank?.name} ». Envoie-lui une photo, ou demande-lui de noter une mesure ou de cocher une tâche, avec ta confirmation.</p>
 			<div class="mt-5 flex flex-col items-stretch gap-2">
@@ -354,7 +354,7 @@
 					{#if item.images.length}
 						<div class="flex flex-wrap justify-end gap-1.5">
 							{#each item.images as id (id)}
-								<button class="pressable overflow-hidden rounded-[16px]" onclick={() => (viewing = id)} aria-label="Agrandir la photo">
+								<button class="pressable overflow-hidden rounded-field" onclick={() => (viewing = id)} aria-label="Agrandir la photo">
 									<img src="/api/assistant/images/{id}" alt="Pièce jointe" class="h-28 w-28 object-cover" loading="lazy" />
 								</button>
 							{/each}
@@ -392,10 +392,13 @@
 			{/if}
 		{/each}
 		{#if waiting}
-			<div class="pop mr-8 self-start rounded-[20px] rounded-bl-md bg-bg2 px-4 py-3"><Spinner /></div>
+			<!-- Réponse en cours : trois points qui respirent (un simple souffle d'opacité en « Réduire les animations »). -->
+			<div class="pop mr-8 self-start rounded-[20px] rounded-bl-md bg-bg2 px-4 py-3.5" role="status" aria-label="L’assistant répond">
+				<span class="dots" aria-hidden="true"><i class="busy"></i><i class="busy"></i><i class="busy"></i></span>
+			</div>
 		{/if}
 	{/if}
-	{#if failure}<p class="subhead rounded-[16px] bg-bg2 px-4 py-3 text-red" role="alert">{failure}</p>{/if}
+	{#if failure}<p class="subhead rounded-field bg-bg2 px-4 py-3 text-red" role="alert">{failure}</p>{/if}
 </div>
 
 {#if tank}
@@ -408,7 +411,7 @@
 					{#each attachments as a (a.key)}
 						<div class="relative h-16 w-16 shrink-0">
 							<img src={a.preview} alt="Pièce jointe" class="h-16 w-16 rounded-[12px] object-cover {a.id === null ? 'opacity-50' : ''}" />
-							{#if a.id === null}<span class="absolute inset-0 grid place-items-center"><Spinner /></span>{/if}
+							{#if a.id === null}<span class="absolute inset-0 grid place-items-center" role="status" aria-label="Envoi de la photo"><Spinner spinning size={22} /></span>{/if}
 							<button class="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-label2 text-bg2" onclick={() => unpick(a)} aria-label="Retirer la photo"><Icon name="close" size={13} weight={3} /></button>
 						</div>
 					{/each}
@@ -483,6 +486,38 @@
 	@media (prefers-reduced-motion: reduce) {
 		.pop {
 			animation: none;
+		}
+	}
+	.dots {
+		display: inline-flex;
+		gap: 5px;
+		align-items: center;
+		height: 10px;
+	}
+	.dots i {
+		display: block;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--label3);
+		animation: dot-breathe 1.2s ease-in-out infinite;
+	}
+	.dots i:nth-child(2) {
+		animation-delay: 160ms;
+	}
+	.dots i:nth-child(3) {
+		animation-delay: 320ms;
+	}
+	@keyframes dot-breathe {
+		0%,
+		80%,
+		100% {
+			opacity: 0.35;
+			transform: scale(0.8);
+		}
+		40% {
+			opacity: 1;
+			transform: scale(1);
 		}
 	}
 	.md :global(p + p),

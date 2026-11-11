@@ -102,7 +102,7 @@
 {/snippet}
 
 <form id={formId} onsubmit={submit} class="species-form">
-	{#if message}<p class="subhead mb-4 rounded-2xl bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+	{#if message}<p class="subhead mb-4 rounded-field bg-red/12 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 	<Section header="Identité">
 		{#if editable}

@@ -1,14 +1,30 @@
 <script lang="ts">
 	import { ui } from '$lib/client/ui.svelte';
+	import { presence } from '$lib/motion/presence.svelte';
+
+	// L'alerte reste affichée le temps de sa sortie : on garde une copie de la dernière demande, ui.alert
+	// passant à null dès qu'on a répondu.
+	let last = $state<typeof ui.alert>(null);
+	$effect(() => {
+		if (ui.alert) last = ui.alert;
+	});
+	const view = presence(() => Boolean(ui.alert), 200);
+	const a = $derived(ui.alert ?? last);
 </script>
 
-<!-- Alerte iOS 26 : carte de verre centrée, boutons en capsules côte à côte. -->
-{#if ui.alert}
-	{@const a = ui.alert}
-	<div class="fixed inset-0 z-[60] grid place-items-center bg-[var(--dim)] px-10" style="animation: fade-in 200ms both" role="presentation">
+<!-- Alerte iOS 26 : carte de verre centrée, boutons en capsules côte à côte. Le voile et la carte portent chacun un
+     nom de transition : ils restent par-dessus la page quand une navigation suit la réponse. -->
+{#if view.rendered && a}
+	<div class="fixed inset-0 z-[60] grid place-items-center px-10" style:pointer-events={view.leaving ? 'none' : undefined} role="presentation">
 		<div
-			class="w-full max-w-[300px] rounded-[34px] bg-[var(--glass-strong)] p-5 text-center shadow-2xl backdrop-blur-2xl"
-			style="animation: pop-in 260ms cubic-bezier(0.3, 0.8, 0.3, 1.1) both"
+			class="absolute inset-0 bg-[var(--dim)]"
+			style="view-transition-name: alert-dim; animation: {view.leaving ? 'fade-out var(--dur-s) var(--ease-in) both' : 'fade-in 200ms both'}"
+			aria-hidden="true"
+		></div>
+		<div
+			class="relative w-full max-w-[300px] rounded-[34px] bg-[var(--glass-strong)] p-5 text-center shadow-[var(--elev-3)] backdrop-blur-2xl"
+			style="view-transition-name: alert; animation: {view.leaving ? 'pop-out var(--dur-s) var(--ease-in) both' : 'pop-in 260ms var(--ease-pop) both'}"
+			onanimationend={view.end}
 			role="alertdialog"
 			aria-modal="true"
 			aria-labelledby="alert-title"

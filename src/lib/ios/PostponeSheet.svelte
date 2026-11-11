@@ -25,7 +25,7 @@
 			await store.postponeTask(t.id, days);
 			ui.show(`Reportée : ${label.toLowerCase()}`, undefined, 'calendar');
 		} catch (error) {
-			ui.show((error as Error).message);
+			ui.fail(error);
 		}
 	}
 </script>

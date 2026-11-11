@@ -46,7 +46,7 @@
 			await api('DELETE', `/api/assistant/threads/${t.id}`);
 			threads = threads.filter((x) => x.id !== t.id);
 		} catch (e) {
-			ui.show(e instanceof Error ? e.message : 'Suppression impossible');
+			ui.fail(e, 'Suppression impossible.');
 		}
 	}
 </script>
@@ -58,9 +58,9 @@
 </NavBar>
 
 {#if loading}
-	<div class="mt-16 grid place-items-center"><Spinner /></div>
+	<div class="mt-16 grid place-items-center" role="status" aria-label="Chargement"><Spinner spinning size={32} /></div>
 {:else if failure}
-	<p class="subhead mt-6 rounded-[16px] bg-bg2 px-4 py-3 text-red">{failure}</p>
+	<p class="subhead mt-6 rounded-field bg-bg2 px-4 py-3 text-red">{failure}</p>
 {:else if !threads.length}
 	<p class="subhead mt-12 text-center text-label2">Aucune conversation pour l'instant. Pose une question à l'assistant, elle apparaîtra ici.</p>
 {:else if !groups.length}

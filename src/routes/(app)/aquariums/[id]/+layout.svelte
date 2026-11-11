@@ -87,7 +87,8 @@
 	{#if cover != null}
 		<!-- Barre posée sur la photo : boutons de verre, puis verre et titre compact une fois la photo passée. -->
 		<div
-			class="fixed inset-x-0 top-0 z-20 mx-auto max-w-md transition-[background-color,box-shadow] duration-200 {past ? 'bar-material shadow-[0_0.5px_0_var(--sep)]' : ''}"
+			class="bar-glass waterline fixed inset-x-0 top-0 z-20 mx-auto max-w-md"
+			data-scrolled={past ? '' : undefined}
 			style="padding-top: env(safe-area-inset-top)"
 		>
 			<div class="grid h-11 grid-cols-[1fr_auto_1fr] items-center px-3">

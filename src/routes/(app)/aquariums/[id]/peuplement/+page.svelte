@@ -110,7 +110,7 @@
 
 <NavBar title="Peuplement" back={{ href: `/aquariums/${id}/inventaire`, label: 'Vivants' }} large={false} />
 
-{#if message}<p class="subhead mb-4 rounded-2xl bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
+{#if message}<p class="subhead mb-4 rounded-field bg-red/10 px-4 py-3 text-red" role="alert">{message}</p>{/if}
 
 <!-- Charge biologique -->
 <section class="group mb-2 mt-2 flex flex-col items-center px-4 pb-5 pt-6">

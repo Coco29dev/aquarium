@@ -1,6 +1,6 @@
 # Appli perso de gestion d'aquariums (PWA)
 
-Brief pour Claude Code. Interface et commentaires en français. Dernière mise à jour : 1er novembre 2026 (état au commit `3ba8f2e`). Historique détaillé par phase : `docs/PHASES.md`.
+Brief pour Claude Code. Interface et commentaires en français. Dernière mise à jour : 11 novembre 2026 (lot 14, identité visuelle). Historique détaillé par phase : `docs/PHASES.md`.
 
 ## Contexte
 
@@ -43,7 +43,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 - Rappels : planificateur interne au service (node-cron, passage toutes les 5 minutes, récapitulatif quotidien à l'heure réglée, sauvegarde JSON tous les jours à 3 h 10, 7 quotidiennes puis 4 hebdomadaires conservées) qui envoie du Web Push (VAPID), avec repli ntfy. Ne pas utiliser le cron natif de Railway : intervalle minimal de 5 minutes, sans garantie de ponctualité.
 - Photos et sauvegardes : **bucket Railway** (S3, `aws4fetch`), décision prise en phase 2. Sans variables S3, repli sur le dossier local `.data/` (éphémère sur Railway).
 - Graphes : SVG maison (`components/Chart.svelte`), plus de bibliothèque de graphes.
-- Interface : charte « façon iOS » (jetons dans `src/routes/layout.css`, composants dans `src/lib/ios/`). Ne pas réintroduire les anciennes chartes « Bulle » et « Carnet de bac ».
+- Interface : charte « façon iOS » (jetons dans `src/routes/layout.css`, composants dans `src/lib/ios/`) avec l'identité Biotope par-dessus : jetons de mouvement et de relief (`--dur-*`, `--ease-*`, `rounded-card`…), primitives dans `src/lib/motion/` (retour tactile, ambiances en pause hors écran, transitions de vue, goutte de thème), illustrations SVG maison dans `src/lib/art/` (palette `--art-*`), voix et retours dans `src/lib/voice.ts`. Ne pas réintroduire les anciennes chartes « Bulle » et « Carnet de bac ». Tout mouvement doit se couper avec `prefers-reduced-motion`, et rien ne doit ralentir la saisie.
 - Espèces : seed FishBase/SeaLifeBase (CC-BY-NC 4.0, usage personnel uniquement) + « noyau » de 638 fiches d'élevage dans `data/core/*.jsonl` (`data_quality` `claude` ou `verifie`, champs `locked` protégés des mises à jour). Contrôle : `node scripts/check-core.mjs`.
 - Assistant : SDK officiel `@anthropic-ai/sdk`, modèle `claude-sonnet-5-5`, flux SSE (`src/lib/server/assistant.ts`, routes `/api/assistant`). Plusieurs conversations par bac (`chat_threads`, `chat_messages`), photos dans le bucket (`chat_attachments`, bloc maison `x_image` remplacé par l'image à chaque tour), historique jamais modifié après écriture (cache et blocs de réflexion). Le contexte du bac est joint à chaque message de l'utilisateur, jamais au prompt système. Les outils qui écrivent attendent une confirmation dans l'appli.
 - Connexion : un seul compte géré par l'appli.
@@ -70,6 +70,7 @@ Variables du service `app` (noms seulement, valeurs dans Railway) : `DATABASE_UR
 | 6 : capteurs ESP32 | Non commencée (c'était la « phase 4 » du brief) |
 | 7 : assistant conversationnel Claude (hors brief initial) | Fait, déployé ; conversations multiples, historique, photos et bulle d'accès rapide en cours de test |
 | Visite guidée du premier lancement (hors brief initial) | Faite ; accueil puis visite en huit étapes sur les vrais écrans, état enregistré sur le serveur (`docs/PHASES.md`, lot 13) |
+| Identité visuelle et expérience (hors brief initial) | Faite, déployée (`docs/PHASES.md`, lot 14) ; retour tactile, voile de démarrage et nouvelle icône **à valider sur l'iPhone** (réinstaller la PWA pour l'icône) |
 
 Restes connus : confirmer la phase 0 sur l'iPhone ; relire les fiches du noyau ; envisager une sauvegarde de Postgres elle-même (modèle Railway) en plus de l'export JSON ; tests d'interface limités à quelques parcours Playwright (`npm run test:e2e`, base jetable `aquarium_e2e` recréée à chaque lancement, Postgres local requis) en plus des tests de logique métier (`npm test`).
 

@@ -58,6 +58,10 @@ export interface ThreadSummary {
 	/** Début du premier message de l'utilisateur, pour une conversation sans titre. */
 	preview: string;
 	updatedAt: string; // ISO
+	/** Messages écrits par l'utilisateur dans la conversation. */
+	messages: number;
+	/** Photos envoyées dans la conversation (supprimées avec elle). */
+	images: number;
 }
 
 export const threadLabel = (t: Pick<ThreadSummary, 'title' | 'preview'>): string => t.title?.trim() || t.preview.trim().slice(0, 60) || 'Nouvelle conversation';
@@ -106,6 +110,8 @@ export type ActionStatus = 'pending' | 'done' | 'refused' | 'error';
 export type AssistantEvent =
 	| { type: 'thread'; id: number }
 	| { type: 'text'; text: string }
+	/** Ce que l'assistant est en train de faire (lecture d'un historique…), le temps d'un outil de lecture. */
+	| { type: 'status'; text: string }
 	| { type: 'action'; id: string; label: string; status: Exclude<ActionStatus, 'pending'>; detail: string }
 	| { type: 'pending'; actions: PendingAction[] }
 	| { type: 'done' }
@@ -118,6 +124,8 @@ export interface StoredMessage {
 	role: 'user' | 'assistant';
 	/** JSON des blocs de contenu (ou simple texte). */
 	content: string;
+	/** Instant d'écriture (ISO), quand la lecture l'a demandé : sert aux repères d'heure de la conversation. */
+	at?: string;
 }
 
 interface Block {
@@ -150,9 +158,9 @@ const resultText = (content: unknown): string => {
 };
 
 export type DisplayItem =
-	| { kind: 'user'; key: string; text: string; images: number[] }
-	| { kind: 'assistant'; key: string; text: string }
-	| { kind: 'action'; key: string; id: string; name: string; label: string; status: ActionStatus; detail: string };
+	| { kind: 'user'; key: string; text: string; images: number[]; at?: string }
+	| { kind: 'assistant'; key: string; text: string; at?: string }
+	| { kind: 'action'; key: string; id: string; name: string; label: string; status: ActionStatus; detail: string; at?: string };
 
 /** Ce que l'écran affiche : les textes échangés et les actions proposées (avec leur issue). */
 export function toDisplay(rows: StoredMessage[]): DisplayItem[] {
@@ -170,20 +178,20 @@ export function toDisplay(rows: StoredMessage[]): DisplayItem[] {
 			const texts = blocks.filter((b) => b.type === 'text');
 			const last = texts[texts.length - 1];
 			const images = blocks.filter((b) => b.type === 'x_image' && typeof b.attachment_id === 'number').map((b) => b.attachment_id!);
-			if (last?.text) items.push({ kind: 'user', key: `m${row.id}`, text: last.text, images });
+			if (last?.text) items.push({ kind: 'user', key: `m${row.id}`, text: last.text, images, at: row.at });
 			continue;
 		}
 		const text = blocks
 			.filter((b) => b.type === 'text' && b.text)
 			.map((b) => b.text)
 			.join('');
-		if (text.trim()) items.push({ kind: 'assistant', key: `m${row.id}`, text });
+		if (text.trim()) items.push({ kind: 'assistant', key: `m${row.id}`, text, at: row.at });
 		for (const b of blocks) {
 			if (b.type !== 'tool_use' || !b.id || !b.name || !isWriteTool(b.name)) continue;
 			const result = results.get(b.id);
 			const detail = result ? resultText(result.content) : '';
 			const status: ActionStatus = !result ? 'pending' : detail === REFUSED_TEXT ? 'refused' : result.is_error ? 'error' : 'done';
-			items.push({ kind: 'action', key: `a${b.id}`, id: b.id, name: b.name, label: describeAction(b.name, b.input ?? {}), status, detail });
+			items.push({ kind: 'action', key: `a${b.id}`, id: b.id, name: b.name, label: describeAction(b.name, b.input ?? {}), status, detail, at: row.at });
 		}
 	}
 	return items;
@@ -196,6 +204,118 @@ export function pendingActions(rows: StoredMessage[]): PendingAction[] {
 	return parseBlocks(last.content)
 		.filter((b) => b.type === 'tool_use' && b.id && b.name && isWriteTool(b.name))
 		.map((b) => ({ id: b.id!, name: b.name!, label: describeAction(b.name!, b.input ?? {}), input: b.input ?? {} }));
+}
+
+// --- Affichage de la conversation ------------------------------------------------------------
+
+const plural = (n: number, one: string, many: string) => (n > 1 ? many : one);
+
+/** Ce que l'écran dit pendant qu'un outil de lecture tourne. */
+export function describeRead(name: string, input: Record<string, unknown>): string {
+	if (name === 'historique_parametre') {
+		const parameter = str(input.parametre);
+		return parameter ? `Je relis l’historique (${parameter})…` : 'Je relis l’historique des mesures…';
+	}
+	return 'Je regarde ton bac…';
+}
+
+/** Une ligne de la conversation : un message, une action, ou un repère d'heure entre deux échanges éloignés. */
+export type ChatEntry = DisplayItem | { kind: 'time'; key: string; label: string };
+
+const clock = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE });
+
+/** « Aujourd’hui 14:32 », « Hier 09:10 », « lundi 18:05 », « 3 nov. 18:05 » (heure de Paris). */
+export function timeMarkLabel(iso: string, now: number = Date.now()): string {
+	const age = daysBetween(dayInParis(iso), dayInParis(now));
+	if (age <= 0) return `Aujourd’hui ${clock(iso)}`;
+	if (age === 1) return `Hier ${clock(iso)}`;
+	const sameYear = dayInParis(iso).slice(0, 4) === dayInParis(now).slice(0, 4);
+	const format: Intl.DateTimeFormatOptions = age < 7 ? { weekday: 'long' } : sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' };
+	return `${new Date(iso).toLocaleDateString('fr-FR', { ...format, timeZone: TIMEZONE })} ${clock(iso)}`;
+}
+
+/** Quand une conversation a été active, pour la liste : l'heure aujourd'hui, puis « Hier », le jour, la date. */
+export function threadWhen(iso: string, now: number = Date.now()): string {
+	const age = daysBetween(dayInParis(iso), dayInParis(now));
+	if (age <= 0) return clock(iso);
+	if (age === 1) return 'Hier';
+	if (age < 7) return new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', timeZone: TIMEZONE });
+	const sameYear = dayInParis(iso).slice(0, 4) === dayInParis(now).slice(0, 4);
+	return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }), timeZone: TIMEZONE });
+}
+
+/** Écart à partir duquel un nouveau repère d'heure est posé dans la conversation. */
+export const TIME_GAP_MS = 60 * 60_000;
+
+/**
+ * Intercale un repère d'heure au début de la conversation et chaque fois que deux messages sont séparés
+ * d'une heure ou plus, comme Messages. Les éléments sans heure (affichés pendant le flux) n'en reçoivent pas.
+ */
+export function withTimeMarks(items: DisplayItem[], now: number = Date.now(), gap: number = TIME_GAP_MS): ChatEntry[] {
+	const out: ChatEntry[] = [];
+	let previous: number | null = null;
+	for (const item of items) {
+		const at = item.at ? Date.parse(item.at) : NaN;
+		if (!Number.isNaN(at)) {
+			if (previous === null || at - previous >= gap) out.push({ kind: 'time', key: `t${item.key}`, label: timeMarkLabel(item.at!, now) });
+			previous = at;
+		}
+		out.push(item);
+	}
+	return out;
+}
+
+export type SuggestionIcon = 'alert' | 'today' | 'cycle' | 'flask' | 'chart' | 'bacs';
+
+export interface PromptSuggestion {
+	/** Texte court de la puce. */
+	label: string;
+	/** Message envoyé à l'assistant quand on la touche. */
+	prompt: string;
+	icon: SuggestionIcon;
+}
+
+export interface SuggestionInput {
+	/** Paramètres en alerte (hors plage ou en dérive), déjà en noms simples : « Nitrates », « pH ». */
+	alerts: string[];
+	/** Tâches à faire maintenant. */
+	due: number;
+	/** Le bac est en cyclage. */
+	cycling: boolean;
+	/** Au moins une mesure a été saisie. */
+	measured: boolean;
+}
+
+/** Trois propositions de première question, tirées de l'état du bac : une alerte, le cyclage, les tâches, sinon des classiques. */
+export function suggestPrompts(input: SuggestionInput): PromptSuggestion[] {
+	const out: PromptSuggestion[] = [];
+	if (input.alerts.length === 1) {
+		out.push({ icon: 'alert', label: `${input.alerts[0]} à regarder`, prompt: `J’ai une alerte sur ${input.alerts[0]}. Qu’est-ce que je dois faire ?` });
+	} else if (input.alerts.length > 1) {
+		out.push({ icon: 'alert', label: `${input.alerts.length} valeurs à regarder`, prompt: `J’ai plusieurs alertes (${input.alerts.slice(0, 3).join(', ')}). Par quoi commencer ?` });
+	}
+	if (input.cycling) out.push({ icon: 'cycle', label: 'Où en est le cyclage ?', prompt: 'Où en est le cyclage de mon bac ? Quand pourrai-je ajouter des poissons ?' });
+	if (input.due > 0) out.push({ icon: 'today', label: 'Que faire aujourd’hui ?', prompt: 'Que dois-je faire aujourd’hui sur ce bac ?' });
+	if (!input.measured) out.push({ icon: 'flask', label: 'Quelles mesures faire ?', prompt: 'Quelles mesures devrais-je faire en premier sur ce bac ?' });
+	const classics: PromptSuggestion[] = [
+		{ icon: 'bacs', label: 'Où en est mon bac ?', prompt: 'Où en est mon bac ?' },
+		...(input.measured ? [{ icon: 'chart', label: 'Mes valeurs sont bonnes ?', prompt: 'Mes valeurs sont-elles correctes ?' } satisfies PromptSuggestion] : []),
+		{ icon: 'today', label: 'Que faire cette semaine ?', prompt: 'Que dois-je faire cette semaine ?' }
+	];
+	for (const suggestion of classics) if (out.length < 3 && !out.some((o) => o.icon === suggestion.icon)) out.push(suggestion);
+	return out.slice(0, 3);
+}
+
+/** Titre et texte de l'alerte de confirmation avant de supprimer une ou plusieurs conversations. */
+export function describeDeletion(threads: Pick<ThreadSummary, 'title' | 'preview' | 'images'>[]): { title: string; message: string } {
+	const photos = threads.reduce((sum, t) => sum + t.images, 0);
+	const withPhotos = photos > 0 ? `, avec ${photos} ${plural(photos, 'photo', 'photos')}` : '';
+	const kept = photos > 0 ? ' Les photos déjà ajoutées à la galerie du bac restent.' : '';
+	if (threads.length === 1) {
+		const label = threadLabel(threads[0]);
+		return { title: 'Supprimer cette conversation ?', message: `« ${label.length > 40 ? `${label.slice(0, 39).trimEnd()}…` : label} » sera supprimée définitivement${withPhotos}.${kept}` };
+	}
+	return { title: `Supprimer ${threads.length} conversations ?`, message: `Ces ${threads.length} conversations seront supprimées définitivement${withPhotos}.${kept}` };
 }
 
 // --- Contexte du bac -----------------------------------------------------------------------

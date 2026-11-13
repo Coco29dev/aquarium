@@ -16,6 +16,8 @@
 		large?: boolean;
 		leading?: Snippet;
 		trailing?: Snippet;
+		/** Remplace le titre centré de la barre compacte (écran de détail à titre interactif, avec sous-titre). */
+		center?: Snippet;
 		/** Sous le grand titre : recherche, contrôle segmenté… */
 		children?: Snippet;
 		/** Couleur de fond derrière le grand titre (bandeau d'un bac). */
@@ -23,7 +25,7 @@
 		/** Petite ligne au-dessus du grand titre (date, contexte), façon Forme ou News. */
 		kicker?: string;
 	}
-	let { title, back, large = true, leading, trailing, children, tone, kicker }: Props = $props();
+	let { title, back, large = true, leading, trailing, center, children, tone, kicker }: Props = $props();
 
 	// Retour : vers l'écran réellement précédent quand il existe, sinon vers le lien de repli.
 	const previous = $derived.by(() => {
@@ -86,12 +88,16 @@
 			{/if}
 			{#if leading}{@render leading()}{/if}
 		</div>
-		<p
-			class="headline max-w-[56vw] truncate text-center transition-opacity duration-200 {collapsed || !large ? 'opacity-100' : 'opacity-0'}"
-			aria-hidden={large}
-		>
-			{title}
-		</p>
+		{#if center && !large}
+			{@render center()}
+		{:else}
+			<p
+				class="headline max-w-[56vw] truncate text-center transition-opacity duration-200 {collapsed || !large ? 'opacity-100' : 'opacity-0'}"
+				aria-hidden={large}
+			>
+				{title}
+			</p>
+		{/if}
 		<div class="flex items-center justify-end gap-1 pr-1">
 			{#if trailing}{@render trailing()}{/if}
 		</div>

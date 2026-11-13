@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import pg from 'pg';
 
 const PASSWORD = 'e2e-secret';
 
@@ -229,4 +230,93 @@ test('la bulle de l’assistant ne double pas les accès déjà présents', asyn
 	await expect(bubble).toHaveCount(0);
 	await page.goto('/reglages');
 	await expect(bubble).toHaveCount(0);
+});
+
+test('assistant : conversations retrouvées, renommées et supprimées avec leurs photos', async ({ page }) => {
+	await login(page);
+	await page.evaluate(() => localStorage.setItem('onboarded', '1'));
+	const res = await page.request.post('/api/aquariums', {
+		headers: { origin: 'http://localhost:5188' },
+		data: { name: 'Salon', waterType: 'plantee', volumeL: 240, startedOn: day(-60), stage: 'actif', tasks: [], measurements: [], inhabitants: [], projectItems: [] }
+	});
+	const { id: tankId } = await res.json();
+
+	// Deux conversations posées directement en base : pas d'appel à Claude. La première porte une photo.
+	const raw = process.env.E2E_DATABASE_URL ?? 'postgres:///aquarium_e2e';
+	const db = new pg.Client({ connectionString: raw.startsWith('postgres:///') ? raw.replace('postgres:///', 'postgres://localhost/') : raw });
+	await db.connect();
+	const thread = async (title: string | null, question: string, answer: string, photo = false) => {
+		const { rows } = await db.query('INSERT INTO chat_threads (aquarium_id, title) VALUES ($1, $2) RETURNING id', [tankId, title]);
+		const id: number = rows[0].id;
+		const blocks: unknown[] = [{ type: 'text', text: '[Contexte du bac]' }, { type: 'text', text: question }];
+		if (photo) {
+			const { rows: a } = await db.query(
+				`INSERT INTO chat_attachments (aquarium_id, thread_id, storage_key, content_type, bytes) VALUES ($1, $2, $3, 'image/png', 10) RETURNING id`,
+				[tankId, id, `chat/${tankId}/e2e-${id}.png`]
+			);
+			blocks.unshift({ type: 'x_image', attachment_id: a[0].id });
+		}
+		await db.query(`INSERT INTO chat_messages (aquarium_id, thread_id, role, content) VALUES ($1, $2, 'user', $3), ($1, $2, 'assistant', $4)`, [
+			tankId,
+			id,
+			JSON.stringify(blocks),
+			JSON.stringify([{ type: 'text', text: answer }])
+		]);
+		return id;
+	};
+	const plants = await thread('Plantes qui jaunissent', 'Mes plantes jaunissent', 'Regarde le fer et les nitrates.', true);
+	const cycle = await thread('Cyclage du bac', 'Combien de temps pour le cyclage ?', 'Compte quatre à six semaines.');
+
+	try {
+		await page.goto(`/assistant?c=${plants}`);
+		await expect(page.getByText('Regarde le fer et les nitrates.')).toBeVisible();
+		// Le titre de l'en-tête ouvre la liste : les deux conversations y sont, avec le bac et les photos.
+		await page.getByRole('button', { name: /^Conversations\./ }).click();
+		// Le nom de la feuille change avec le mode (« Conversations », « Sélectionner »…) : on la reconnaît à son champ de recherche.
+		const list = page.getByRole('dialog').filter({ has: page.getByPlaceholder('Rechercher une conversation') });
+		await expect(list.getByRole('button', { name: /Plantes qui jaunissent.*1 photo/ })).toBeVisible();
+		await expect(list.getByRole('button', { name: /Cyclage du bac/ })).toBeVisible();
+		// Recherche tolérante aux accents et aux majuscules.
+		await list.getByPlaceholder('Rechercher une conversation').fill('CYCLAGE');
+		await expect(list.getByRole('button', { name: /Plantes qui jaunissent/ })).toHaveCount(0);
+		await list.getByPlaceholder('Rechercher une conversation').fill('');
+		// Reprendre une autre conversation sans quitter l'écran.
+		await list.getByRole('button', { name: /Cyclage du bac/ }).click();
+		await expect(page.getByText('Compte quatre à six semaines.')).toBeVisible();
+		await expect(page).toHaveURL(new RegExp(`c=${cycle}$`));
+
+		// Renommer depuis le menu de la conversation.
+		await page.getByRole('button', { name: 'Options de la conversation' }).click();
+		await page.getByRole('dialog', { name: 'Conversation' }).getByRole('button', { name: 'Renommer' }).click();
+		await page.getByLabel('Titre de la conversation').fill('Quatre semaines de cyclage');
+		await page.getByRole('button', { name: 'Enregistrer' }).click();
+		await expect(page.getByRole('button', { name: /^Conversations\. Quatre semaines de cyclage/ })).toBeVisible();
+
+		// Sélection : l'alerte dit ce qui part, la suppression retire la conversation, ses photos et ses lignes.
+		await page.getByRole('button', { name: /^Conversations\./ }).click();
+		await list.getByRole('button', { name: 'Sélectionner' }).click();
+		await list.getByRole('button', { name: /Plantes qui jaunissent/ }).click();
+		await list.getByRole('button', { name: 'Supprimer (1)' }).click();
+		const alert = page.getByRole('alertdialog');
+		await expect(alert).toContainText('avec 1 photo');
+		await expect(alert).toContainText('galerie du bac');
+		await alert.getByRole('button', { name: 'Supprimer' }).click();
+		await expect(list.getByRole('button', { name: /Plantes qui jaunissent/ })).toHaveCount(0);
+		expect((await db.query('SELECT count(*)::int AS n FROM chat_threads WHERE id = $1', [plants])).rows[0].n).toBe(0);
+		expect((await db.query('SELECT count(*)::int AS n FROM chat_attachments WHERE thread_id = $1', [plants])).rows[0].n).toBe(0);
+		expect((await db.query('SELECT count(*)::int AS n FROM chat_messages WHERE thread_id = $1', [plants])).rows[0].n).toBe(0);
+		// Les autres conversations ne sont pas touchées.
+		expect((await db.query('SELECT count(*)::int AS n FROM chat_threads WHERE id = $1', [cycle])).rows[0].n).toBe(1);
+		await list.getByRole('button', { name: 'Fermer' }).click();
+
+		// Supprimer la conversation affichée : retour à un écran vierge, qui propose d'en reprendre une autre.
+		await page.getByRole('button', { name: 'Options de la conversation' }).click();
+		await page.getByRole('dialog', { name: 'Conversation' }).getByRole('button', { name: 'Supprimer la conversation' }).click();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Supprimer' }).click();
+		await expect(page.getByText('Pour commencer')).toBeVisible();
+		await expect(page).toHaveURL(/\/assistant$/);
+		expect((await db.query('SELECT count(*)::int AS n FROM chat_threads WHERE aquarium_id = $1', [tankId])).rows[0].n).toBe(0);
+	} finally {
+		await db.end();
+	}
 });

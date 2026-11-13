@@ -3,11 +3,12 @@ import { shrinkImage } from './image';
 
 /**
  * Appelle une route de l'assistant qui répond en flux d'événements (SSE) et transmet chaque
- * événement à `onEvent`. Lève une Error si la requête est refusée avant le flux.
+ * événement à `onEvent`. Lève une Error si la requête est refusée avant le flux. Avec `signal`, on peut
+ * quitter l'écoute (changement de conversation) : le serveur termine son travail et l'écrit dans l'historique.
  */
-export async function streamAssistant(url: string, body: unknown, onEvent: (event: AssistantEvent) => void): Promise<void> {
+export async function streamAssistant(url: string, body: unknown, onEvent: (event: AssistantEvent) => void, signal?: AbortSignal): Promise<void> {
 	if (!navigator.onLine) throw new Error('Connexion requise.');
-	const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+	const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
 	if (response.status === 401) {
 		location.href = '/login';
 		throw new Error('Session expirée');

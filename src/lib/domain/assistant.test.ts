@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { REFUSED_TEXT, buildContext, describeAction, firstUserText, groupByRecency, isWriteTool, pendingActions, threadLabel, toDisplay, type StoredMessage, type ThreadSummary } from './assistant';
-import { renderMarkdown } from './markdown';
+import {
+	REFUSED_TEXT,
+	buildContext,
+	describeAction,
+	describeDeletion,
+	describeRead,
+	firstUserText,
+	groupByRecency,
+	isWriteTool,
+	pendingActions,
+	suggestPrompts,
+	threadLabel,
+	threadWhen,
+	timeMarkLabel,
+	toDisplay,
+	withTimeMarks,
+	type DisplayItem,
+	type StoredMessage,
+	type ThreadSummary
+} from './assistant';
+import { frenchSpaces, renderMarkdown } from './markdown';
 import type { Aquarium, Measurement, Parameter, Task } from '../types';
 
 const NOW = Date.parse('2026-10-31T12:00:00Z');
@@ -99,8 +118,19 @@ describe('markdown', () => {
 		expect(renderMarkdown('<img src=x onerror=alert(1)>')).not.toContain('<img');
 	});
 	it('met en forme gras, listes et paragraphes', () => {
-		expect(renderMarkdown('**Attention** : test\n\n- un\n- deux')).toBe('<p><strong>Attention</strong> : test</p><ul><li>un</li><li>deux</li></ul>');
+		expect(renderMarkdown('**Attention** : test\n\n- un\n- deux')).toBe('<p><strong>Attention</strong>\u00a0: test</p><ul><li>un</li><li>deux</li></ul>');
 		expect(renderMarkdown('1. a\n2. b')).toBe('<ol><li>a</li><li>b</li></ol>');
+	});
+});
+
+describe('typographie française', () => {
+	it('lie la ponctuation haute au mot qui la précède', () => {
+		expect(frenchSpaces('Quel bac ? Oui : voilà !')).toBe('Quel bac\u00a0? Oui\u00a0: voilà\u00a0!');
+		expect(frenchSpaces('« bonjour »')).toBe('«\u00a0bonjour\u00a0»');
+	});
+
+	it('s’applique au texte rendu, sans toucher aux balises', () => {
+		expect(renderMarkdown('**Attention** : nitrates ?')).toBe('<p><strong>Attention</strong>\u00a0: nitrates\u00a0?</p>');
 	});
 });
 
@@ -128,7 +158,7 @@ describe('photos dans la conversation', () => {
 });
 
 describe('conversations', () => {
-	const t = (id: number, updatedAt: string, title: string | null = null, preview = ''): ThreadSummary => ({ id, aquariumId: 1, title, preview, updatedAt });
+	const t = (id: number, updatedAt: string, title: string | null = null, preview = '', images = 0): ThreadSummary => ({ id, aquariumId: 1, title, preview, updatedAt, messages: 2, images });
 	const now = Date.parse('2026-10-31T12:00:00Z');
 
 	it('range les conversations par ancienneté, les plus récentes d’abord', () => {
@@ -148,5 +178,112 @@ describe('conversations', () => {
 		expect(threadLabel(t(1, '', 'Nitrates en hausse', 'blabla'))).toBe('Nitrates en hausse');
 		expect(threadLabel(t(1, '', null, 'Mes nitrates montent, que faire ?'))).toBe('Mes nitrates montent, que faire ?');
 		expect(threadLabel(t(1, '', '  ', ''))).toBe('Nouvelle conversation');
+	});
+});
+
+describe('repères d’heure', () => {
+	// 31 octobre 2026, 13 h à Paris (CET, UTC+1 depuis le 25 octobre).
+	const now = Date.parse('2026-10-31T12:00:00Z');
+	const said = (key: string, at?: string): DisplayItem => ({ kind: 'assistant', key, text: 'x', at });
+
+	it('dit le jour à la manière de Messages, à l’heure de Paris', () => {
+		expect(timeMarkLabel('2026-10-31T08:32:00Z', now)).toBe('Aujourd’hui 09:32');
+		expect(timeMarkLabel('2026-10-30T17:05:00Z', now)).toBe('Hier 18:05');
+		expect(timeMarkLabel('2026-10-28T08:10:00Z', now)).toBe('mercredi 09:10');
+		expect(timeMarkLabel('2026-10-03T08:10:00Z', now)).toBe('3 oct. 10:10');
+		expect(timeMarkLabel('2025-12-24T08:10:00Z', now)).toBe('24 déc. 2025 09:10');
+	});
+
+	it('résume la date d’une conversation pour la liste', () => {
+		expect(threadWhen('2026-10-31T08:32:00Z', now)).toBe('09:32');
+		expect(threadWhen('2026-10-30T17:05:00Z', now)).toBe('Hier');
+		expect(threadWhen('2026-10-28T08:10:00Z', now)).toBe('mercredi');
+		expect(threadWhen('2026-10-03T08:10:00Z', now)).toBe('3 oct.');
+		expect(threadWhen('2025-12-24T08:10:00Z', now)).toBe('24 déc. 2025');
+	});
+
+	it('pose un repère au début, puis après une heure de silence seulement', () => {
+		const entries = withTimeMarks([said('a', '2026-10-31T08:00:00Z'), said('b', '2026-10-31T08:20:00Z'), said('c', '2026-10-31T10:00:00Z')], now);
+		expect(entries.map((e) => e.kind)).toEqual(['time', 'assistant', 'assistant', 'time', 'assistant']);
+	});
+
+	it('ne repère pas ce qui n’a pas d’heure (message en cours de flux)', () => {
+		const entries = withTimeMarks([said('a', '2026-10-31T08:00:00Z'), said('live')], now);
+		expect(entries.map((e) => e.kind)).toEqual(['time', 'assistant', 'assistant']);
+		expect(withTimeMarks([said('live')], now).map((e) => e.kind)).toEqual(['assistant']);
+	});
+
+	it('transmet l’heure des lignes de la base à l’affichage', () => {
+		const items = toDisplay([{ ...row(1, 'user', [{ type: 'text', text: 'ctx' }, { type: 'text', text: 'Salut' }]), at: '2026-10-31T08:00:00Z' }]);
+		expect(items[0]).toMatchObject({ at: '2026-10-31T08:00:00Z' });
+	});
+});
+
+describe('propositions de première question', () => {
+	it('met l’alerte en tête, puis complète avec des classiques jusqu’à trois', () => {
+		const out = suggestPrompts({ alerts: ['Nitrates'], due: 0, cycling: false, measured: true });
+		expect(out).toHaveLength(3);
+		expect(out[0]).toMatchObject({ icon: 'alert', label: 'Nitrates à regarder' });
+		expect(out[0].prompt).toContain('Nitrates');
+	});
+
+	it('résume plusieurs alertes en une seule proposition', () => {
+		const out = suggestPrompts({ alerts: ['Nitrates', 'pH', 'KH', 'GH'], due: 0, cycling: false, measured: true });
+		expect(out[0].label).toBe('4 valeurs à regarder');
+		expect(out[0].prompt).toContain('Nitrates, pH, KH');
+		expect(out[0].prompt).not.toContain('GH');
+	});
+
+	it('parle de cyclage et de tâches quand c’est le cas', () => {
+		const icons = suggestPrompts({ alerts: [], due: 2, cycling: true, measured: true }).map((s) => s.icon);
+		expect(icons.slice(0, 2)).toEqual(['cycle', 'today']);
+	});
+
+	it('invite à mesurer un bac sans mesure, sans parler de valeurs à juger', () => {
+		const out = suggestPrompts({ alerts: [], due: 0, cycling: false, measured: false });
+		expect(out[0].icon).toBe('flask');
+		expect(out.some((s) => s.icon === 'chart')).toBe(false);
+	});
+
+	it('ne propose jamais deux fois la même chose', () => {
+		const out = suggestPrompts({ alerts: [], due: 1, cycling: false, measured: true });
+		expect(new Set(out.map((s) => s.icon)).size).toBe(out.length);
+	});
+});
+
+describe('suppression de conversations', () => {
+	const thread = (title: string | null, images: number) => ({ title, preview: '', images });
+
+	it('nomme la conversation et prévient pour les photos', () => {
+		const one = describeDeletion([thread('Nitrates en hausse', 3)]);
+		expect(one.title).toBe('Supprimer cette conversation ?');
+		expect(one.message).toContain('« Nitrates en hausse »');
+		expect(one.message).toContain('avec 3 photos');
+		expect(one.message).toContain('galerie du bac');
+	});
+
+	it('reste simple sans photo et accorde le singulier', () => {
+		expect(describeDeletion([thread('Salut', 0)]).message).not.toContain('photo');
+		expect(describeDeletion([thread('Salut', 1)]).message).toContain('avec 1 photo.');
+	});
+
+	it('compte les conversations et les photos d’une sélection', () => {
+		const many = describeDeletion([thread('A', 2), thread('B', 0), thread(null, 1)]);
+		expect(many.title).toBe('Supprimer 3 conversations ?');
+		expect(many.message).toContain('avec 3 photos');
+	});
+
+	it('raccourcit un très long titre dans le message', () => {
+		const message = describeDeletion([thread('x'.repeat(80), 0)]).message;
+		expect(message.length).toBeLessThan(120);
+		expect(message).toContain('…');
+	});
+});
+
+describe('texte d’attente', () => {
+	it('dit quel historique est relu', () => {
+		expect(describeRead('historique_parametre', { parametre: 'nitrates' })).toContain('nitrates');
+		expect(describeRead('historique_parametre', {})).toContain('mesures');
+		expect(describeRead('autre', {})).toBe('Je regarde ton bac…');
 	});
 });

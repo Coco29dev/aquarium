@@ -16,6 +16,7 @@ import {
 	REFUSED_TEXT,
 	buildContext,
 	describeAction,
+	describeRead,
 	firstUserText,
 	isWriteTool,
 	parseBlocks,
@@ -123,7 +124,11 @@ const client = (): Anthropic => (anthropic ??= new Anthropic({ apiKey: env.ANTHR
 // --- Stockage ------------------------------------------------------------------------------
 
 async function loadRows(threadId: number): Promise<StoredMessage[]> {
-	const { rows } = await db().query<StoredMessage>('SELECT id, role, content FROM chat_messages WHERE thread_id = $1 ORDER BY id', [threadId]);
+	const { rows } = await db().query<StoredMessage>(
+		`SELECT id, role, content, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at
+		 FROM chat_messages WHERE thread_id = $1 ORDER BY id`,
+		[threadId]
+	);
 	return rows;
 }
 
@@ -220,15 +225,29 @@ export async function listThreads(aquariumId?: number): Promise<ThreadSummary[]>
 		[aquariumId ?? null]
 	);
 	if (!rows.length) return [];
+	const ids = rows.map((r) => r.id);
 	// Premier message de chaque conversation, pour l'aperçu des conversations sans titre.
 	const { rows: firsts } = await db().query<StoredMessage & { threadId: number }>(
 		`SELECT DISTINCT ON (thread_id) thread_id AS "threadId", id, role, content FROM chat_messages
 		 WHERE thread_id = ANY($1::int[]) AND role = 'user' AND content NOT LIKE '%"type":"tool_result"%'
 		 ORDER BY thread_id, id`,
-		[rows.map((r) => r.id)]
+		[ids]
 	);
 	const previews = new Map(firsts.map((f) => [f.threadId, firstUserText([f])]));
-	return rows.map((r) => ({ ...r, preview: previews.get(r.id) ?? '' }));
+	// Messages de l'utilisateur (les résultats d'outils n'en sont pas) et photos de chaque conversation.
+	const { rows: sent } = await db().query<{ threadId: number; n: string }>(
+		`SELECT thread_id AS "threadId", count(*) AS n FROM chat_messages
+		 WHERE thread_id = ANY($1::int[]) AND role = 'user' AND content NOT LIKE '%"type":"tool_result"%'
+		 GROUP BY thread_id`,
+		[ids]
+	);
+	const { rows: photos } = await db().query<{ threadId: number; n: string }>(
+		'SELECT thread_id AS "threadId", count(*) AS n FROM chat_attachments WHERE thread_id = ANY($1::int[]) GROUP BY thread_id',
+		[ids]
+	);
+	const messages = new Map(sent.map((r) => [r.threadId, Number(r.n)]));
+	const images = new Map(photos.map((r) => [r.threadId, Number(r.n)]));
+	return rows.map((r) => ({ ...r, preview: previews.get(r.id) ?? '', messages: messages.get(r.id) ?? 0, images: images.get(r.id) ?? 0 }));
 }
 
 export async function renameThread(id: number, title: unknown): Promise<void> {
@@ -237,12 +256,59 @@ export async function renameThread(id: number, title: unknown): Promise<void> {
 	if (!rowCount) error(404, 'Conversation introuvable');
 }
 
+/**
+ * Supprime une conversation : ses photos dans le stockage d'abord, puis la conversation (messages et lignes
+ * de photos partent avec elle). Dans cet ordre, un échec du stockage laisse tout en place et la suppression
+ * peut être relancée ; l'inverse laisserait des fichiers sans plus aucune ligne pour les retrouver.
+ * Les copies déjà envoyées dans la galerie du bac (« Ajouter aux photos du bac ») sont des fichiers à part : elles restent.
+ */
+async function purgeThread(id: number): Promise<'deleted' | 'missing'> {
+	// Le temps de la suppression, plus aucun message ne peut être envoyé dans cette conversation.
+	busy.add(id);
+	try {
+		const { rows } = await db().query<{ storage_key: string }>('SELECT storage_key FROM chat_attachments WHERE thread_id = $1', [id]);
+		const results = await Promise.allSettled(rows.map((r) => deleteObject(r.storage_key)));
+		const failed = results.filter((r) => r.status === 'rejected');
+		if (failed.length) {
+			console.error('[assistant] suppression de photos', failed.map((f) => (f as PromiseRejectedResult).reason?.message ?? f));
+			error(502, 'Certaines photos n’ont pas pu être supprimées : la conversation est conservée, réessaie dans un instant.');
+		}
+		const { rowCount } = await db().query('DELETE FROM chat_threads WHERE id = $1', [id]);
+		return rowCount ? 'deleted' : 'missing';
+	} finally {
+		busy.delete(id);
+	}
+}
+
 export async function deleteThread(id: number): Promise<void> {
 	if (busy.has(id)) error(409, 'Une réponse est en cours : réessaie dans un instant.');
-	const { rows } = await db().query<{ storage_key: string }>('SELECT storage_key FROM chat_attachments WHERE thread_id = $1', [id]);
-	const { rowCount } = await db().query('DELETE FROM chat_threads WHERE id = $1', [id]);
-	if (!rowCount) error(404, 'Conversation introuvable');
-	await Promise.allSettled(rows.map((r) => deleteObject(r.storage_key)));
+	if ((await purgeThread(id)) === 'missing') error(404, 'Conversation introuvable');
+}
+
+export interface DeleteReport {
+	deleted: number[];
+	/** Conversations gardées : réponse en cours ou photos impossibles à supprimer. */
+	kept: number[];
+}
+
+/** Supprime plusieurs conversations (sélection de l'historique) ; chacune réussit ou échoue seule. */
+export async function deleteThreads(ids: unknown): Promise<DeleteReport> {
+	if (!Array.isArray(ids) || !ids.length || ids.length > 200 || !ids.every((v) => Number.isInteger(v))) error(400, 'Champ invalide : ids');
+	const report: DeleteReport = { deleted: [], kept: [] };
+	for (const id of [...new Set(ids as number[])]) {
+		if (busy.has(id)) {
+			report.kept.push(id);
+			continue;
+		}
+		try {
+			// Une conversation déjà disparue compte comme supprimée : le résultat voulu est atteint.
+			await purgeThread(id);
+			report.deleted.push(id);
+		} catch {
+			report.kept.push(id);
+		}
+	}
+	return report;
 }
 
 // --- Photos --------------------------------------------------------------------------------
@@ -404,6 +470,7 @@ async function answerToolUses(thread: Thread, aquarium: { id: number; name: stri
 		if (block.type !== 'tool_use' || !block.id || !block.name) continue;
 		let outcome: ToolOutcome;
 		if (!isWriteTool(block.name)) {
+			send({ type: 'status', text: describeRead(block.name, asRecord(block.input)) });
 			outcome = await safeRunTool(block.name, block.input, aquarium);
 		} else if (approved.has(block.id)) {
 			outcome = await safeRunTool(block.name, block.input, aquarium);

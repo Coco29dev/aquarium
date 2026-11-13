@@ -3,8 +3,11 @@
 
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** Espace insécable avant « ? ! : ; » et dans les guillemets français : un point d'interrogation ne passe jamais seul à la ligne. */
+export const frenchSpaces = (text: string): string => text.replace(/ ([?!:;»])/g, '\u00a0$1').replace(/(«) /g, '$1\u00a0');
+
 const inline = (text: string) =>
-	escapeHtml(text)
+	frenchSpaces(escapeHtml(text))
 		.replace(/`([^`]+)`/g, '<code>$1</code>')
 		.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
